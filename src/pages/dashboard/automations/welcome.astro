@@ -1,0 +1,321 @@
+---
+import LayoutSidebar from '../../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../../db/index.js';
+import { eq, desc } from 'drizzle-orm';
+import { getActiveInstagramAccount } from '../../../services/instagram.js';
+import { url } from '../../../lib/data.js';
+
+export const prerender = false;
+
+const db = getDb();
+let settings: schema.AutomationSetting | null = null;
+let welcomeLogs: schema.MessageLog[] = [];
+const account = await getActiveInstagramAccount();
+
+if (db) {
+	try {
+		const settingsList = await db.select().from(schema.automationSettings).limit(1);
+		settings = settingsList[0] || null;
+
+		welcomeLogs = await db
+			.select()
+			.from(schema.messageLogs)
+			.where(eq(schema.messageLogs.triggerType, 'welcome_message'))
+			.orderBy(desc(schema.messageLogs.createdAt))
+			.limit(20);
+	} catch (e: any) {
+		console.error('Error fetching welcome settings:', e.message);
+	}
+}
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6 pb-12">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path>
+						</svg>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<a
+							href={url('automations')}
+							class="ml-1 text-gray-700 hover:text-primary-600 md:ml-2 dark:text-gray-300 dark:hover:text-white"
+						>
+							Automations
+						</a>
+					</div>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page">
+							Welcome Flow
+						</span>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<!-- Header -->
+		<div class="mb-6">
+			<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+				Welcome &amp; Greeting Automation
+			</h1>
+			<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+				Configure automated greeting messages for eligible Instagram direct messaging entry points.
+			</p>
+		</div>
+
+		<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+			<!-- Configuration Form (2/3) -->
+			<div class="xl:col-span-2 space-y-6">
+				<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+					<form id="welcome-form" class="space-y-5">
+						<!-- Toggle Switch -->
+						<div class="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
+							<div>
+								<h3 class="text-base font-semibold text-gray-900 dark:text-white">
+									Welcome Message Status
+								</h3>
+								<p class="text-xs text-gray-500 dark:text-gray-400">
+									Send automated greeting when users initiate their first direct message or click Get Started.
+								</p>
+							</div>
+							<label class="relative inline-flex items-center cursor-pointer">
+								<input
+									type="checkbox"
+									id="welcome-enabled"
+									name="welcomeMessageEnabled"
+									class="sr-only peer"
+									checked={settings?.welcomeMessageEnabled || false}
+								/>
+								<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+							</label>
+						</div>
+
+						<!-- Welcome Message Text -->
+						<div>
+							<label for="welcome-text" class="block mb-2 text-xs font-medium text-gray-900 dark:text-white">
+								Welcome Message Text
+							</label>
+							<textarea
+								id="welcome-text"
+								name="welcomeMessageText"
+								rows="4"
+								required
+								placeholder="Hey {{first_name}}! Thanks for reaching out to us on Instagram. How can we help you today?"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							>{settings?.welcomeMessageText || 'Hey {{first_name}}! Thanks for reaching out. How can we help you today?'}</textarea>
+							<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+								Supported dynamic tags: <code>{"{{first_name}}"}</code>, <code>{"{{username}}"}</code>, <code>{"{{link}}"}</code>
+							</p>
+						</div>
+
+						<!-- Optional Follow-up Message -->
+						<div>
+							<label for="welcome-followup" class="block mb-2 text-xs font-medium text-gray-900 dark:text-white">
+								Optional Follow-up Message
+							</label>
+							<textarea
+								id="welcome-followup"
+								name="welcomeFollowUpText"
+								rows="2"
+								placeholder="Check out our latest links and resources below:"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							>{settings?.welcomeFollowUpText || ''}</textarea>
+						</div>
+
+						<!-- Optional Target URL / Link -->
+						<div>
+							<label for="welcome-url" class="block mb-2 text-xs font-medium text-gray-900 dark:text-white">
+								Call-to-Action Link (Optional)
+							</label>
+							<input
+								type="url"
+								id="welcome-url"
+								name="welcomeMessageUrl"
+								value={settings?.welcomeMessageUrl || ''}
+								placeholder="https://instaflow.app"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							/>
+						</div>
+
+						<!-- Save Button -->
+						<div class="pt-2">
+							<button
+								type="submit"
+								id="save-welcome-btn"
+								class="inline-flex items-center px-5 py-2.5 text-xs font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700"
+							>
+								Save Welcome Settings
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<!-- Welcome Delivery Logs -->
+				<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+					<h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
+						Recent Welcome Deliveries
+					</h3>
+					{
+						welcomeLogs.length === 0 ? (
+							<p class="text-xs text-gray-500 dark:text-gray-400 py-4 text-center">
+								No welcome messages dispatched yet. They will appear here when new users message you.
+							</p>
+						) : (
+							<div class="space-y-3">
+								{welcomeLogs.map((log) => (
+									<div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
+										<div class="flex items-center justify-between">
+											<span class="font-mono text-gray-700 dark:text-gray-300">Recipient ID: {log.senderId}</span>
+											<span class="text-green-600 dark:text-green-400 font-semibold">{log.status}</span>
+										</div>
+										<p class="text-gray-800 dark:text-gray-200">{log.sentReplyText}</p>
+										<span class="text-gray-400 text-[11px] block">{new Date(log.createdAt).toLocaleString()}</span>
+									</div>
+								))}
+							</div>
+						)
+					}
+				</div>
+			</div>
+
+			<!-- Meta Messaging Policy Notice (1/3) -->
+			<div class="xl:col-span-1 space-y-4">
+				<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+						<svg class="w-4 h-4 mr-1.5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+						</svg>
+						Meta Messaging Policy
+					</h3>
+					<div class="space-y-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+						<p>
+							Instagram Graph API strictly requires that automated direct messages adhere to Meta's supported entry points.
+						</p>
+						<p>
+							<strong>Supported Entry Points:</strong>
+						</p>
+						<ul class="list-disc list-inside space-y-1 pl-1">
+							<li>User sends a Direct Message to your account</li>
+							<li>User taps the "Get Started" postback button</li>
+							<li>User comments on an eligible Post or Reel (Private Reply)</li>
+							<li>User interacts with an Ice Breaker prompt</li>
+						</ul>
+						<p class="text-yellow-600 dark:text-yellow-400 font-medium pt-1">
+							* Note: Following an account does not automatically authorize unsolicited DMs under Meta policy.
+						</p>
+					</div>
+				</div>
+
+				<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+						Account Connection Status
+					</h3>
+					{
+						account ? (
+							<div class="text-xs space-y-1">
+								<p class="text-green-600 dark:text-green-400 font-semibold">
+									✓ Connected to @{account.username}
+								</p>
+								<p class="text-gray-500">ID: {account.instagramUserId}</p>
+							</div>
+						) : (
+							<div class="text-xs text-yellow-600 dark:text-yellow-400">
+								No Instagram account connected. <a href={url('settings/instagram')} class="underline font-semibold">Connect here</a>.
+							</div>
+						)
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script>
+	const form = document.getElementById('welcome-form') as HTMLFormElement;
+	if (form) {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const welcomeMessageEnabled = (document.getElementById('welcome-enabled') as HTMLInputElement).checked;
+			const welcomeMessageText = (document.getElementById('welcome-text') as HTMLTextAreaElement).value;
+			const welcomeFollowUpText = (document.getElementById('welcome-followup') as HTMLTextAreaElement).value;
+			const welcomeMessageUrl = (document.getElementById('welcome-url') as HTMLInputElement).value;
+
+			const submitBtn = document.getElementById('save-welcome-btn') as HTMLButtonElement;
+			if (submitBtn) {
+				submitBtn.disabled = true;
+				submitBtn.textContent = 'Saving...';
+			}
+
+			try {
+				const res = await fetch('/api/automations/welcome', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						welcomeMessageEnabled,
+						welcomeMessageText,
+						welcomeFollowUpText,
+						welcomeMessageUrl,
+					}),
+				});
+
+				if (res.ok) {
+					alert('Welcome message automation settings saved successfully!');
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					alert(data.error || 'Failed to save welcome settings');
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error');
+			} finally {
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Save Welcome Settings';
+				}
+			}
+		});
+	}
+</script>

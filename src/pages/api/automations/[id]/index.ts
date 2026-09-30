@@ -67,29 +67,47 @@ export const put: APIRoute = async ({ params, request, cookies }) => {
 
 	try {
 		const body = await request.json();
-		const { name, triggerType, keywords, matchMode, responseText, responseUrl, isActive } = body;
+		const {
+			name,
+			triggerType,
+			automationType,
+			mediaId,
+			keywords,
+			matchMode,
+			publicReply,
+			responseText,
+			responseUrl,
+			isActive,
+		} = body;
 
 		let formattedKeywords = keywords;
 		if (Array.isArray(keywords)) {
 			formattedKeywords = JSON.stringify(keywords);
-		} else if (typeof keywords === 'string' && !keywords.startsWith('[')) {
-			formattedKeywords = JSON.stringify(
-				keywords
-					.split(',')
-					.map((k) => k.trim())
-					.filter(Boolean),
-			);
+		} else if (typeof keywords === 'string') {
+			if (keywords.startsWith('[')) {
+				formattedKeywords = keywords;
+			} else {
+				formattedKeywords = JSON.stringify(
+					keywords
+						.split(',')
+						.map((k: string) => k.trim())
+						.filter(Boolean),
+				);
+			}
 		}
 
 		const [updated] = await db
 			.update(schema.automationRules)
 			.set({
-				name,
-				triggerType,
-				keywords: formattedKeywords,
-				matchMode: matchMode === 'exact' ? 'exact' : 'contains',
-				responseText,
-				responseUrl: responseUrl || null,
+				name: name !== undefined ? name : undefined,
+				triggerType: triggerType || automationType || undefined,
+				automationType: automationType || triggerType || undefined,
+				mediaId: mediaId !== undefined ? mediaId : undefined,
+				keywords: formattedKeywords !== undefined ? formattedKeywords : undefined,
+				matchMode: matchMode === 'exact' ? 'exact' : matchMode === 'any' ? 'any' : 'contains',
+				publicReply: publicReply !== undefined ? publicReply : undefined,
+				responseText: responseText !== undefined ? responseText : undefined,
+				responseUrl: responseUrl !== undefined ? responseUrl : undefined,
 				isActive: typeof isActive === 'boolean' ? isActive : undefined,
 				updatedAt: new Date(),
 			})

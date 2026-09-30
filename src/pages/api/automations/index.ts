@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getDb, schema } from '../../../db/index.js';
 import { desc } from 'drizzle-orm';
 import { isAuthorizedAdmin } from '../../../lib/auth.js';
+import { getActiveInstagramAccount } from '../../../services/instagram.js';
 
 export const prerender = false;
 
@@ -50,35 +51,62 @@ export const post: APIRoute = async ({ request, cookies }) => {
 
 	try {
 		const body = await request.json();
-		const { name, triggerType, keywords, matchMode, responseText, responseUrl, isActive } = body;
+		const {
+			name,
+			triggerType,
+			automationType,
+			mediaId,
+			keywords,
+			matchMode,
+			publicReply,
+			responseText,
+			responseUrl,
+			isActive,
+		} = body;
 
-		if (!name || !triggerType || !keywords || !responseText) {
+		if (!name || (!triggerType && !automationType) || !responseText) {
 			return new Response(
-				JSON.stringify({ error: 'Missing required fields: name, triggerType, keywords, responseText' }),
+				JSON.stringify({ error: 'Missing required fields: name, triggerType, responseText' }),
 				{ status: 400, headers: { 'Content-Type': 'application/json' } },
 			);
 		}
+
+		const resolvedTriggerType = triggerType || automationType || 'comment_to_dm';
+		const resolvedAutomationType = automationType || triggerType || 'comment_to_dm';
 
 		// Ensure keywords are saved formatted as JSON array string
 		let formattedKeywords = keywords;
 		if (Array.isArray(keywords)) {
 			formattedKeywords = JSON.stringify(keywords);
-		} else if (typeof keywords === 'string' && !keywords.startsWith('[')) {
-			formattedKeywords = JSON.stringify(
-				keywords
-					.split(',')
-					.map((k) => k.trim())
-					.filter(Boolean),
-			);
+		} else if (typeof keywords === 'string') {
+			if (keywords.startsWith('[')) {
+				formattedKeywords = keywords;
+			} else {
+				formattedKeywords = JSON.stringify(
+					keywords
+						.split(',')
+						.map((k: string) => k.trim())
+						.filter(Boolean),
+				);
+			}
+		} else {
+			formattedKeywords = JSON.stringify(['*']);
 		}
+
+		// Look up active Instagram account
+		const activeAccount = await getActiveInstagramAccount();
 
 		const [createdRule] = await db
 			.insert(schema.automationRules)
 			.values({
+				accountId: activeAccount?.id || null,
+				mediaId: mediaId || null,
 				name,
-				triggerType,
+				automationType: resolvedAutomationType,
+				triggerType: resolvedTriggerType,
 				keywords: formattedKeywords,
-				matchMode: matchMode === 'exact' ? 'exact' : 'contains',
+				matchMode: matchMode === 'exact' ? 'exact' : matchMode === 'any' ? 'any' : 'contains',
+				publicReply: publicReply || null,
 				responseText,
 				responseUrl: responseUrl || null,
 				isActive: isActive !== false,

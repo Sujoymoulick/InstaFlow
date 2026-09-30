@@ -219,9 +219,9 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
 			failedReplies: failRes?.val || 0,
 			skippedEvents: skippedRes?.val || 0,
 			activeRulesCount: rulesRes?.val || 0,
-			triggerTypeDistribution: triggerRows.map((r) => ({ type: r.type, count: Number(r.count) })),
+			triggerTypeDistribution: triggerRows.map((r: { type: string; count: any }) => ({ type: r.type, count: Number(r.count) })),
 			dailyActivity,
-			topRules: topRuleRows.map((r) => ({ ruleName: r.ruleName || 'Unnamed', count: Number(r.count) })),
+			topRules: topRuleRows.map((r: { ruleName: string | null; count: any }) => ({ ruleName: r.ruleName || 'Unnamed', count: Number(r.count) })),
 		};
 	} catch (error) {
 		console.error('Error fetching analytics:', error);

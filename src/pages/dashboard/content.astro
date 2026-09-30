@@ -1,0 +1,719 @@
+---
+import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { getActiveInstagramAccount, getInstagramMediaList, syncInstagramMedia } from '../../services/instagram.js';
+import { url } from '../../lib/data.js';
+
+export const prerender = false;
+
+const account = await getActiveInstagramAccount();
+let postsResult = { media: [] as any[], total: 0 };
+let reelsResult = { media: [] as any[], total: 0 };
+let allResult = { media: [] as any[], total: 0 };
+
+if (account) {
+	postsResult = await getInstagramMediaList({ type: 'posts', limit: 30 });
+	reelsResult = await getInstagramMediaList({ type: 'reels', limit: 30 });
+	allResult = await getInstagramMediaList({ type: 'all', limit: 60 });
+}
+
+const activeTab = Astro.url.searchParams.get('tab') || 'posts';
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6 pb-12">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path>
+						</svg>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page">
+							Content Library
+						</span>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<!-- Header -->
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+					Instagram Posts &amp; Reels Library
+				</h1>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Browse synced media, view real comments, and configure comment-to-DM triggers.
+				</p>
+			</div>
+			<div class="flex items-center space-x-3">
+				{
+					account && (
+						<button
+							type="button"
+							id="sync-media-btn"
+							class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700"
+						>
+							<svg id="sync-icon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+							</svg>
+							Sync Instagram Media
+						</button>
+					)
+				}
+				<a
+					href={url('automations/new')}
+					class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+				>
+					+ New Automation
+				</a>
+			</div>
+		</div>
+
+		{
+			!account ? (
+				<div class="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5 flex items-center justify-center">
+						<div class="w-full h-full bg-white dark:bg-gray-800 rounded-full flex items-center justify-center">
+							<svg class="w-8 h-8 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+							</svg>
+						</div>
+					</div>
+					<h3 class="text-lg font-bold text-gray-900 dark:text-white">Instagram Account Not Connected</h3>
+					<p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto mt-1 mb-5">
+						Connect your official Instagram Creator or Business account to import your posts and reels for automated replies.
+					</p>
+					<a
+						href={url('settings/instagram')}
+						class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+					>
+						Connect Instagram Account
+					</a>
+				</div>
+			) : (
+				<div>
+					<!-- Tabs Navigation -->
+					<div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+						<ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500 dark:text-gray-400">
+							<li class="mr-2">
+								<a
+									href="?tab=posts"
+									class={`inline-flex items-center p-4 border-b-2 rounded-t-lg group ${
+										activeTab === 'posts'
+											? 'text-primary-600 border-primary-600 dark:text-primary-500 dark:border-primary-500 active'
+											: 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'
+									}`}
+								>
+									<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+									</svg>
+									Posts ({postsResult.total})
+								</a>
+							</li>
+							<li class="mr-2">
+								<a
+									href="?tab=reels"
+									class={`inline-flex items-center p-4 border-b-2 rounded-t-lg group ${
+										activeTab === 'reels'
+											? 'text-primary-600 border-primary-600 dark:text-primary-500 dark:border-primary-500 active'
+											: 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'
+									}`}
+								>
+									<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+										<path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+									</svg>
+									Reels ({reelsResult.total})
+								</a>
+							</li>
+							<li>
+								<a
+									href="?tab=all"
+									class={`inline-flex items-center p-4 border-b-2 rounded-t-lg group ${
+										activeTab === 'all'
+											? 'text-primary-600 border-primary-600 dark:text-primary-500 dark:border-primary-500 active'
+											: 'border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300'
+									}`}
+								>
+									All Media ({allResult.total})
+								</a>
+							</li>
+						</ul>
+					</div>
+
+					<!-- Content Grid -->
+					{
+						(activeTab === 'posts' ? postsResult.media : activeTab === 'reels' ? reelsResult.media : allResult.media).length === 0 ? (
+							<div class="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+								<svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+								</svg>
+								<h3 class="text-base font-semibold text-gray-900 dark:text-white">No {activeTab} found</h3>
+								<p class="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-4">
+									Click the Sync button above to retrieve your latest posts and reels from Instagram Graph API.
+								</p>
+								<button
+									type="button"
+									class="sync-media-trigger-btn px-4 py-2 text-xs font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+								>
+									Sync from Meta Now
+								</button>
+							</div>
+						) : (
+							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+								{(activeTab === 'posts' ? postsResult.media : activeTab === 'reels' ? reelsResult.media : allResult.media).map((item) => {
+									const isReel = item.mediaType === 'VIDEO' || item.mediaType === 'REELS';
+									const rule = item.automationRule;
+									const isAutomated = Boolean(rule && rule.isActive);
+
+									return (
+										<div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col justify-between dark:bg-gray-800 dark:border-gray-700 transition-all hover:shadow-md">
+											<div>
+												<!-- Thumbnail / Preview -->
+												<div class="relative aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden group">
+													{item.mediaUrl || item.thumbnailUrl ? (
+														<img
+															src={item.thumbnailUrl || item.mediaUrl}
+															alt={item.caption || 'Instagram Media'}
+															class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+															loading="lazy"
+														/>
+													) : (
+														<div class="w-full h-full flex items-center justify-center text-gray-400">
+															<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+															</svg>
+														</div>
+													)}
+
+													<!-- Type Badge -->
+													<div class="absolute top-2 left-2">
+														{isReel ? (
+															<span class="bg-black/75 text-white text-xs font-semibold px-2 py-0.5 rounded-md flex items-center backdrop-blur-sm">
+																<svg class="w-3 h-3 mr-1 text-pink-400" fill="currentColor" viewBox="0 0 20 20">
+																	<path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+																</svg>
+																Reel
+															</span>
+														) : (
+															<span class="bg-black/75 text-white text-xs font-semibold px-2 py-0.5 rounded-md flex items-center backdrop-blur-sm">
+																<svg class="w-3 h-3 mr-1 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+																	<path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+																</svg>
+																Post
+															</span>
+														)}
+													</div>
+
+													<!-- Automation Status Badge -->
+													<div class="absolute top-2 right-2">
+														{isAutomated ? (
+															<span class="bg-green-500/90 text-white text-xs font-semibold px-2 py-0.5 rounded-md flex items-center shadow">
+																<span class="w-1.5 h-1.5 mr-1 bg-white rounded-full animate-pulse"></span>
+																Automated
+															</span>
+														) : rule ? (
+															<span class="bg-yellow-500/90 text-white text-xs font-semibold px-2 py-0.5 rounded-md flex items-center shadow">
+																Paused
+															</span>
+														) : null}
+													</div>
+
+													<!-- Permalink Overlay -->
+													{item.permalink && (
+														<a
+															href={item.permalink}
+															target="_blank"
+															rel="noopener noreferrer"
+															class="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded hover:bg-black transition flex items-center backdrop-blur-sm"
+															title="View on Instagram"
+														>
+															<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+															</svg>
+															IG Link
+														</a>
+													)}
+												</div>
+
+												<!-- Details Body -->
+												<div class="p-4 space-y-2">
+													<p class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2" title={item.caption || ''}>
+														{item.caption || <span class="italic text-gray-400">No caption provided</span>}
+													</p>
+
+													<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-1">
+														<span class="flex items-center">
+															<svg class="w-3.5 h-3.5 mr-1 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+																<path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"></path>
+															</svg>
+															{item.commentsCount} comments
+														</span>
+														<span>{item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Recent'}</span>
+													</div>
+
+													{rule && (
+														<div class="p-2 bg-purple-50 dark:bg-purple-950/30 rounded border border-purple-100 dark:border-purple-900 text-xs">
+															<span class="font-semibold text-purple-800 dark:text-purple-300">Active Rule:</span>
+															<span class="text-gray-700 dark:text-gray-300 ml-1">{rule.name}</span>
+														</div>
+													)}
+												</div>
+											</div>
+
+											<!-- Actions Footer -->
+											<div class="p-4 pt-0 flex items-center space-x-2">
+												<button
+													type="button"
+													class="view-comments-btn flex-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
+													data-media-id={item.mediaId}
+													data-caption={item.caption || ''}
+												>
+													View Comments
+												</button>
+
+												<button
+													type="button"
+													class="config-automation-btn flex-1 px-3 py-1.5 text-xs font-medium text-white bg-primary-700 hover:bg-primary-800 rounded-lg dark:bg-primary-600 dark:hover:bg-primary-700 transition-colors"
+													data-media-id={item.mediaId}
+													data-caption={item.caption || ''}
+													data-rule-id={rule?.id || ''}
+													data-rule-name={rule?.name || ''}
+													data-rule-keywords={rule?.keywords || ''}
+													data-rule-public-reply={rule?.publicReply || ''}
+													data-rule-response-text={rule?.responseText || ''}
+													data-rule-response-url={rule?.responseUrl || ''}
+													data-rule-active={rule ? (rule.isActive ? 'true' : 'false') : 'true'}
+												>
+													{rule ? 'Edit Auto-DM' : 'Configure DM'}
+												</button>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						)
+					}
+				</div>
+			)
+		}
+	</div>
+
+	<!-- Modal 1: Comments Viewer Modal -->
+	<div
+		id="comments-modal"
+		tabindex="-1"
+		aria-hidden="true"
+		class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+	>
+		<div class="relative w-full max-w-2xl max-h-full">
+			<div class="relative bg-white rounded-lg shadow dark:bg-gray-800">
+				<div class="flex items-start justify-between p-4 border-b rounded-t dark:border-gray-700">
+					<div>
+						<h3 class="text-base font-bold text-gray-900 dark:text-white">Instagram Comments</h3>
+						<p id="modal-comments-caption" class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5"></p>
+					</div>
+					<button
+						type="button"
+						id="close-comments-modal"
+						class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ml-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white"
+					>
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 14 14">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+						</svg>
+					</button>
+				</div>
+				<div class="p-6 space-y-4 max-h-96 overflow-y-auto" id="comments-container">
+					<div class="text-center py-6 text-xs text-gray-500">Loading comments...</div>
+				</div>
+				<div class="flex items-center justify-end p-4 border-t border-gray-200 rounded-b dark:border-gray-700">
+					<button
+						type="button"
+						id="dismiss-comments-modal"
+						class="text-gray-500 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 text-xs font-medium px-4 py-2 hover:text-gray-900 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:text-white dark:hover:bg-gray-600"
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal 2: Configure Comment-to-DM Automation Modal -->
+	<div
+		id="automation-modal"
+		tabindex="-1"
+		aria-hidden="true"
+		class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+	>
+		<div class="relative w-full max-w-xl max-h-full">
+			<div class="relative bg-white rounded-lg shadow dark:bg-gray-800">
+				<form id="automation-form">
+					<input type="hidden" id="form-media-id" name="mediaId" />
+					<input type="hidden" id="form-rule-id" name="ruleId" />
+
+					<div class="flex items-start justify-between p-4 border-b rounded-t dark:border-gray-700">
+						<div>
+							<h3 class="text-base font-bold text-gray-900 dark:text-white" id="modal-auto-title">
+								Configure Comment-to-DM Automation
+							</h3>
+							<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+								Automatically reply to commenters with personalized private direct messages.
+							</p>
+						</div>
+						<button
+							type="button"
+							id="close-auto-modal"
+							class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ml-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white"
+						>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 14 14">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+							</svg>
+						</button>
+					</div>
+
+					<div class="p-6 space-y-4">
+						<!-- Rule Name -->
+						<div>
+							<label for="form-rule-name" class="block mb-1 text-xs font-medium text-gray-900 dark:text-white">
+								Automation Name
+							</label>
+							<input
+								type="text"
+								id="form-rule-name"
+								name="name"
+								required
+								placeholder="e.g. Post Auto-DM Link Trigger"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							/>
+						</div>
+
+						<!-- Keywords -->
+						<div>
+							<label for="form-keywords" class="block mb-1 text-xs font-medium text-gray-900 dark:text-white">
+								Trigger Keywords (Comma separated or * for any comment)
+							</label>
+							<input
+								type="text"
+								id="form-keywords"
+								name="keywords"
+								required
+								placeholder="LINK, INFO, PRICE, SEND, *"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							/>
+							<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+								Example: <code>LINK, INFO, PRICE</code> or <code>*</code> to reply to all comments.
+							</p>
+						</div>
+
+						<!-- Public Comment Reply -->
+						<div>
+							<label for="form-public-reply" class="block mb-1 text-xs font-medium text-gray-900 dark:text-white">
+								Public Comment Reply (Optional)
+							</label>
+							<input
+								type="text"
+								id="form-public-reply"
+								name="publicReply"
+								placeholder="Thanks for your interest! Check your DM."
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							/>
+							<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+								Optional public reply left directly on the Instagram comment.
+							</p>
+						</div>
+
+						<!-- Private Message -->
+						<div>
+							<label for="form-response-text" class="block mb-1 text-xs font-medium text-gray-900 dark:text-white">
+								Private DM Message (Personalized)
+							</label>
+							<textarea
+								id="form-response-text"
+								name="responseText"
+								rows="3"
+								required
+								placeholder="Hey {{first_name}}! Thanks for commenting. Here is the information you requested: {{link}}"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							></textarea>
+							<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+								Supported tags: <code>{"{{first_name}}"}</code>, <code>{"{{username}}"}</code>, <code>{"{{link}}"}</code>
+							</p>
+						</div>
+
+						<!-- Link / URL -->
+						<div>
+							<label for="form-response-url" class="block mb-1 text-xs font-medium text-gray-900 dark:text-white">
+								Target Link / URL (Optional)
+							</label>
+							<input
+								type="url"
+								id="form-response-url"
+								name="responseUrl"
+								placeholder="https://instaflow.app/product"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							/>
+						</div>
+
+						<!-- Active Status -->
+						<div class="flex items-center">
+							<input
+								id="form-is-active"
+								type="checkbox"
+								name="isActive"
+								checked
+								class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+							/>
+							<label for="form-is-active" class="ml-2 text-xs font-medium text-gray-900 dark:text-gray-300">
+								Enable automation immediately
+							</label>
+						</div>
+					</div>
+
+					<div class="flex items-center justify-end p-4 border-t border-gray-200 rounded-b dark:border-gray-700 space-x-3">
+						<button
+							type="button"
+							id="dismiss-auto-modal"
+							class="text-gray-500 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 text-xs font-medium px-4 py-2 hover:text-gray-900 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:text-white dark:hover:bg-gray-600"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							id="save-auto-btn"
+							class="text-white bg-primary-700 hover:bg-primary-800 font-medium rounded-lg text-xs px-5 py-2 dark:bg-primary-600 dark:hover:bg-primary-700"
+						>
+							Save Automation Rule
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script>
+	// Sync Media Button Handler
+	const syncBtn = document.getElementById('sync-media-btn') || document.querySelector('.sync-media-trigger-btn');
+	const syncIcon = document.getElementById('sync-icon');
+
+	if (syncBtn) {
+		syncBtn.addEventListener('click', async () => {
+			if (syncIcon) syncIcon.classList.add('animate-spin');
+			try {
+				const res = await fetch('/api/instagram/media', { method: 'POST' });
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					alert(data.error || 'Failed to sync media from Meta.');
+				}
+			} catch (e: any) {
+				alert(e.message || 'Network error syncing media.');
+			} finally {
+				if (syncIcon) syncIcon.classList.remove('animate-spin');
+			}
+		});
+	}
+
+	// Comments Modal
+	const commentsModal = document.getElementById('comments-modal');
+	const closeCommentsModal = document.getElementById('close-comments-modal');
+	const dismissCommentsModal = document.getElementById('dismiss-comments-modal');
+	const commentsContainer = document.getElementById('comments-container');
+	const commentsCaption = document.getElementById('modal-comments-caption');
+
+	const hideComments = () => commentsModal?.classList.add('hidden');
+	closeCommentsModal?.addEventListener('click', hideComments);
+	dismissCommentsModal?.addEventListener('click', hideComments);
+
+	document.querySelectorAll('.view-comments-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const mediaId = target.getAttribute('data-media-id');
+			const caption = target.getAttribute('data-caption');
+
+			if (commentsCaption) commentsCaption.textContent = caption || 'Post ID: ' + mediaId;
+			if (commentsContainer) {
+				commentsContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-500">Loading comments from Instagram Graph API...</div>';
+			}
+			commentsModal?.classList.remove('hidden');
+
+			try {
+				const res = await fetch(`/api/instagram/comments?mediaId=${mediaId}`);
+				const data = await res.json();
+
+				if (commentsContainer) {
+					if (data.success && Array.isArray(data.comments) && data.comments.length > 0) {
+						commentsContainer.innerHTML = data.comments
+							.map(
+								(c: any) => `
+							<div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
+								<div class="flex items-center justify-between">
+									<span class="font-bold text-gray-900 dark:text-white">@${c.username || c.from?.username || 'user'}</span>
+									<span class="text-gray-400 text-[11px]">${new Date(c.timestamp).toLocaleString()}</span>
+								</div>
+								<p class="text-gray-700 dark:text-gray-300">${c.text}</p>
+							</div>
+						`,
+							)
+							.join('');
+					} else {
+						commentsContainer.innerHTML =
+							'<div class="text-center py-6 text-xs text-gray-400">No comments found on this post yet.</div>';
+					}
+				}
+			} catch (err: any) {
+				if (commentsContainer) {
+					commentsContainer.innerHTML = `<div class="text-center py-6 text-xs text-red-500">Error loading comments: ${err.message}</div>`;
+				}
+			}
+		});
+	});
+
+	// Automation Configuration Modal
+	const autoModal = document.getElementById('automation-modal');
+	const closeAutoModal = document.getElementById('close-auto-modal');
+	const dismissAutoModal = document.getElementById('dismiss-auto-modal');
+	const autoForm = document.getElementById('automation-form') as HTMLFormElement;
+
+	const hideAuto = () => autoModal?.classList.add('hidden');
+	closeAutoModal?.addEventListener('click', hideAuto);
+	dismissAutoModal?.addEventListener('click', hideAuto);
+
+	document.querySelectorAll('.config-automation-btn').forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const mediaId = target.getAttribute('data-media-id') || '';
+			const caption = target.getAttribute('data-caption') || '';
+			const ruleId = target.getAttribute('data-rule-id') || '';
+			const ruleName = target.getAttribute('data-rule-name') || '';
+			let keywords = target.getAttribute('data-rule-keywords') || '';
+			const publicReply = target.getAttribute('data-rule-public-reply') || '';
+			const responseText = target.getAttribute('data-rule-response-text') || '';
+			const responseUrl = target.getAttribute('data-rule-response-url') || '';
+			const isActive = target.getAttribute('data-rule-active') !== 'false';
+
+			// Parse keywords if JSON
+			try {
+				const parsed = JSON.parse(keywords);
+				if (Array.isArray(parsed)) keywords = parsed.join(', ');
+			} catch {}
+
+			const formMediaId = document.getElementById('form-media-id') as HTMLInputElement;
+			const formRuleId = document.getElementById('form-rule-id') as HTMLInputElement;
+			const formName = document.getElementById('form-rule-name') as HTMLInputElement;
+			const formKeywords = document.getElementById('form-keywords') as HTMLInputElement;
+			const formPublicReply = document.getElementById('form-public-reply') as HTMLInputElement;
+			const formResponseText = document.getElementById('form-response-text') as HTMLTextAreaElement;
+			const formResponseUrl = document.getElementById('form-response-url') as HTMLInputElement;
+			const formIsActive = document.getElementById('form-is-active') as HTMLInputElement;
+			const modalTitle = document.getElementById('modal-auto-title');
+
+			if (formMediaId) formMediaId.value = mediaId;
+			if (formRuleId) formRuleId.value = ruleId;
+			if (formName) formName.value = ruleName || `Auto-DM for ${caption.substring(0, 20) || 'Post'}`;
+			if (formKeywords) formKeywords.value = keywords || 'LINK, INFO, PRICE, SEND';
+			if (formPublicReply) formPublicReply.value = publicReply || 'Thanks for your interest! Check your DM.';
+			if (formResponseText)
+				formResponseText.value =
+					responseText ||
+					'Hey {{first_name}}! Thanks for commenting. Here is the information you requested: {{link}}';
+			if (formResponseUrl) formResponseUrl.value = responseUrl;
+			if (formIsActive) formIsActive.checked = isActive;
+
+			if (modalTitle) modalTitle.textContent = ruleId ? 'Edit Comment-to-DM Rule' : 'Configure Comment-to-DM Automation';
+
+			autoModal?.classList.remove('hidden');
+		});
+	});
+
+	// Handle Submit Automation Form
+	if (autoForm) {
+		autoForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const ruleId = (document.getElementById('form-rule-id') as HTMLInputElement).value;
+			const mediaId = (document.getElementById('form-media-id') as HTMLInputElement).value;
+			const name = (document.getElementById('form-rule-name') as HTMLInputElement).value;
+			const keywords = (document.getElementById('form-keywords') as HTMLInputElement).value;
+			const publicReply = (document.getElementById('form-public-reply') as HTMLInputElement).value;
+			const responseText = (document.getElementById('form-response-text') as HTMLTextAreaElement).value;
+			const responseUrl = (document.getElementById('form-response-url') as HTMLInputElement).value;
+			const isActive = (document.getElementById('form-is-active') as HTMLInputElement).checked;
+
+			const payload = {
+				mediaId,
+				name,
+				automationType: 'comment_to_dm',
+				triggerType: 'comment_to_dm',
+				keywords,
+				publicReply,
+				responseText,
+				responseUrl,
+				isActive,
+			};
+
+			const submitBtn = document.getElementById('save-auto-btn') as HTMLButtonElement;
+			if (submitBtn) {
+				submitBtn.disabled = true;
+				submitBtn.textContent = 'Saving...';
+			}
+
+			try {
+				const url = ruleId ? `/api/automations/${ruleId}` : '/api/automations';
+				const method = ruleId ? 'PUT' : 'POST';
+
+				const res = await fetch(url, {
+					method,
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				if (res.ok) {
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					alert(data.error || 'Failed to save automation rule');
+					if (submitBtn) {
+						submitBtn.disabled = false;
+						submitBtn.textContent = 'Save Automation Rule';
+					}
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error');
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Save Automation Rule';
+				}
+			}
+		});
+	}
+</script>

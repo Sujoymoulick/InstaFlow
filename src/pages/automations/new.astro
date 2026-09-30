@@ -1,12 +1,34 @@
 ---
 import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../db/index.js';
+import { desc, eq } from 'drizzle-orm';
+import { getActiveInstagramAccount } from '../../services/instagram.js';
 import { url } from '../../lib/data.js';
 
 export const prerender = false;
+
+const db = getDb();
+let mediaList: schema.InstagramMedia[] = [];
+const account = await getActiveInstagramAccount();
+
+if (db && account) {
+	try {
+		mediaList = await db
+			.select()
+			.from(schema.instagramMedia)
+			.where(eq(schema.instagramMedia.accountId, account.id))
+			.orderBy(desc(schema.instagramMedia.timestamp))
+			.limit(50);
+	} catch (e: any) {
+		console.warn('Notice loading media list for new rule:', e.message);
+	}
+}
+
+const preselectedMediaId = Astro.url.searchParams.get('mediaId') || '';
 ---
 
 <LayoutSidebar>
-	<div class="px-4 pt-6">
+	<div class="px-4 pt-6 pb-12">
 		<!-- Breadcrumbs -->
 		<nav class="flex mb-4" aria-label="Breadcrumb">
 			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
@@ -20,10 +42,11 @@ export const prerender = false;
 							fill="currentColor"
 							viewBox="0 0 20 20"
 							xmlns="http://www.w3.org/2000/svg"
-							><path
-								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
-							></path></svg
 						>
+							<path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path>
+						</svg>
 						Home
 					</a>
 				</li>
@@ -34,16 +57,19 @@ export const prerender = false;
 							fill="currentColor"
 							viewBox="0 0 20 20"
 							xmlns="http://www.w3.org/2000/svg"
-							><path
+						>
+							<path
 								fill-rule="evenodd"
 								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-								clip-rule="evenodd"></path></svg
-						>
+								clip-rule="evenodd"
+							></path>
+						</svg>
 						<a
 							href={url('automations')}
 							class="ml-1 text-gray-700 hover:text-primary-600 md:ml-2 dark:text-gray-300 dark:hover:text-white"
-							>Automations</a
 						>
+							Automations
+						</a>
 					</div>
 				</li>
 				<li>
@@ -53,14 +79,16 @@ export const prerender = false;
 							fill="currentColor"
 							viewBox="0 0 20 20"
 							xmlns="http://www.w3.org/2000/svg"
-							><path
+						>
+							<path
 								fill-rule="evenodd"
 								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-								clip-rule="evenodd"></path></svg
-						>
-						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
-							>New Rule</span
-						>
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page">
+							New Rule
+						</span>
 					</div>
 				</li>
 			</ol>
@@ -71,7 +99,7 @@ export const prerender = false;
 				Create Automation Rule
 			</h1>
 			<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
-				Define trigger conditions and the response to send automatically to Instagram users.
+				Define trigger conditions, optional public comment replies, and personalized private Direct Messages.
 			</p>
 		</div>
 
@@ -95,11 +123,11 @@ export const prerender = false;
 							type="text"
 							id="rule-name"
 							required
-							placeholder="e.g. Pricing Inquiry Auto-Reply"
+							placeholder="e.g. Reel Link Auto-Reply"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
 						/>
 						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-							An internal name to identify this automation rule.
+							An internal identifier for this rule.
 						</p>
 					</div>
 
@@ -163,23 +191,49 @@ export const prerender = false;
 						</div>
 					</div>
 
+					<!-- Post / Reel Scope -->
+					{
+						mediaList.length > 0 && (
+							<div>
+								<label for="media-id" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+									Associated Post or Reel (Optional)
+								</label>
+								<select
+									id="media-id"
+									class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+								>
+									<option value="" selected={!preselectedMediaId}>All Posts &amp; Reels (Account-wide)</option>
+									{mediaList.map((m) => (
+										<option value={m.mediaId} selected={m.mediaId === preselectedMediaId}>
+											[{m.mediaType}] {m.caption ? m.caption.substring(0, 60) + '...' : `Media ID ${m.mediaId}`}
+										</option>
+									))}
+								</select>
+								<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+									Target a specific post or leave as account-wide.
+								</p>
+							</div>
+						)
+					}
+
 					<!-- Keywords & Match Mode -->
 					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 						<div class="md:col-span-2">
 							<label
 								for="keywords"
 								class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-								>Keywords (comma-separated)</label
+								>Keywords (comma-separated or * for all)</label
 							>
 							<input
 								type="text"
 								id="keywords"
 								required
-								placeholder="price, pricing, discount, info, link"
+								value="LINK, INFO, PRICE, SEND"
+								placeholder="LINK, INFO, PRICE, SEND, *"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 font-mono"
 							/>
 							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-								Separate multiple triggers with commas. Case-insensitive.
+								Matches keywords like <code>LINK</code>, <code>PRICE</code>, or use <code>*</code> to match any comment.
 							</p>
 						</div>
 
@@ -195,29 +249,54 @@ export const prerender = false;
 							>
 								<option value="contains" selected>Contains keyword</option>
 								<option value="exact">Exact match only</option>
+								<option value="any">Match any comment (*)</option>
 							</select>
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-								How user text is compared.
-							</p>
 						</div>
+					</div>
+
+					<!-- Public Comment Reply (Optional) -->
+					<div>
+						<label
+							for="public-reply"
+							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+							>Public Comment Reply (Optional)</label
+						>
+						<input
+							type="text"
+							id="public-reply"
+							placeholder="Thanks for your interest! Check your DM."
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+						/>
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							Optional comment left publicly under the user's comment on Instagram.
+						</p>
 					</div>
 
 					<!-- Response Text -->
 					<div>
-						<label
-							for="response-text"
-							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-							>Response Text</label
-						>
+						<div class="flex items-center justify-between mb-2">
+							<label
+								for="response-text"
+								class="block text-sm font-medium text-gray-900 dark:text-white"
+								>Private DM Message (Personalized)</label
+							>
+							<!-- Tag Insertion Helpers -->
+							<div class="flex items-center space-x-1.5 text-xs">
+								<span class="text-gray-400">Insert tag:</span>
+								<button type="button" class="tag-btn px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded font-mono" data-tag="{{first_name}}">&#123;&#123;first_name&#125;&#125;</button>
+								<button type="button" class="tag-btn px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded font-mono" data-tag="{{username}}">&#123;&#123;username&#125;&#125;</button>
+								<button type="button" class="tag-btn px-2 py-0.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 rounded font-mono" data-tag="{{link}}">&#123;&#123;link&#125;&#125;</button>
+							</div>
+						</div>
 						<textarea
 							id="response-text"
 							rows="4"
 							required
-							placeholder="Hey there! Thanks for reaching out. Here is the link you requested:"
+							placeholder="Hey {{first_name}}! Thanks for commenting. Here is the information you requested: {{link}}"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-						></textarea>
+						>Hey {{first_name}}! Thanks for commenting. Here is the information you requested: {{link}}</textarea>
 						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-							The message that will be sent via Instagram Direct Message.
+							Personalized DM delivered via Meta's official Private Reply endpoint.
 						</p>
 					</div>
 
@@ -226,17 +305,14 @@ export const prerender = false;
 						<label
 							for="response-url"
 							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-							>Optional URL or CTA Link</label
+							>Target Link / CTA URL</label
 						>
 						<input
 							type="url"
 							id="response-url"
-							placeholder="https://example.com/checkout"
+							placeholder="https://instaflow.app/offer"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
 						/>
-						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-							Appended to the message or formatted as action link.
-						</p>
 					</div>
 
 					<!-- Active Status Toggle -->
@@ -280,7 +356,7 @@ export const prerender = false;
 						Live DM Preview
 					</h3>
 					<p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-						Simulated Instagram conversation bubble as viewed by the user.
+						Simulated Instagram conversation bubble with dynamic tag substitution.
 					</p>
 
 					<!-- Simulated Phone Screen / DM container -->
@@ -303,7 +379,7 @@ export const prerender = false;
 								<div
 									class="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-3 py-2 rounded-2xl rounded-tr-none max-w-[85%]"
 								>
-									<span id="preview-user-message">Send me the price please!</span>
+									<span id="preview-user-message">PRICE</span>
 								</div>
 							</div>
 
@@ -312,10 +388,7 @@ export const prerender = false;
 									class="bg-primary-600 text-white text-xs px-3 py-2 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm"
 								>
 									<p id="preview-response-text" class="whitespace-pre-wrap">
-										Hey there! Thanks for reaching out. Here is the link you requested:
-									</p>
-									<p id="preview-response-url" class="text-blue-100 underline text-[11px] mt-1 break-all">
-										https://example.com/checkout
+										Hey Alex! Thanks for commenting. Here is the information you requested: https://instaflow.app/offer
 									</p>
 								</div>
 							</div>
@@ -324,10 +397,9 @@ export const prerender = false;
 
 					<div class="mt-4 p-3 bg-blue-50 dark:bg-gray-700/50 rounded-lg text-xs text-gray-600 dark:text-gray-300">
 						<p class="font-medium text-primary-700 dark:text-primary-400 mb-1">
-							Meta Policy Compliance
+							Meta Official Private Replies
 						</p>
-						Official Instagram Messaging API allows 1 automated response per user comment within 7 days,
-						and standard 24-hour messaging window for direct messages.
+						Uses official <code>/me/messages</code> with comment ID to initiate private reply within Meta policy limits.
 					</div>
 				</div>
 			</div>
@@ -345,28 +417,41 @@ export const prerender = false;
 	const keywordsInput = document.getElementById('keywords') as HTMLInputElement;
 
 	const previewResponse = document.getElementById('preview-response-text');
-	const previewUrl = document.getElementById('preview-response-url');
 	const previewUserMsg = document.getElementById('preview-user-message');
 
-	// Live preview updates
-	if (responseTextInput && previewResponse) {
-		responseTextInput.addEventListener('input', () => {
-			previewResponse.textContent = responseTextInput.value || 'Type your response message...';
+	// Tag insertion helper buttons
+	document.querySelectorAll('.tag-btn').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			const tag = btn.getAttribute('data-tag');
+			if (!tag || !responseTextInput) return;
+			const start = responseTextInput.selectionStart;
+			const end = responseTextInput.selectionEnd;
+			const text = responseTextInput.value;
+			responseTextInput.value = text.substring(0, start) + tag + text.substring(end);
+			responseTextInput.focus();
+			responseTextInput.dispatchEvent(new Event('input'));
 		});
+	});
+
+	// Live preview updates
+	function updatePreview() {
+		if (!previewResponse || !responseTextInput) return;
+		let val = responseTextInput.value || 'Type your response message...';
+		const urlVal = responseUrlInput?.value || 'https://instaflow.app';
+		val = val.replace(/\{\{\s*first_name\s*\}\}/gi, 'Alex');
+		val = val.replace(/\{\{\s*username\s*\}\}/gi, 'alex_travels');
+		val = val.replace(/\{\{\s*link\s*\}\}/gi, urlVal);
+		previewResponse.textContent = val;
 	}
 
-	if (responseUrlInput && previewUrl) {
-		responseUrlInput.addEventListener('input', () => {
-			previewUrl.textContent = responseUrlInput.value || '';
-			previewUrl.style.display = responseUrlInput.value ? 'block' : 'none';
-		});
-	}
+	if (responseTextInput) responseTextInput.addEventListener('input', updatePreview);
+	if (responseUrlInput) responseUrlInput.addEventListener('input', updatePreview);
 
 	if (keywordsInput && previewUserMsg) {
 		keywordsInput.addEventListener('input', () => {
 			const kws = keywordsInput.value.split(',').filter(Boolean);
 			if (kws.length > 0) {
-				previewUserMsg.textContent = `Can you send me info about ${kws[0].trim()}?`;
+				previewUserMsg.textContent = kws[0].trim();
 			}
 		});
 	}
@@ -379,12 +464,17 @@ export const prerender = false;
 			submitBtn.textContent = 'Saving rule...';
 
 			const triggerTypeEl = document.querySelector('input[name="triggerType"]:checked') as HTMLInputElement;
+			const mediaIdEl = document.getElementById('media-id') as HTMLSelectElement | null;
+			const publicReplyEl = document.getElementById('public-reply') as HTMLInputElement;
 
 			const payload = {
 				name: (document.getElementById('rule-name') as HTMLInputElement).value.trim(),
 				triggerType: triggerTypeEl?.value || 'comment_to_dm',
+				automationType: triggerTypeEl?.value || 'comment_to_dm',
+				mediaId: mediaIdEl?.value || null,
 				keywords: keywordsInput.value.trim(),
 				matchMode: (document.getElementById('match-mode') as HTMLSelectElement).value,
+				publicReply: publicReplyEl?.value.trim() || null,
 				responseText: responseTextInput.value.trim(),
 				responseUrl: responseUrlInput.value.trim() || null,
 				isActive: (document.getElementById('is-active') as HTMLInputElement).checked,
@@ -401,7 +491,7 @@ export const prerender = false;
 
 				if (res.ok) {
 					alertBox.className = 'mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400';
-					alertBox.textContent = 'Rule created successfully! Redirecting...';
+					alertBox.textContent = 'Automation rule created successfully! Redirecting...';
 					alertBox.classList.remove('hidden');
 					setTimeout(() => {
 						window.location.href = '/automations';

@@ -1,9 +1,11 @@
 import { getDb, schema } from '../db/index.js';
-import { eq, and, gt, desc } from 'drizzle-orm';
+import { eq, and, gt, desc, sql } from 'drizzle-orm';
 import {
 	getActiveInstagramAccount,
 	sendInstagramMessage,
 	sendInstagramPrivateReply,
+	sendInstagramPublicCommentReply,
+	formatPersonalizedMessage,
 } from './instagram.js';
 
 export interface WebhookIncomingEvent {
@@ -12,6 +14,9 @@ export interface WebhookIncomingEvent {
 	senderId: string;
 	recipientId?: string;
 	commentId?: string; // If event is a comment
+	mediaId?: string; // Associated Post / Reel media id
+	senderUsername?: string;
+	senderFirstName?: string;
 	text: string;
 	rawPayload: any;
 }
@@ -52,10 +57,16 @@ export function parseKeywords(keywordsInput: string): string[] {
 export function matchesRule(
 	text: string,
 	keywordsInput: string,
-	matchMode: 'exact' | 'contains' | string,
+	matchMode: 'exact' | 'contains' | 'any' | string,
 ): { matched: boolean; matchedKeyword?: string } {
-	const normalizedInput = normalizeText(text);
 	const keywords = parseKeywords(keywordsInput);
+
+	// If matchMode is 'any' or keywords contains '*' or is empty, match any comment/message
+	if (matchMode === 'any' || keywords.includes('*') || keywords.length === 0) {
+		return { matched: true, matchedKeyword: '*' };
+	}
+
+	const normalizedInput = normalizeText(text);
 
 	for (const keyword of keywords) {
 		const normalizedKeyword = normalizeText(keyword);
@@ -124,6 +135,9 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 		const settingsList = await db.select().from(schema.automationSettings).limit(1);
 		const globalEnabled = settingsList.length > 0 ? settingsList[0].globalEnabled : true;
 		const rateLimitMinutes = settingsList.length > 0 ? settingsList[0].rateLimitPerUserMinutes : 5;
+		const welcomeEnabled = settingsList.length > 0 ? settingsList[0].welcomeMessageEnabled : false;
+		const welcomeText = settingsList.length > 0 ? settingsList[0].welcomeMessageText : null;
+		const welcomeUrl = settingsList.length > 0 ? settingsList[0].welcomeMessageUrl : null;
 
 		if (!globalEnabled) {
 			await db
@@ -196,7 +210,55 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 			return { success: true, status: 'ignored', message: 'Self event ignored' };
 		}
 
-		// 6. Find Matching Active Rule
+		// 6. Handle Welcome Messages / First Interactions
+		if (event.eventType === 'messaging_postbacks' || (event.eventType === 'message' && welcomeEnabled && welcomeText)) {
+			// Check if this is a first interaction (no previous logs for this sender)
+			const prevLogs = await db
+				.select()
+				.from(schema.messageLogs)
+				.where(eq(schema.messageLogs.senderId, event.senderId))
+				.limit(1);
+
+			if (prevLogs.length === 0 && welcomeEnabled && welcomeText) {
+				const personalizedWelcome = formatPersonalizedMessage(welcomeText, {
+					firstName: event.senderFirstName || event.senderUsername,
+					username: event.senderUsername,
+					link: welcomeUrl,
+				});
+
+				const replyRes = await sendInstagramMessage(
+					event.senderId,
+					personalizedWelcome,
+					welcomeUrl,
+					igAccount,
+				);
+
+				if (replyRes.success) {
+					await db
+						.update(schema.webhookEvents)
+						.set({ status: 'processed', processedAt: new Date() })
+						.where(eq(schema.webhookEvents.id, savedEvent.id));
+
+					const [log] = await db
+						.insert(schema.messageLogs)
+						.values({
+							webhookEventId: savedEvent.id,
+							ruleName: 'Welcome Message Automation',
+							triggerType: 'welcome_message',
+							senderId: event.senderId,
+							incomingText: event.text || 'First Interaction',
+							sentReplyText: personalizedWelcome,
+							sentReplyUrl: welcomeUrl || null,
+							status: 'sent',
+						})
+						.returning();
+
+					return { success: true, status: 'processed', logId: log.id };
+				}
+			}
+		}
+
+		// 7. Find Matching Active Rule
 		let targetTriggerType = 'dm_reply';
 		if (event.eventType === 'comment') {
 			targetTriggerType = 'comment_to_dm';
@@ -217,6 +279,11 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 		let matchedKeyword: string | undefined;
 
 		for (const rule of activeRules) {
+			// If rule is scoped to a specific media ID, ensure event mediaId matches
+			if (rule.mediaId && event.mediaId && rule.mediaId !== event.mediaId) {
+				continue;
+			}
+
 			const result = matchesRule(event.text, rule.keywords, rule.matchMode);
 			if (result.matched) {
 				matchedRule = rule;
@@ -238,14 +305,36 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 			return { success: true, status: 'ignored', message: 'No matching rule' };
 		}
 
-		// 7. Deliver Reply via Official Meta API
+		// 8. Personalize Message Template
+		const personalizedMessage = formatPersonalizedMessage(matchedRule.responseText, {
+			firstName: event.senderFirstName || event.senderUsername,
+			username: event.senderUsername,
+			link: matchedRule.responseUrl,
+		});
+
+		// 9. Deliver Reply via Official Meta API
 		let replyResult: { success: boolean; messageId?: string; error?: string };
+		let sentPublicReplyText: string | null = null;
 
 		if (event.eventType === 'comment' && event.commentId) {
-			// Official Comment-to-DM Private Reply
+			// A. Optional Public Comment Reply
+			if (matchedRule.publicReply && matchedRule.publicReply.trim()) {
+				try {
+					await sendInstagramPublicCommentReply(
+						event.commentId,
+						matchedRule.publicReply.trim(),
+						igAccount,
+					);
+					sentPublicReplyText = matchedRule.publicReply.trim();
+				} catch (pubErr: any) {
+					console.warn('Public comment reply notice (non-fatal):', pubErr.message);
+				}
+			}
+
+			// B. Official Comment-to-DM Private Reply
 			replyResult = await sendInstagramPrivateReply(
 				event.commentId,
-				matchedRule.responseText,
+				personalizedMessage,
 				matchedRule.responseUrl,
 				igAccount,
 			);
@@ -253,13 +342,13 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 			// Direct Message Auto-Reply
 			replyResult = await sendInstagramMessage(
 				event.senderId,
-				matchedRule.responseText,
+				personalizedMessage,
 				matchedRule.responseUrl,
 				igAccount,
 			);
 		}
 
-		// 8. Record Message Log & Finalize Webhook Event Status
+		// 10. Record Message Log & Finalize Webhook Event Status
 		if (replyResult.success) {
 			await db
 				.update(schema.webhookEvents)
@@ -269,6 +358,15 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 				})
 				.where(eq(schema.webhookEvents.id, savedEvent.id));
 
+			// Increment rule trigger count
+			await db
+				.update(schema.automationRules)
+				.set({
+					triggerCount: sql`${schema.automationRules.triggerCount} + 1`,
+					lastTriggeredAt: new Date(),
+				})
+				.where(eq(schema.automationRules.id, matchedRule.id));
+
 			const [log] = await db
 				.insert(schema.messageLogs)
 				.values({
@@ -277,9 +375,12 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 					ruleName: matchedRule.name,
 					triggerType: matchedRule.triggerType,
 					senderId: event.senderId,
+					recipientId: event.recipientId || null,
+					mediaId: event.mediaId || null,
 					matchedKeyword: matchedKeyword || null,
 					incomingText: event.text,
-					sentReplyText: matchedRule.responseText,
+					sentReplyText: personalizedMessage,
+					sentPublicReplyText,
 					sentReplyUrl: matchedRule.responseUrl || null,
 					status: 'sent',
 				})
@@ -302,9 +403,12 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 				ruleName: matchedRule.name,
 				triggerType: matchedRule.triggerType,
 				senderId: event.senderId,
+				recipientId: event.recipientId || null,
+				mediaId: event.mediaId || null,
 				matchedKeyword: matchedKeyword || null,
 				incomingText: event.text,
-				sentReplyText: matchedRule.responseText,
+				sentReplyText: personalizedMessage,
+				sentPublicReplyText,
 				sentReplyUrl: matchedRule.responseUrl || null,
 				status: 'failed',
 				errorDetails: replyResult.error,

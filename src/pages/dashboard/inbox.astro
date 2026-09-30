@@ -1,0 +1,417 @@
+---
+import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../db/index.js';
+import { desc } from 'drizzle-orm';
+import { getActiveInstagramAccount, fetchInstagramConversations } from '../../services/instagram.js';
+import { url } from '../../lib/data.js';
+
+export const prerender = false;
+
+const account = await getActiveInstagramAccount();
+const db = getDb();
+
+let conversations: schema.Conversation[] = [];
+let recentLogs: schema.MessageLog[] = [];
+
+if (account && db) {
+	try {
+		conversations = await db
+			.select()
+			.from(schema.conversations)
+			.orderBy(desc(schema.conversations.lastMessageAt))
+			.limit(30);
+
+		recentLogs = await db
+			.select()
+			.from(schema.messageLogs)
+			.orderBy(desc(schema.messageLogs.createdAt))
+			.limit(50);
+	} catch (e: any) {
+		console.error('Error fetching inbox data:', e.message);
+	}
+}
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6 pb-12">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path>
+						</svg>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page">
+							Direct Message Inbox
+						</span>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<!-- Header -->
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+					Instagram Direct Message Inbox
+				</h1>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Monitor active conversations, incoming inquiries, and send manual direct message replies.
+				</p>
+			</div>
+			<div class="flex items-center space-x-3">
+				{
+					account && (
+						<button
+							type="button"
+							id="refresh-inbox-btn"
+							class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700"
+						>
+							<svg id="refresh-spinner" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+							</svg>
+							Refresh Conversations
+						</button>
+					)
+				}
+			</div>
+		</div>
+
+		{
+			!account ? (
+				<div class="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<h3 class="text-lg font-bold text-gray-900 dark:text-white">Instagram Account Not Connected</h3>
+					<p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto mt-1 mb-5">
+						Connect your Instagram Business or Creator account to view live conversations and messages.
+					</p>
+					<a
+						href={url('settings/instagram')}
+						class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+					>
+						Connect Instagram
+					</a>
+				</div>
+			) : (
+				<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					<!-- Conversations Sidebar (1/3) -->
+					<div class="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col h-[650px]">
+						<div class="p-4 border-b border-gray-200 dark:border-gray-700">
+							<h3 class="text-sm font-bold text-gray-900 dark:text-white">Conversations</h3>
+							<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+								Connected to @{account.username}
+							</p>
+						</div>
+
+						<div class="flex-1 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700" id="conversation-list">
+							{
+								conversations.length === 0 && recentLogs.length === 0 ? (
+									<div class="p-6 text-center text-xs text-gray-400">
+										No conversations recorded yet. When users DM you or your automations trigger, threads will show here.
+									</div>
+								) : conversations.length > 0 ? (
+									conversations.map((c, idx) => (
+										<button
+											type="button"
+											class={`conversation-item w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-start space-x-3 ${idx === 0 ? 'bg-primary-50/50 dark:bg-primary-950/20' : ''}`}
+											data-convo-id={c.instagramConversationId}
+											data-participant-id={c.participantId}
+											data-participant-name={c.participantUsername || `User ${c.participantId.substring(0, 8)}`}
+										>
+											<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5 flex-shrink-0">
+												<div class="w-full h-full bg-white dark:bg-gray-800 rounded-full flex items-center justify-center font-bold text-xs text-gray-700 dark:text-gray-200">
+													{(c.participantUsername || 'U').substring(0, 2).toUpperCase()}
+												</div>
+											</div>
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center justify-between">
+													<h4 class="text-xs font-bold text-gray-900 dark:text-white truncate">
+														@{c.participantUsername || `user_${c.participantId.substring(0, 6)}`}
+													</h4>
+													<span class="text-[10px] text-gray-400">
+														{c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleDateString() : ''}
+													</span>
+												</div>
+												<p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+													{c.lastMessageText || 'Direct message thread'}
+												</p>
+											</div>
+										</button>
+									))
+								) : (
+									recentLogs.map((log) => (
+										<button
+											type="button"
+											class="conversation-item w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-start space-x-3"
+											data-participant-id={log.senderId}
+											data-participant-name={`User ${log.senderId.substring(0, 8)}`}
+										>
+											<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5 flex-shrink-0">
+												<div class="w-full h-full bg-white dark:bg-gray-800 rounded-full flex items-center justify-center font-bold text-xs text-gray-700 dark:text-gray-200">
+													IG
+												</div>
+											</div>
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center justify-between">
+													<h4 class="text-xs font-bold text-gray-900 dark:text-white truncate">
+														User {log.senderId.substring(0, 8)}...
+													</h4>
+													<span class="text-[10px] text-gray-400">
+														{new Date(log.createdAt).toLocaleDateString()}
+													</span>
+												</div>
+												<p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+													{log.incomingText || log.sentReplyText || 'Message interaction'}
+												</p>
+											</div>
+										</button>
+									))
+								)
+							}
+						</div>
+					</div>
+
+					<!-- Chat / Message View Pane (2/3) -->
+					<div class="lg:col-span-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col h-[650px]">
+						<!-- Chat Header -->
+						<div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+							<div class="flex items-center space-x-3">
+								<div class="w-8 h-8 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 flex items-center justify-center font-bold text-xs">
+									DM
+								</div>
+								<div>
+									<h4 id="active-chat-title" class="text-xs font-bold text-gray-900 dark:text-white">
+										{conversations[0]?.participantUsername ? `@${conversations[0].participantUsername}` : 'Select a Conversation'}
+									</h4>
+									<p id="active-chat-sub" class="text-[11px] text-gray-500 dark:text-gray-400">
+										{conversations[0]?.participantId ? `ID: ${conversations[0].participantId}` : 'Meta Instagram Messaging API'}
+									</p>
+								</div>
+							</div>
+							<span class="bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">
+								Live Session
+							</span>
+						</div>
+
+						<!-- Messages Scroll Area -->
+						<div id="messages-pane" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-50/50 dark:bg-gray-900/30">
+							{
+								recentLogs.length > 0 ? (
+									recentLogs.slice(0, 10).reverse().map((log) => (
+										<div class="space-y-2">
+											{log.incomingText && (
+												<div class="flex items-start space-x-2">
+													<div class="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-700 dark:text-gray-200 flex-shrink-0">
+														U
+													</div>
+													<div class="bg-white dark:bg-gray-700 p-3 rounded-lg rounded-tl-none border border-gray-200 dark:border-gray-600 text-xs text-gray-800 dark:text-gray-200 max-w-md shadow-sm">
+														<p>{log.incomingText}</p>
+														<span class="text-[10px] text-gray-400 mt-1 block">{new Date(log.createdAt).toLocaleTimeString()}</span>
+													</div>
+												</div>
+											)}
+											{log.sentReplyText && (
+												<div class="flex items-start justify-end space-x-2">
+													<div class="bg-primary-600 text-white p-3 rounded-lg rounded-tr-none text-xs max-w-md shadow-sm">
+														<p>{log.sentReplyText}</p>
+														{log.sentReplyUrl && (
+															<a href={log.sentReplyUrl} target="_blank" class="underline text-[11px] text-blue-100 block mt-1">
+																{log.sentReplyUrl}
+															</a>
+														)}
+														<span class="text-[10px] text-primary-200 mt-1 block text-right">{new Date(log.createdAt).toLocaleTimeString()}</span>
+													</div>
+												</div>
+											)}
+										</div>
+									))
+								) : (
+									<div class="text-center py-20 text-xs text-gray-400">
+										Select a conversation thread to view messages.
+									</div>
+								)
+							}
+						</div>
+
+						<!-- Send Message Input Bar -->
+						<div class="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+							<form id="send-message-form" class="flex items-center space-x-2">
+								<input
+									type="hidden"
+									id="chat-recipient-id"
+									value={conversations[0]?.participantId || recentLogs[0]?.senderId || ''}
+								/>
+								<input
+									type="text"
+									id="chat-message-input"
+									placeholder="Type a direct message..."
+									required
+									class="flex-1 bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+								/>
+								<button
+									type="submit"
+									id="btn-send-dm"
+									class="inline-flex items-center px-4 py-2.5 text-xs font-medium text-white bg-primary-700 hover:bg-primary-800 rounded-lg dark:bg-primary-600 dark:hover:bg-primary-700"
+								>
+									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+									</svg>
+									Send DM
+								</button>
+							</form>
+						</div>
+					</div>
+				</div>
+			)
+		}
+	</div>
+</LayoutSidebar>
+
+<script>
+	// Refresh Inbox Button
+	const refreshBtn = document.getElementById('refresh-inbox-btn');
+	const refreshSpinner = document.getElementById('refresh-spinner');
+
+	if (refreshBtn) {
+		refreshBtn.addEventListener('click', async () => {
+			if (refreshSpinner) refreshSpinner.classList.add('animate-spin');
+			try {
+				const res = await fetch('/api/instagram/conversations?refresh=true');
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					alert(data.error || 'Failed to refresh conversations');
+				}
+			} catch (e: any) {
+				alert(e.message || 'Network error');
+			} finally {
+				if (refreshSpinner) refreshSpinner.classList.remove('animate-spin');
+			}
+		});
+	}
+
+	// Select Conversation Item
+	document.querySelectorAll('.conversation-item').forEach((item) => {
+		item.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const convoId = target.getAttribute('data-convo-id');
+			const participantId = target.getAttribute('data-participant-id') || '';
+			const participantName = target.getAttribute('data-participant-name') || '';
+
+			const titleEl = document.getElementById('active-chat-title');
+			const subEl = document.getElementById('active-chat-sub');
+			const recipientInput = document.getElementById('chat-recipient-id') as HTMLInputElement;
+			const messagesPane = document.getElementById('messages-pane');
+
+			if (titleEl) titleEl.textContent = participantName;
+			if (subEl) subEl.textContent = `ID: ${participantId}`;
+			if (recipientInput) recipientInput.value = participantId;
+
+			// Fetch conversation messages if convoId is available
+			if (convoId && messagesPane) {
+				messagesPane.innerHTML = '<div class="text-center py-8 text-xs text-gray-500">Loading messages...</div>';
+				try {
+					const res = await fetch(`/api/instagram/messages?conversationId=${convoId}`);
+					const data = await res.json();
+
+					if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
+						messagesPane.innerHTML = data.messages
+							.reverse()
+							.map((m: any) => `
+							<div class="p-3 bg-white dark:bg-gray-700 rounded-lg text-xs space-y-1 shadow-sm border border-gray-100 dark:border-gray-600">
+								<div class="flex items-center justify-between text-[11px] text-gray-400">
+									<span>${m.from?.name || m.from?.username || 'User'}</span>
+									<span>${new Date(m.created_time).toLocaleTimeString()}</span>
+								</div>
+								<p class="text-gray-800 dark:text-gray-200">${m.message}</p>
+							</div>
+						`)
+							.join('');
+					}
+				} catch (err) {
+					console.warn('Could not fetch thread messages:', err);
+				}
+			}
+		});
+	});
+
+	// Send DM Form
+	const sendForm = document.getElementById('send-message-form') as HTMLFormElement;
+	if (sendForm) {
+		sendForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const recipientId = (document.getElementById('chat-recipient-id') as HTMLInputElement).value;
+			const msgInput = document.getElementById('chat-message-input') as HTMLInputElement;
+			const text = msgInput.value.trim();
+
+			if (!recipientId || !text) {
+				alert('Please select a recipient and enter a message.');
+				return;
+			}
+
+			const sendBtn = document.getElementById('btn-send-dm') as HTMLButtonElement;
+			if (sendBtn) sendBtn.disabled = true;
+
+			try {
+				const res = await fetch('/api/instagram/messages', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ recipientId, text }),
+				});
+
+				const data = await res.json();
+
+				if (data.success) {
+					msgInput.value = '';
+					const pane = document.getElementById('messages-pane');
+					if (pane) {
+						const bubble = document.createElement('div');
+						bubble.className = 'flex items-start justify-end space-x-2';
+						bubble.innerHTML = `
+							<div class="bg-primary-600 text-white p-3 rounded-lg rounded-tr-none text-xs max-w-md shadow-sm">
+								<p>${text}</p>
+								<span class="text-[10px] text-primary-200 mt-1 block text-right">Just now &bull; Sent</span>
+							</div>
+						`;
+						pane.appendChild(bubble);
+						pane.scrollTop = pane.scrollHeight;
+					}
+				} else {
+					alert(data.error || 'Failed to send direct message');
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error sending DM');
+			} finally {
+				if (sendBtn) sendBtn.disabled = false;
+			}
+		});
+	}
+</script>

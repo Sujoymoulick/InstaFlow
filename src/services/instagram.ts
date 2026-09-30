@@ -1,5 +1,5 @@
 import { getDb, schema } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { decryptToken, encryptToken } from '../lib/crypto.js';
 
 export const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
@@ -25,6 +25,39 @@ export function getOAuthConfig(): InstagramOAuthConfig {
 	const appSecret = process.env.META_APP_SECRET || '';
 	const redirectUri = process.env.META_REDIRECT_URI || '';
 	return { appId, appSecret, redirectUri };
+}
+
+/**
+ * Execute a fetch with exponential backoff for transient network or rate-limiting errors (429 / 5xx)
+ */
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> {
+	let attempt = 0;
+	let delay = 300;
+
+	while (true) {
+		try {
+			attempt++;
+			const response = await fetch(url, options);
+
+			// Retry on rate limit (429) or server errors (500, 502, 503, 504)
+			if ((response.status === 429 || (response.status >= 500 && response.status <= 504)) && attempt <= maxRetries) {
+				console.warn(`[Meta API] Received status ${response.status} on ${url}. Retrying attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				delay *= 2;
+				continue;
+			}
+
+			return response;
+		} catch (error: any) {
+			if (attempt <= maxRetries) {
+				console.warn(`[Meta API] Network fetch error on ${url}: ${error.message}. Retrying attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				delay *= 2;
+				continue;
+			}
+			throw error;
+		}
+	}
 }
 
 /**
@@ -70,7 +103,7 @@ export async function exchangeOAuthCodeForAccount(
 			code,
 		}).toString()}`;
 
-		const tokenResponse = await fetch(tokenUrl);
+		const tokenResponse = await fetchWithRetry(tokenUrl);
 		const tokenData = await tokenResponse.json();
 
 		if (tokenData.error) {
@@ -91,7 +124,7 @@ export async function exchangeOAuthCodeForAccount(
 			fb_exchange_token: shortLivedToken,
 		}).toString()}`;
 
-		const longLivedResponse = await fetch(longLivedUrl);
+		const longLivedResponse = await fetchWithRetry(longLivedUrl);
 		const longLivedData = await longLivedResponse.json();
 		const accessToken = longLivedData.access_token || shortLivedToken;
 		const expiresIn = longLivedData.expires_in ? Number(longLivedData.expires_in) : 60 * 24 * 3600;
@@ -99,7 +132,7 @@ export async function exchangeOAuthCodeForAccount(
 
 		// 3. Find connected Facebook Page with an Instagram Business / Creator Account
 		const pagesUrl = `${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}&access_token=${accessToken}`;
-		const pagesResponse = await fetch(pagesUrl);
+		const pagesResponse = await fetchWithRetry(pagesUrl);
 		const pagesData = await pagesResponse.json();
 
 		if (pagesData.error) {
@@ -111,12 +144,14 @@ export async function exchangeOAuthCodeForAccount(
 
 		let igAccount: any = null;
 		let pageAccessToken = accessToken;
+		let pageId: string | null = null;
 
 		if (pagesData.data && Array.isArray(pagesData.data)) {
 			for (const page of pagesData.data) {
 				if (page.instagram_business_account) {
 					igAccount = page.instagram_business_account;
 					pageAccessToken = page.access_token || accessToken;
+					pageId = page.id;
 					break;
 				}
 			}
@@ -130,9 +165,27 @@ export async function exchangeOAuthCodeForAccount(
 			};
 		}
 
-		// 4. Encrypt sensitive token and persist to database
+		// 4. Subscribe the app to the Page webhooks for Instagram (messages, comments, messaging_postbacks)
+		if (pageId && pageAccessToken) {
+			try {
+				const subscribeUrl = `${GRAPH_API_BASE}/${pageId}/subscribed_apps`;
+				await fetchWithRetry(subscribeUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						subscribed_fields: ['messages', 'comments', 'messaging_postbacks'],
+						access_token: pageAccessToken,
+					}),
+				});
+			} catch (subErr) {
+				console.warn('Webhook auto-subscription notice (non-fatal):', subErr);
+			}
+		}
+
+		// 5. Encrypt sensitive token and persist to database
 		const encryptedToken = encryptToken(pageAccessToken);
 		const db = getDb();
+		let savedAccountId: string | undefined;
 
 		if (db) {
 			const existing = await db
@@ -142,6 +195,7 @@ export async function exchangeOAuthCodeForAccount(
 				.limit(1);
 
 			if (existing.length > 0) {
+				savedAccountId = existing[0].id;
 				await db
 					.update(schema.instagramAccounts)
 					.set({
@@ -157,16 +211,27 @@ export async function exchangeOAuthCodeForAccount(
 					})
 					.where(eq(schema.instagramAccounts.id, existing[0].id));
 			} else {
-				await db.insert(schema.instagramAccounts).values({
-					instagramUserId: igAccount.id,
-					username: igAccount.username || 'instagram_user',
-					name: igAccount.name || null,
-					profilePictureUrl: igAccount.profile_picture_url || null,
-					accessTokenEncrypted: encryptedToken,
-					tokenExpiresAt,
-					scopes: INSTAGRAM_OAUTH_SCOPES,
-					status: 'connected',
-					lastError: null,
+				const [inserted] = await db
+					.insert(schema.instagramAccounts)
+					.values({
+						instagramUserId: igAccount.id,
+						username: igAccount.username || 'instagram_user',
+						name: igAccount.name || null,
+						profilePictureUrl: igAccount.profile_picture_url || null,
+						accessTokenEncrypted: encryptedToken,
+						tokenExpiresAt,
+						scopes: INSTAGRAM_OAUTH_SCOPES,
+						status: 'connected',
+						lastError: null,
+					})
+					.returning();
+				savedAccountId = inserted?.id;
+			}
+
+			// 6. Trigger initial background media synchronization
+			if (savedAccountId) {
+				syncInstagramMedia(savedAccountId).catch((err) => {
+					console.error('Initial media sync notice:', err.message);
 				});
 			}
 		}
@@ -174,6 +239,7 @@ export async function exchangeOAuthCodeForAccount(
 		return {
 			success: true,
 			account: {
+				id: savedAccountId,
 				instagramUserId: igAccount.id,
 				username: igAccount.username,
 				name: igAccount.name,
@@ -195,13 +261,324 @@ export async function getActiveInstagramAccount(): Promise<schema.InstagramAccou
 	const db = getDb();
 	if (!db) return null;
 
-	const accounts = await db
-		.select()
-		.from(schema.instagramAccounts)
-		.where(eq(schema.instagramAccounts.status, 'connected'))
-		.limit(1);
+	try {
+		const accounts = await db
+			.select()
+			.from(schema.instagramAccounts)
+			.where(eq(schema.instagramAccounts.status, 'connected'))
+			.orderBy(desc(schema.instagramAccounts.updatedAt))
+			.limit(1);
 
-	return accounts[0] || null;
+		return accounts[0] || null;
+	} catch (error) {
+		console.error('Error fetching active Instagram account:', error);
+		return null;
+	}
+}
+
+/**
+ * Sync and fetch Instagram posts & reels from Meta Graph API
+ */
+export async function syncInstagramMedia(
+	accountId?: string,
+	limit = 50,
+): Promise<{ success: boolean; count: number; media: schema.InstagramMedia[]; error?: string }> {
+	const db = getDb();
+	const account = accountId
+		? (await db?.select().from(schema.instagramAccounts).where(eq(schema.instagramAccounts.id, accountId)).limit(1))?.[0]
+		: await getActiveInstagramAccount();
+
+	if (!account) {
+		return { success: false, count: 0, media: [], error: 'No active connected Instagram account found.' };
+	}
+
+	try {
+		const decryptedToken = decryptToken(account.accessTokenEncrypted);
+		const fields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count';
+		const mediaUrl = `${GRAPH_API_BASE}/${account.instagramUserId}/media?fields=${fields}&limit=${limit}&access_token=${decryptedToken}`;
+
+		const response = await fetchWithRetry(mediaUrl);
+		const data = await response.json();
+
+		if (data.error) {
+			console.error('Meta media fetch error:', data.error);
+			if (db && data.error.code === 190) {
+				// Token expired or invalid
+				await db
+					.update(schema.instagramAccounts)
+					.set({ status: 'expired', lastError: data.error.message })
+					.where(eq(schema.instagramAccounts.id, account.id));
+			}
+			return { success: false, count: 0, media: [], error: data.error.message };
+		}
+
+		const rawItems = Array.isArray(data.data) ? data.data : [];
+		const syncedMedia: schema.InstagramMedia[] = [];
+
+		if (db && rawItems.length > 0) {
+			for (const item of rawItems) {
+				const mediaType = item.media_type || (item.thumbnail_url ? 'VIDEO' : 'IMAGE');
+				const mediaTimestamp = item.timestamp ? new Date(item.timestamp) : new Date();
+
+				const existing = await db
+					.select()
+					.from(schema.instagramMedia)
+					.where(eq(schema.instagramMedia.mediaId, item.id))
+					.limit(1);
+
+				if (existing.length > 0) {
+					const [updated] = await db
+						.update(schema.instagramMedia)
+						.set({
+							caption: item.caption || null,
+							mediaType,
+							mediaUrl: item.media_url || item.thumbnail_url || null,
+							thumbnailUrl: item.thumbnail_url || item.media_url || null,
+							permalink: item.permalink || null,
+							commentsCount: item.comments_count || 0,
+							likeCount: item.like_count || 0,
+							timestamp: mediaTimestamp,
+							lastSyncedAt: new Date(),
+							updatedAt: new Date(),
+						})
+						.where(eq(schema.instagramMedia.id, existing[0].id))
+						.returning();
+					if (updated) syncedMedia.push(updated);
+				} else {
+					const [inserted] = await db
+						.insert(schema.instagramMedia)
+						.values({
+							accountId: account.id,
+							mediaId: item.id,
+							caption: item.caption || null,
+							mediaType,
+							mediaUrl: item.media_url || item.thumbnail_url || null,
+							thumbnailUrl: item.thumbnail_url || item.media_url || null,
+							permalink: item.permalink || null,
+							commentsCount: item.comments_count || 0,
+							likeCount: item.like_count || 0,
+							timestamp: mediaTimestamp,
+							lastSyncedAt: new Date(),
+						})
+						.returning();
+					if (inserted) syncedMedia.push(inserted);
+				}
+			}
+		}
+
+		return { success: true, count: syncedMedia.length, media: syncedMedia };
+	} catch (error: any) {
+		console.error('Error in syncInstagramMedia:', error);
+		return { success: false, count: 0, media: [], error: error.message };
+	}
+}
+
+/**
+ * Get Instagram media from local DB with fallback to live API fetch
+ */
+export async function getInstagramMediaList(options: {
+	type?: 'all' | 'posts' | 'reels';
+	limit?: number;
+	offset?: number;
+}): Promise<{ media: (schema.InstagramMedia & { automationRule?: schema.AutomationRule | null })[]; total: number }> {
+	const db = getDb();
+	if (!db) return { media: [], total: 0 };
+
+	try {
+		const account = await getActiveInstagramAccount();
+		if (!account) return { media: [], total: 0 };
+
+		let query = db
+			.select()
+			.from(schema.instagramMedia)
+			.where(eq(schema.instagramMedia.accountId, account.id))
+			.orderBy(desc(schema.instagramMedia.timestamp));
+
+		const allMedia = await query;
+		let filtered = allMedia;
+
+		if (options.type === 'posts') {
+			filtered = allMedia.filter((m: schema.InstagramMedia) => m.mediaType === 'IMAGE' || m.mediaType === 'CAROUSEL_ALBUM');
+		} else if (options.type === 'reels') {
+			filtered = allMedia.filter((m: schema.InstagramMedia) => m.mediaType === 'VIDEO' || m.mediaType === 'REELS');
+		}
+
+		// Attach associated automation rules
+		const rules = await db
+			.select()
+			.from(schema.automationRules)
+			.where(eq(schema.automationRules.accountId, account.id));
+
+		const ruleMap = new Map<string, schema.AutomationRule>();
+		for (const r of rules) {
+			if (r.mediaId) {
+				ruleMap.set(r.mediaId, r);
+			}
+		}
+
+		const limit = options.limit || 50;
+		const offset = options.offset || 0;
+		const paged = filtered.slice(offset, offset + limit).map((m: schema.InstagramMedia) => ({
+			...m,
+			automationRule: (m.mediaId ? ruleMap.get(m.mediaId) : null) || null,
+		}));
+
+		return { media: paged, total: filtered.length };
+	} catch (error) {
+		console.error('Error fetching media list:', error);
+		return { media: [], total: 0 };
+	}
+}
+
+/**
+ * Fetch comments for a specific Instagram Post or Reel from official Meta Graph API
+ */
+export async function fetchInstagramComments(
+	mediaId: string,
+	limit = 25,
+): Promise<{ success: boolean; comments: any[]; error?: string }> {
+	const account = await getActiveInstagramAccount();
+	if (!account) {
+		return { success: false, comments: [], error: 'No active Instagram account connected.' };
+	}
+
+	try {
+		const decryptedToken = decryptToken(account.accessTokenEncrypted);
+		const url = `${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`;
+
+		const response = await fetchWithRetry(url);
+		const data = await response.json();
+
+		if (data.error) {
+			return { success: false, comments: [], error: data.error.message };
+		}
+
+		return { success: true, comments: data.data || [] };
+	} catch (error: any) {
+		return { success: false, comments: [], error: error.message };
+	}
+}
+
+/**
+ * Fetch Instagram Conversations (Direct Message threads) from official Meta Graph API
+ */
+export async function fetchInstagramConversations(
+	limit = 20,
+): Promise<{ success: boolean; conversations: any[]; error?: string }> {
+	const account = await getActiveInstagramAccount();
+	if (!account) {
+		return { success: false, conversations: [], error: 'No active Instagram account connected.' };
+	}
+
+	try {
+		const decryptedToken = decryptToken(account.accessTokenEncrypted);
+		const url = `${GRAPH_API_BASE}/${account.instagramUserId}/conversations?platform=instagram&fields=id,updated_time,unread_count,participants,messages{id,message,created_time,from,to}&limit=${limit}&access_token=${decryptedToken}`;
+
+		const response = await fetchWithRetry(url);
+		const data = await response.json();
+
+		if (data.error) {
+			console.warn('Conversations fetch notice from Meta Graph API:', data.error);
+			return { success: false, conversations: [], error: data.error.message };
+		}
+
+		const convos = data.data || [];
+		const db = getDb();
+
+		// Cache conversations into local database
+		if (db && Array.isArray(convos)) {
+			for (const c of convos) {
+				const participant = c.participants?.data?.find((p: any) => p.id !== account.instagramUserId) || c.participants?.data?.[0];
+				const latestMsg = c.messages?.data?.[0];
+				const participantId = participant?.id || 'unknown';
+				const participantUsername = participant?.username || participant?.name || null;
+				const lastMessageText = latestMsg?.message || null;
+				const lastMessageAt = c.updated_time ? new Date(c.updated_time) : new Date();
+
+				const existing = await db
+					.select()
+					.from(schema.conversations)
+					.where(eq(schema.conversations.instagramConversationId, c.id))
+					.limit(1);
+
+				if (existing.length > 0) {
+					await db
+						.update(schema.conversations)
+						.set({
+							participantId,
+							participantUsername,
+							unreadCount: c.unread_count || 0,
+							lastMessageText,
+							lastMessageAt,
+							updatedAt: new Date(),
+						})
+						.where(eq(schema.conversations.id, existing[0].id));
+				} else {
+					await db.insert(schema.conversations).values({
+						accountId: account.id,
+						instagramConversationId: c.id,
+						participantId,
+						participantUsername,
+						unreadCount: c.unread_count || 0,
+						lastMessageText,
+						lastMessageAt,
+					});
+				}
+			}
+		}
+
+		return { success: true, conversations: convos };
+	} catch (error: any) {
+		return { success: false, conversations: [], error: error.message };
+	}
+}
+
+/**
+ * Fetch messages inside a specific Instagram Conversation
+ */
+export async function fetchConversationMessages(
+	conversationId: string,
+	limit = 50,
+): Promise<{ success: boolean; messages: any[]; error?: string }> {
+	const account = await getActiveInstagramAccount();
+	if (!account) {
+		return { success: false, messages: [], error: 'No active Instagram account connected.' };
+	}
+
+	try {
+		const decryptedToken = decryptToken(account.accessTokenEncrypted);
+		const url = `${GRAPH_API_BASE}/${conversationId}/messages?fields=id,created_time,from,to,message&limit=${limit}&access_token=${decryptedToken}`;
+
+		const response = await fetchWithRetry(url);
+		const data = await response.json();
+
+		if (data.error) {
+			return { success: false, messages: [], error: data.error.message };
+		}
+
+		return { success: true, messages: data.data || [] };
+	} catch (error: any) {
+		return { success: false, messages: [], error: error.message };
+	}
+}
+
+/**
+ * Format personalized response template with dynamic variables {{first_name}}, {{username}}, {{link}}
+ */
+export function formatPersonalizedMessage(
+	template: string,
+	variables: { firstName?: string; username?: string; link?: string | null },
+): string {
+	let output = template;
+	const firstName = variables.firstName || variables.username || 'there';
+	const username = variables.username || firstName;
+	const link = variables.link || '';
+
+	output = output.replace(/{{\s*first_name\s*}}/gi, firstName);
+	output = output.replace(/{{\s*username\s*}}/gi, username);
+	output = output.replace(/{{\s*link\s*}}/gi, link);
+
+	return output;
 }
 
 /**
@@ -220,9 +597,9 @@ export async function sendInstagramMessage(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const messageText = url ? `${text}\n\n${url}` : text;
+		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
-		const response = await fetch(`${GRAPH_API_BASE}/me/messages`, {
+		const response = await fetchWithRetry(`${GRAPH_API_BASE}/me/messages`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -269,11 +646,11 @@ export async function sendInstagramPrivateReply(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const messageText = url ? `${text}\n\n${url}` : text;
+		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
 		// Official Meta Instagram Messaging Private Reply endpoint:
 		// POST /v19.0/me/messages with recipient: { comment_id: "<COMMENT_ID>" }
-		const response = await fetch(`${GRAPH_API_BASE}/me/messages`, {
+		const response = await fetchWithRetry(`${GRAPH_API_BASE}/me/messages`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -301,6 +678,52 @@ export async function sendInstagramPrivateReply(
 		};
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram Private Reply' };
+	}
+}
+
+/**
+ * Post an official Public Reply to a comment on Instagram
+ */
+export async function sendInstagramPublicCommentReply(
+	commentId: string,
+	text: string,
+	accountOverride?: schema.InstagramAccount,
+): Promise<{ success: boolean; replyCommentId?: string; error?: string }> {
+	const account = accountOverride || (await getActiveInstagramAccount());
+	if (!account) {
+		return { success: false, error: 'No active Instagram account connected.' };
+	}
+
+	try {
+		const decryptedToken = decryptToken(account.accessTokenEncrypted);
+		// Official Meta Graph API: POST /{comment-id}/replies with message
+		const response = await fetchWithRetry(`${GRAPH_API_BASE}/${commentId}/replies`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${decryptedToken}`,
+			},
+			body: JSON.stringify({
+				message: text,
+			}),
+		});
+
+		const data = await response.json();
+
+		if (data.error) {
+			console.error('Meta Public Comment Reply error:', data.error);
+			return {
+				success: false,
+				error: `${data.error.message} (code: ${data.error.code})`,
+			};
+		}
+
+		return {
+			success: true,
+			replyCommentId: data.id,
+		};
+	} catch (error: any) {
+		return { success: false, error: error.message || 'Failed to send public comment reply' };
 	}
 }
 

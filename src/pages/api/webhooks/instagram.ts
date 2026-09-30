@@ -61,9 +61,10 @@ export const post: APIRoute = async ({ request }) => {
 		const processingPromises: Promise<any>[] = [];
 
 		for (const entry of entries) {
-			// A. Incoming Direct Messages (`messaging` field)
+			// A. Incoming Direct Messages & Postbacks (`messaging` field)
 			if (entry.messaging && Array.isArray(entry.messaging)) {
 				for (const msgItem of entry.messaging) {
+					// 1. Regular Direct Messages
 					if (msgItem.message && msgItem.message.text) {
 						// Ignore echo messages (messages sent by the page/account itself)
 						if (msgItem.message.is_echo) continue;
@@ -73,7 +74,22 @@ export const post: APIRoute = async ({ request }) => {
 							eventType: 'message',
 							senderId: msgItem.sender.id,
 							recipientId: msgItem.recipient?.id,
+							senderUsername: msgItem.sender?.username,
 							text: msgItem.message.text,
+							rawPayload: msgItem,
+						};
+
+						processingPromises.push(processWebhookEvent(event));
+					}
+
+					// 2. Messaging Postbacks (e.g. Get Started button / Quick Replies)
+					if (msgItem.postback) {
+						const event: WebhookIncomingEvent = {
+							eventId: `postback_${msgItem.sender.id}_${msgItem.timestamp || Date.now()}`,
+							eventType: 'messaging_postbacks',
+							senderId: msgItem.sender.id,
+							recipientId: msgItem.recipient?.id,
+							text: msgItem.postback.title || msgItem.postback.payload || 'START',
 							rawPayload: msgItem,
 						};
 
@@ -88,11 +104,19 @@ export const post: APIRoute = async ({ request }) => {
 					if (change.field === 'comments' && change.value) {
 						const val = change.value;
 						if (val.text && val.id) {
+							const mediaId = val.media?.id || val.post_id || val.media_id || change.value?.media_id;
+							const senderUsername = val.from?.username;
+							const senderName = val.from?.name;
+							let firstName = senderName ? senderName.split(' ')[0] : senderUsername;
+
 							const event: WebhookIncomingEvent = {
 								eventId: `comment_${val.id}`,
 								eventType: 'comment',
 								senderId: val.from?.id || 'unknown',
+								senderUsername,
+								senderFirstName: firstName,
 								commentId: val.id,
+								mediaId,
 								text: val.text,
 								rawPayload: change,
 							};
@@ -104,16 +128,16 @@ export const post: APIRoute = async ({ request }) => {
 			}
 		}
 
-		// Await all events to ensure serverless functions don't terminate before DB writes
+		// Await all events to ensure serverless execution completes database operations
 		await Promise.all(processingPromises);
 
-		return new Response(JSON.stringify({ status: 'EVENT_RECEIVED' }), {
+		return new Response(JSON.stringify({ status: 'EVENT_RECEIVED', processed: processingPromises.length }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (error: any) {
 		console.error('Unhandled webhook error:', error);
-		// Return 200 or 500: return 200 to prevent Meta retry storm unless critical
+		// Return 200 to prevent Meta retry loop unless server error is fatal
 		return new Response(JSON.stringify({ error: error.message }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },

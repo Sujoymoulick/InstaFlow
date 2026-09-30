@@ -1,9 +1,9 @@
 ---
-import LayoutSidebar from '../../app/LayoutSidebar.astro';
-import { getDb, schema } from '../../db/index.js';
+import LayoutSidebar from '../../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../../db/index.js';
 import { desc, count, eq } from 'drizzle-orm';
-import { getActiveInstagramAccount } from '../../services/instagram.js';
-import { url } from '../../lib/data.js';
+import { getActiveInstagramAccount } from '../../../services/instagram.js';
+import { url } from '../../../lib/data.js';
 
 export const prerender = false;
 

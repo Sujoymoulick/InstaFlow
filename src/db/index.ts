@@ -5,7 +5,7 @@ import * as schema from './schema.js';
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb() {
-	const connectionString = process.env.DATABASE_URL;
+	const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
 	if (!connectionString) {
 		return null;
 	}
