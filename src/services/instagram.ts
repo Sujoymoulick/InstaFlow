@@ -66,6 +66,21 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
 export function getMetaAuthorizationUrl(state: string, redirectUriOverride?: string): string {
 	const { appId, redirectUri } = getOAuthConfig();
 	const callbackUrl = redirectUriOverride || redirectUri;
+	const isInstagramLogin = process.env.META_AUTH_TYPE === 'instagram' || appId === '2216387435958871';
+
+	if (isInstagramLogin) {
+		const params = new URLSearchParams({
+			enable_fb_login: '0',
+			force_authentication: '1',
+			client_id: appId,
+			redirect_uri: callbackUrl,
+			response_type: 'code',
+			scope: INSTAGRAM_OAUTH_SCOPES,
+			state,
+		});
+		return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+	}
+
 	const params = new URLSearchParams({
 		client_id: appId,
 		redirect_uri: callbackUrl,
@@ -95,7 +110,10 @@ export async function exchangeOAuthCodeForAccount(
 	}
 
 	try {
-		// 1. Exchange code for short-lived user access token
+		// 1. Exchange code for user access token (tries Graph API first, falls back to Instagram API)
+		let shortLivedToken: string | null = null;
+
+		// Method A: Graph API (Facebook Login for Business)
 		const tokenUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
 			client_id: appId,
 			client_secret: appSecret,
@@ -103,18 +121,47 @@ export async function exchangeOAuthCodeForAccount(
 			code,
 		}).toString()}`;
 
-		const tokenResponse = await fetchWithRetry(tokenUrl);
-		const tokenData = await tokenResponse.json();
-
-		if (tokenData.error) {
-			console.error('Meta token exchange error:', tokenData.error);
-			return {
-				success: false,
-				error: tokenData.error.message || 'Failed to exchange authorization code.',
-			};
+		try {
+			const tokenResponse = await fetchWithRetry(tokenUrl);
+			const tokenData = await tokenResponse.json();
+			if (tokenData && tokenData.access_token) {
+				shortLivedToken = tokenData.access_token;
+			}
+		} catch (e) {
+			console.warn('Graph API token exchange attempt notice:', e);
 		}
 
-		const shortLivedToken = tokenData.access_token;
+		// Method B: Instagram direct API (Instagram Login for Business)
+		if (!shortLivedToken) {
+			try {
+				const igFormData = new URLSearchParams({
+					client_id: appId,
+					client_secret: appSecret,
+					grant_type: 'authorization_code',
+					redirect_uri: callbackUrl,
+					code,
+				});
+
+				const igResponse = await fetchWithRetry('https://api.instagram.com/oauth/access_token', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: igFormData.toString(),
+				});
+				const igData = await igResponse.json();
+				if (igData && igData.access_token) {
+					shortLivedToken = igData.access_token;
+				}
+			} catch (igErr) {
+				console.warn('Instagram direct token exchange attempt notice:', igErr);
+			}
+		}
+
+		if (!shortLivedToken) {
+			return {
+				success: false,
+				error: 'Failed to exchange authorization code for an access token. Please verify App ID and Secret.',
+			};
+		}
 
 		// 2. Exchange short-lived token for long-lived access token (60-day)
 		let accessToken = shortLivedToken;
