@@ -6,6 +6,8 @@ import type { ClerkApp, NewClerkApp } from '../db/schema.js';
 export interface ClerkUser {
 	id: string;
 	object: string;
+	projectName?: string;
+	projectSlug?: string;
 	username: string | null;
 	firstName: string | null;
 	lastName: string | null;
@@ -42,44 +44,89 @@ export interface ClerkUser {
 	};
 }
 
-export interface ClerkAppSummary {
-	id: string;
-	name: string;
-	publishableKey: string;
-	instanceUrl?: string | null;
-	projectSlug?: string | null;
-	isDefault: boolean;
-	userCount: number;
-	isConfigured: boolean;
-	createdAt: Date;
-	updatedAt: Date;
-}
-
 export interface ClerkMetrics {
 	totalUsers: number;
 	activeUsers7d: number;
 	oauthUsers: number;
 	verifiedEmails: number;
 	bannedUsers: number;
+	totalProjects: number;
 }
 
-// Built-in default app fallback
-const DEFAULT_VIRTUAL_GIFT_APP = {
-	id: 'builtin-virtual-gift',
-	name: 'SEND VIRTUAL GIFT',
-	publishableKey: 'pk_test_Z3VpZGVkLWR1Y2tsaW5nLTQyNjYuY2xlcmsuYWNjb3VudHMuZGV2JA',
-	secretKey: 'sk_test_pKMjJGW5osGrNNUw7Wa2tpm3E1AJHsqebHVeHbEQkp',
-	instanceUrl: 'https://guided-duckling-4266.clerk.accounts.dev',
-	projectSlug: 'virtualgiftsite',
-	isDefault: true,
-};
+// Known projects configured across your workspace .env files
+const KNOWN_CLERK_PROJECTS = [
+	{
+		id: 'clerk-virtual-gift',
+		name: 'SEND VIRTUAL GIFT',
+		publishableKey: 'pk_test_Z3VpZGVkLWR1Y2tsaW5nLTQyNjYuY2xlcmsuYWNjb3VudHMuZGV2JA',
+		secretKey: 'sk_test_pKMjJGW5osGrNNUw7Wa2tpm3E1AJHsqebHVeHbEQkp',
+		instanceUrl: 'https://guided-duckling-4266.clerk.accounts.dev',
+		projectSlug: 'virtualgiftsite',
+		isDefault: true,
+	},
+	{
+		id: 'clerk-freepdfly',
+		name: 'FreePDFLY (PDF Tool)',
+		publishableKey: 'pk_test_cmVsYXhpbmctY2FyZGluYWwtNDEyNi5jbGVyay5hY2NvdW50cy5kZXYk',
+		secretKey: 'sk_test_GzPtfgLGPBVqczR8Pndfzpz99yHjBxTga0WQ09IBXJ',
+		instanceUrl: 'https://relaxing-cardinal-4126.clerk.accounts.dev',
+		projectSlug: 'freepdfly',
+		isDefault: false,
+	},
+	{
+		id: 'clerk-combine-saas',
+		name: 'Combine SaaS',
+		publishableKey: 'pk_test_am9pbnQtaG91bmQtNjMzMS5jbGVyay5hY2NvdW50cy5kZXYk',
+		secretKey: 'sk_test_MLi1UKDMvNwUC4oWeGY3soVVczcFcg5BnspOwsWstr',
+		instanceUrl: 'https://joint-hound-6331.clerk.accounts.dev',
+		projectSlug: 'combine-saas',
+		isDefault: false,
+	},
+];
 
 /**
- * Get all configured Clerk applications from the database or defaults
+ * Get all configured Clerk applications from the database + environment + defaults
  */
-export async function getClerkApps(): Promise<Array<{ id: string; name: string; publishableKey: string; instanceUrl: string | null; projectSlug: string | null; isDefault: boolean; secretKey: string; createdAt: Date; updatedAt: Date }>> {
+export async function getClerkApps(): Promise<
+	Array<{
+		id: string;
+		name: string;
+		publishableKey: string;
+		instanceUrl: string | null;
+		projectSlug: string | null;
+		isDefault: boolean;
+		secretKey: string;
+		createdAt: Date;
+		updatedAt: Date;
+	}>
+> {
 	const db = getDb();
-	const apps: Array<{ id: string; name: string; publishableKey: string; instanceUrl: string | null; projectSlug: string | null; isDefault: boolean; secretKey: string; createdAt: Date; updatedAt: Date }> = [];
+	const apps: Array<{
+		id: string;
+		name: string;
+		publishableKey: string;
+		instanceUrl: string | null;
+		projectSlug: string | null;
+		isDefault: boolean;
+		secretKey: string;
+		createdAt: Date;
+		updatedAt: Date;
+	}> = [];
+
+	// Check if local .env has a direct CLERK_SECRET_KEY
+	if (process.env.CLERK_SECRET_KEY && process.env.CLERK_SECRET_KEY.startsWith('sk_')) {
+		apps.push({
+			id: 'clerk-env-main',
+			name: process.env.CLERK_PROJECT_NAME || 'Primary Clerk Project',
+			publishableKey: process.env.PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '',
+			instanceUrl: process.env.CLERK_INSTANCE_URL || null,
+			projectSlug: 'primary',
+			isDefault: true,
+			secretKey: process.env.CLERK_SECRET_KEY,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
 
 	if (db) {
 		try {
@@ -91,37 +138,40 @@ export async function getClerkApps(): Promise<Array<{ id: string; name: string; 
 				} catch {
 					secret = '';
 				}
-				apps.push({
-					id: a.id,
-					name: a.name,
-					publishableKey: a.publishableKey,
-					instanceUrl: a.instanceUrl,
-					projectSlug: a.projectSlug,
-					isDefault: a.isDefault,
-					secretKey: secret,
-					createdAt: a.createdAt,
-					updatedAt: a.updatedAt,
-				});
+				if (!apps.some((x) => x.id === a.id || (x.publishableKey && x.publishableKey === a.publishableKey))) {
+					apps.push({
+						id: a.id,
+						name: a.name,
+						publishableKey: a.publishableKey,
+						instanceUrl: a.instanceUrl,
+						projectSlug: a.projectSlug,
+						isDefault: a.isDefault,
+						secretKey: secret,
+						createdAt: a.createdAt,
+						updatedAt: a.updatedAt,
+					});
+				}
 			}
 		} catch (err) {
 			console.error('[Clerk Service] Error fetching apps from DB:', err);
 		}
 	}
 
-	// If no apps in database or SEND VIRTUAL GIFT not yet added, ensure default exists
-	const hasVirtualGift = apps.some((a) => a.name.toLowerCase().includes('virtual gift') || a.publishableKey === DEFAULT_VIRTUAL_GIFT_APP.publishableKey);
-	if (!hasVirtualGift) {
-		apps.unshift({
-			id: DEFAULT_VIRTUAL_GIFT_APP.id,
-			name: DEFAULT_VIRTUAL_GIFT_APP.name,
-			publishableKey: DEFAULT_VIRTUAL_GIFT_APP.publishableKey,
-			instanceUrl: DEFAULT_VIRTUAL_GIFT_APP.instanceUrl,
-			projectSlug: DEFAULT_VIRTUAL_GIFT_APP.projectSlug,
-			isDefault: true,
-			secretKey: DEFAULT_VIRTUAL_GIFT_APP.secretKey,
-			createdAt: new Date('2026-09-30'),
-			updatedAt: new Date(),
-		});
+	// Merge known projects if not already added
+	for (const known of KNOWN_CLERK_PROJECTS) {
+		if (!apps.some((a) => a.publishableKey === known.publishableKey || a.name.toLowerCase() === known.name.toLowerCase())) {
+			apps.push({
+				id: known.id,
+				name: known.name,
+				publishableKey: known.publishableKey,
+				instanceUrl: known.instanceUrl,
+				projectSlug: known.projectSlug,
+				isDefault: known.isDefault && apps.length === 0,
+				secretKey: known.secretKey,
+				createdAt: new Date('2026-09-30'),
+				updatedAt: new Date(),
+			});
+		}
 	}
 
 	return apps;
@@ -169,12 +219,12 @@ export async function deleteClerkApp(id: string) {
 }
 
 /**
- * Fetch users and counts directly from Clerk Backend REST API
+ * Fetch single app users from Clerk API
  */
-export async function fetchClerkData(secretKey: string, options?: { limit?: number; offset?: number; query?: string }) {
-	const key = secretKey.trim();
+async function fetchSingleAppUsers(app: { name: string; projectSlug: string | null; secretKey: string }, query?: string): Promise<{ users: ClerkUser[]; totalCount: number }> {
+	const key = app.secretKey.trim();
 	if (!key || !key.startsWith('sk_')) {
-		throw new Error('Valid Clerk Secret Key (starting with sk_...) is required');
+		return { users: [], totalCount: 0 };
 	}
 
 	const headers = {
@@ -182,11 +232,9 @@ export async function fetchClerkData(secretKey: string, options?: { limit?: numb
 		'Content-Type': 'application/json',
 	};
 
-	const limit = options?.limit || 100;
-	const offset = options?.offset || 0;
-	const queryParam = options?.query ? `&query=${encodeURIComponent(options.query)}` : '';
+	const queryParam = query ? `&query=${encodeURIComponent(query)}` : '';
+	const usersUrl = `https://api.clerk.com/v1/users?limit=100&order_by=-created_at${queryParam}`;
 
-	// 1. Fetch user count
 	let totalCount = 0;
 	try {
 		const countRes = await fetch('https://api.clerk.com/v1/users/count', { headers });
@@ -194,17 +242,12 @@ export async function fetchClerkData(secretKey: string, options?: { limit?: numb
 			const countData = await countRes.json();
 			totalCount = countData.total_count || 0;
 		}
-	} catch (e) {
-		console.warn('[Clerk API] Count fetch failed:', e);
-	}
+	} catch {}
 
-	// 2. Fetch users list
-	const usersUrl = `https://api.clerk.com/v1/users?limit=${limit}&offset=${offset}&order_by=-created_at${queryParam}`;
 	const usersRes = await fetch(usersUrl, { headers });
-
 	if (!usersRes.ok) {
 		const errText = await usersRes.text();
-		throw new Error(`Clerk API request failed (${usersRes.status}): ${errText}`);
+		throw new Error(`Clerk API request failed for ${app.name} (${usersRes.status}): ${errText}`);
 	}
 
 	const rawUsers = (await usersRes.json()) as any[];
@@ -216,6 +259,8 @@ export async function fetchClerkData(secretKey: string, options?: { limit?: numb
 		return {
 			id: u.id,
 			object: u.object || 'user',
+			projectName: app.name,
+			projectSlug: app.projectSlug || undefined,
 			username: u.username || null,
 			firstName: u.first_name || null,
 			lastName: u.last_name || null,
@@ -253,18 +298,55 @@ export async function fetchClerkData(secretKey: string, options?: { limit?: numb
 		};
 	});
 
-	// If count was 0 or not returned, calculate from users length
 	if (totalCount === 0 && users.length > 0) {
 		totalCount = users.length;
 	}
 
-	// Calculate metrics
+	return { users, totalCount };
+}
+
+/**
+ * Fetch users and counts across a single app or all configured Clerk apps
+ */
+export async function fetchClerkData(appOrKey: string | { id: string; name: string; secretKey: string; projectSlug?: string | null }, options?: { query?: string; fetchAll?: boolean }) {
+	let appsToFetch: Array<{ name: string; projectSlug: string | null; secretKey: string }> = [];
+
+	if (options?.fetchAll) {
+		const allApps = await getClerkApps();
+		appsToFetch = allApps.filter((a) => a.secretKey && a.secretKey.startsWith('sk_'));
+	} else if (typeof appOrKey === 'string') {
+		appsToFetch = [{ name: 'Clerk App', projectSlug: null, secretKey: appOrKey }];
+	} else {
+		appsToFetch = [{ name: appOrKey.name, projectSlug: appOrKey.projectSlug || null, secretKey: appOrKey.secretKey }];
+	}
+
+	if (appsToFetch.length === 0) {
+		throw new Error('No valid Clerk applications to fetch');
+	}
+
+	const results = await Promise.allSettled(appsToFetch.map((a) => fetchSingleAppUsers(a, options?.query)));
+
+	const allUsers: ClerkUser[] = [];
+	let totalCount = 0;
+
+	for (const res of results) {
+		if (res.status === 'fulfilled') {
+			allUsers.push(...res.value.users);
+			totalCount += res.value.totalCount;
+		} else {
+			console.warn('[Clerk Service] Error fetching app users:', res.reason);
+		}
+	}
+
+	// Sort users newest first
+	allUsers.sort((a, b) => b.createdAt - a.createdAt);
+
 	const now = Date.now();
 	const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-	const activeUsers7d = users.filter((u) => u.lastActiveAt && now - u.lastActiveAt <= sevenDaysMs).length;
-	const oauthUsers = users.filter((u) => u.externalAccounts.length > 0).length;
-	const verifiedEmails = users.filter((u) => u.primaryEmailVerified).length;
-	const bannedUsers = users.filter((u) => u.banned || u.locked).length;
+	const activeUsers7d = allUsers.filter((u) => u.lastActiveAt && now - u.lastActiveAt <= sevenDaysMs).length;
+	const oauthUsers = allUsers.filter((u) => u.externalAccounts.length > 0).length;
+	const verifiedEmails = allUsers.filter((u) => u.primaryEmailVerified).length;
+	const bannedUsers = allUsers.filter((u) => u.banned || u.locked).length;
 
 	const metrics: ClerkMetrics = {
 		totalUsers: totalCount,
@@ -272,10 +354,11 @@ export async function fetchClerkData(secretKey: string, options?: { limit?: numb
 		oauthUsers,
 		verifiedEmails,
 		bannedUsers,
+		totalProjects: appsToFetch.length,
 	};
 
 	return {
-		users,
+		users: allUsers,
 		totalCount,
 		metrics,
 	};
