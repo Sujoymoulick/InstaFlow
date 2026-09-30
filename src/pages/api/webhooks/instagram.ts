@@ -5,43 +5,84 @@ import { processWebhookEvent, type WebhookIncomingEvent } from '../../../service
 export const prerender = false;
 
 /**
- * Meta Webhook Verification Challenge (GET)
+ * Pure verification logic for Meta Webhook subscription verification
+ */
+export function verifyMetaWebhookChallenge(
+	mode: string | null,
+	token: string | null,
+	challenge: string | null,
+	expectedToken?: string,
+): { status: number; body: string; headers: Record<string, string> } {
+	const validToken =
+		expectedToken ||
+		process.env.META_WEBHOOK_VERIFY_TOKEN ||
+		(typeof import.meta !== 'undefined' && import.meta.env?.META_WEBHOOK_VERIFY_TOKEN);
+
+	// Validate mode is 'subscribe', token matches configured secret, and challenge is present
+	if (mode === 'subscribe' && token && validToken && token === validToken && challenge) {
+		return {
+			status: 200,
+			body: challenge,
+			headers: {
+				'Content-Type': 'text/plain; charset=utf-8',
+				'Cache-Control': 'no-store, no-cache, must-revalidate',
+			},
+		};
+	}
+
+	return {
+		status: 403,
+		body: 'Forbidden',
+		headers: {
+			'Content-Type': 'text/plain; charset=utf-8',
+		},
+	};
+}
+
+/**
+ * Meta Webhook Verification Endpoint (GET)
+ * Handles the initial subscription challenge from Meta Developers / Instagram Graph API
  */
 export const get: APIRoute = async ({ url }) => {
 	const mode = url.searchParams.get('hub.mode');
 	const token = url.searchParams.get('hub.verify_token');
 	const challenge = url.searchParams.get('hub.challenge');
 
-	const expectedToken = process.env.META_WEBHOOK_VERIFY_TOKEN;
+	const result = verifyMetaWebhookChallenge(mode, token, challenge);
 
-	if (mode === 'subscribe' && token && expectedToken && token === expectedToken) {
-		console.log('Instagram Webhook verified successfully');
-		return new Response(challenge || '', {
-			status: 200,
-			headers: { 'Content-Type': 'text/plain' },
-		});
+	if (result.status === 200) {
+		console.log(`[Meta Webhook] GET verification succeeded with mode "${mode}"`);
+	} else {
+		console.warn(`[Meta Webhook] GET verification rejected (mode: "${mode}", token supplied: ${Boolean(token)})`);
 	}
 
-	console.warn('Instagram Webhook verification failed: token mismatch or missing mode');
-	return new Response('Forbidden', { status: 403 });
+	return new Response(result.body, {
+		status: result.status,
+		headers: result.headers,
+	});
 };
 
 export const GET = get;
 
 /**
- * Meta Webhook Event Ingestion (POST)
+ * Meta Webhook Event Ingestion Endpoint (POST)
+ * Receives real-time comments and direct messaging events
  */
 export const post: APIRoute = async ({ request }) => {
 	try {
 		const rawBody = await request.text();
 		const signature = request.headers.get('x-hub-signature-256');
 
-		// Webhook signature verification
-		if (process.env.META_APP_SECRET) {
-			const isValid = verifyWebhookSignature(rawBody, signature, process.env.META_APP_SECRET);
+		// Webhook signature verification (HMAC-SHA256)
+		const appSecret = process.env.META_APP_SECRET || (typeof import.meta !== 'undefined' && import.meta.env?.META_APP_SECRET);
+		if (appSecret) {
+			const isValid = verifyWebhookSignature(rawBody, signature, appSecret);
 			if (!isValid) {
-				console.warn('Instagram Webhook signature verification failed');
-				return new Response('Invalid signature', { status: 401 });
+				console.warn('[Meta Webhook] POST rejected: invalid HMAC-SHA256 signature');
+				return new Response('Invalid signature', {
+					status: 401,
+					headers: { 'Content-Type': 'text/plain' },
+				});
 			}
 		}
 
@@ -49,12 +90,18 @@ export const post: APIRoute = async ({ request }) => {
 		try {
 			body = JSON.parse(rawBody);
 		} catch (e) {
-			return new Response('Invalid JSON', { status: 400 });
+			return new Response('Invalid JSON', {
+				status: 400,
+				headers: { 'Content-Type': 'text/plain' },
+			});
 		}
 
-		// Verify object is instagram or page
+		// Verify object type is instagram or page
 		if (body.object !== 'instagram' && body.object !== 'page') {
-			return new Response('Ignored object', { status: 200 });
+			return new Response('Ignored object', {
+				status: 200,
+				headers: { 'Content-Type': 'text/plain' },
+			});
 		}
 
 		const entries = Array.isArray(body.entry) ? body.entry : [];
@@ -66,7 +113,6 @@ export const post: APIRoute = async ({ request }) => {
 				for (const msgItem of entry.messaging) {
 					// 1. Regular Direct Messages
 					if (msgItem.message && msgItem.message.text) {
-						// Ignore echo messages (messages sent by the page/account itself)
 						if (msgItem.message.is_echo) continue;
 
 						const event: WebhookIncomingEvent = {
@@ -136,8 +182,7 @@ export const post: APIRoute = async ({ request }) => {
 			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (error: any) {
-		console.error('Unhandled webhook error:', error);
-		// Return 200 to prevent Meta retry loop unless server error is fatal
+		console.error('[Meta Webhook] Unhandled POST error:', error);
 		return new Response(JSON.stringify({ error: error.message }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },

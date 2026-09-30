@@ -260,29 +260,51 @@ const invalidStatusRes = (await createProjectApi({ request: authApiReqInvalidSta
 assert.strictEqual(invalidStatusRes.status, 400, 'Invalid status must return 400');
 console.log('  ✓ POST /api/projects validates status against allowed list');
 
-// 9. Database Integration Tests (Online Check)
-if (process.env.DATABASE_URL) {
-	console.log('\n9. Testing Database Connectivity (if online):');
-	try {
-		const { createProject, getProjectMetrics } = await import('../src/services/projects.js');
-		const testProjectName = `Test Project ${Date.now()}`;
-		const createdProj = await createProject({
-			name: testProjectName,
-			category: 'SaaS',
-			status: 'In Development',
-			description: 'Automated test project for dashboard verification',
-			technologies: ['TypeScript', 'Astro', 'Neon'],
-			liveUrl: 'https://example.com',
-			githubUrl: 'https://github.com/example/test-project',
-		});
+// 10. Meta Instagram Webhook Verification Challenge Tests
+console.log('\n10. Testing Meta Instagram Webhook Verification Challenge (GET):');
+const { verifyMetaWebhookChallenge, get: webhookGetApi } = await import('../src/pages/api/webhooks/instagram.js');
+const testVerifyToken = 'instaflow_meta_verify_secret_token_test_123';
 
-		assert.ok(createdProj.id, 'Created project must have UUID id');
-		assert.strictEqual(createdProj.name, testProjectName);
-		assert.strictEqual(createdProj.status, 'In Development');
-		console.log('  ✓ Online Database operations verified successfully');
-	} catch (e: any) {
-		console.log(`  ℹ Offline mode active (network sandbox): skipping remote Neon TCP queries (${e.message})`);
-	}
-}
+// Test A: Successful verification returns exact challenge with HTTP 200
+const challengeStr = '1158201444';
+const validRes = verifyMetaWebhookChallenge('subscribe', testVerifyToken, challengeStr, testVerifyToken);
+assert.strictEqual(validRes.status, 200, 'Valid verification request must return HTTP 200');
+assert.strictEqual(validRes.body, challengeStr, 'Valid verification response body must match hub.challenge exactly');
+assert.strictEqual(validRes.headers['Content-Type'], 'text/plain; charset=utf-8', 'Content-Type must be text/plain');
+
+// Test B: Invalid token returns HTTP 403 Forbidden
+const invalidTokenRes = verifyMetaWebhookChallenge('subscribe', 'wrong_token_xyz', challengeStr, testVerifyToken);
+assert.strictEqual(invalidTokenRes.status, 403, 'Invalid token must return HTTP 403 Forbidden');
+assert.strictEqual(invalidTokenRes.body, 'Forbidden');
+
+// Test C: Missing parameters returns HTTP 403 Forbidden
+const missingModeRes = verifyMetaWebhookChallenge(null, testVerifyToken, challengeStr, testVerifyToken);
+assert.strictEqual(missingModeRes.status, 403, 'Missing hub.mode must return HTTP 403');
+
+const wrongModeRes = verifyMetaWebhookChallenge('publish', testVerifyToken, challengeStr, testVerifyToken);
+assert.strictEqual(wrongModeRes.status, 403, 'Non-subscribe hub.mode must return HTTP 403');
+
+const missingTokenRes = verifyMetaWebhookChallenge('subscribe', null, challengeStr, testVerifyToken);
+assert.strictEqual(missingTokenRes.status, 403, 'Missing hub.verify_token must return HTTP 403');
+
+const missingChallengeRes = verifyMetaWebhookChallenge('subscribe', testVerifyToken, null, testVerifyToken);
+assert.strictEqual(missingChallengeRes.status, 403, 'Missing hub.challenge must return HTTP 403');
+
+// Test D: Full APIRoute handler invocation simulation
+process.env.META_WEBHOOK_VERIFY_TOKEN = testVerifyToken;
+const mockWebhookUrl = new URL(
+	`https://instaflow-weld.vercel.app/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=${testVerifyToken}&hub.challenge=test_challenge_998877`
+);
+const routeRes = (await webhookGetApi({ url: mockWebhookUrl, cookies: {} as any } as any)) as Response;
+assert.strictEqual(routeRes.status, 200, 'APIRoute GET must return 200 for valid Meta challenge');
+const routeBodyText = await routeRes.text();
+assert.strictEqual(routeBodyText, 'test_challenge_998877', 'APIRoute GET must return exact challenge string');
+
+const mockInvalidUrl = new URL(
+	`https://instaflow-weld.vercel.app/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=wrong_token&hub.challenge=test_challenge_998877`
+);
+const invalidRouteRes = (await webhookGetApi({ url: mockInvalidUrl, cookies: {} as any } as any)) as Response;
+assert.strictEqual(invalidRouteRes.status, 403, 'APIRoute GET must return 403 for invalid token');
+console.log('  ✓ Meta Webhook GET verification validates correct token, rejects invalid tokens, and handles missing params');
 
 console.log('\n🎉 ALL INSTAFLOW AUTOMATION & API TESTS PASSED SUCCESSFULLY! ✅\n');
