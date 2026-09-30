@@ -279,9 +279,13 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 		let matchedKeyword: string | undefined;
 
 		for (const rule of activeRules) {
-			// If rule is scoped to a specific media ID, ensure event mediaId matches
-			if (rule.mediaId && event.mediaId && rule.mediaId !== event.mediaId) {
-				continue;
+			// If rule is scoped to a specific media ID, ensure event mediaId matches (exact or containment)
+			if (rule.mediaId && event.mediaId) {
+				const ruleMedia = String(rule.mediaId).trim();
+				const eventMedia = String(event.mediaId).trim();
+				if (ruleMedia !== eventMedia && !ruleMedia.includes(eventMedia) && !eventMedia.includes(ruleMedia)) {
+					continue;
+				}
 			}
 
 			const result = matchesRule(event.text, rule.keywords, rule.matchMode);
@@ -338,6 +342,17 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 				matchedRule.responseUrl,
 				igAccount,
 			);
+
+			// Fallback: If private reply fails and senderId is known, try sending standard DM
+			if (!replyResult.success && event.senderId && event.senderId !== 'unknown') {
+				console.log(`[Auto-DM] Private reply failed (${replyResult.error}), falling back to direct message to ${event.senderId}`);
+				replyResult = await sendInstagramMessage(
+					event.senderId,
+					personalizedMessage,
+					matchedRule.responseUrl,
+					igAccount,
+				);
+			}
 		} else {
 			// Direct Message Auto-Reply
 			replyResult = await sendInstagramMessage(

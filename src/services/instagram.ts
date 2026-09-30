@@ -626,9 +626,13 @@ export async function fetchInstagramComments(
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const candidateUrls = [
-			`${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`,
-			`https://graph.instagram.com/${mediaId}/comments?fields=id,text,timestamp,username,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`,
+			// Direct Instagram Graph endpoints
+			`https://graph.instagram.com/${mediaId}/comments?fields=id,text,timestamp,username,like_count,from{id,username}&limit=${limit}&access_token=${decryptedToken}`,
 			`https://graph.instagram.com/${mediaId}/comments?fields=id,text,timestamp,username&limit=${limit}&access_token=${decryptedToken}`,
+			// Facebook Graph API endpoints
+			`${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`,
+			`${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from&limit=${limit}&access_token=${decryptedToken}`,
+			`${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp&limit=${limit}&access_token=${decryptedToken}`,
 		];
 
 		let comments: any[] | null = null;
@@ -643,6 +647,7 @@ export async function fetchInstagramComments(
 					break;
 				} else if (data && data.error) {
 					lastError = data.error.message;
+					console.warn(`[Comments Fetch] Notice from ${url.split('?')[0]}: ${data.error.message}`);
 				}
 			} catch (e: any) {
 				lastError = e.message;
@@ -660,7 +665,7 @@ export async function fetchInstagramComments(
 }
 
 /**
- * Fetch Instagram Conversations (Direct Message threads) from official Meta Graph API
+ * Fetch Instagram Conversations (Direct Message threads) from official Meta Graph / Instagram API
  */
 export async function fetchInstagramConversations(
 	limit = 20,
@@ -672,21 +677,33 @@ export async function fetchInstagramConversations(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const url = `${GRAPH_API_BASE}/${account.instagramUserId}/conversations?platform=instagram&fields=id,updated_time,unread_count,participants,messages{id,message,created_time,from,to}&limit=${limit}&access_token=${decryptedToken}`;
+		const endpoints = [
+			`https://graph.instagram.com/me/conversations?fields=id,updated_time,unread_count,participants,messages{id,message,created_time,from,to}&limit=${limit}&access_token=${decryptedToken}`,
+			`${GRAPH_API_BASE}/${account.instagramUserId}/conversations?platform=instagram&fields=id,updated_time,unread_count,participants,messages{id,message,created_time,from,to}&limit=${limit}&access_token=${decryptedToken}`,
+			`${GRAPH_API_BASE}/me/conversations?platform=instagram&fields=id,updated_time,unread_count,participants,messages{id,message,created_time,from,to}&limit=${limit}&access_token=${decryptedToken}`,
+		];
 
-		const response = await fetchWithRetry(url);
-		const data = await response.json();
+		let convos: any[] = [];
+		let lastError: string | null = null;
 
-		if (data.error) {
-			console.warn('Conversations fetch notice from Meta Graph API:', data.error);
-			return { success: false, conversations: [], error: data.error.message };
+		for (const url of endpoints) {
+			try {
+				const response = await fetchWithRetry(url);
+				const data = await response.json();
+				if (data && Array.isArray(data.data)) {
+					convos = data.data;
+					break;
+				} else if (data && data.error) {
+					lastError = data.error.message;
+				}
+			} catch (e: any) {
+				lastError = e.message;
+			}
 		}
 
-		const convos = data.data || [];
 		const db = getDb();
-
 		// Cache conversations into local database
-		if (db && Array.isArray(convos)) {
+		if (db && Array.isArray(convos) && convos.length > 0) {
 			for (const c of convos) {
 				const participant = c.participants?.data?.find((p: any) => p.id !== account.instagramUserId) || c.participants?.data?.[0];
 				const latestMsg = c.messages?.data?.[0];
@@ -747,16 +764,22 @@ export async function fetchConversationMessages(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const url = `${GRAPH_API_BASE}/${conversationId}/messages?fields=id,created_time,from,to,message&limit=${limit}&access_token=${decryptedToken}`;
+		const endpoints = [
+			`https://graph.instagram.com/${conversationId}/messages?fields=id,created_time,from,to,message&limit=${limit}&access_token=${decryptedToken}`,
+			`${GRAPH_API_BASE}/${conversationId}/messages?fields=id,created_time,from,to,message&limit=${limit}&access_token=${decryptedToken}`,
+		];
 
-		const response = await fetchWithRetry(url);
-		const data = await response.json();
-
-		if (data.error) {
-			return { success: false, messages: [], error: data.error.message };
+		for (const url of endpoints) {
+			try {
+				const response = await fetchWithRetry(url);
+				const data = await response.json();
+				if (data && Array.isArray(data.data)) {
+					return { success: true, messages: data.data };
+				}
+			} catch (e) {}
 		}
 
-		return { success: true, messages: data.data || [] };
+		return { success: true, messages: [] };
 	} catch (error: any) {
 		return { success: false, messages: [], error: error.message };
 	}
@@ -782,7 +805,7 @@ export function formatPersonalizedMessage(
 }
 
 /**
- * Send an Instagram Direct Message using official Meta Graph API
+ * Send an Instagram Direct Message using official Meta Graph / Instagram API
  */
 export async function sendInstagramMessage(
 	recipientId: string,
@@ -799,31 +822,47 @@ export async function sendInstagramMessage(
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
-		const response = await fetchWithRetry(`${GRAPH_API_BASE}/me/messages`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${decryptedToken}`,
-			},
-			body: JSON.stringify({
-				recipient: { id: recipientId },
-				message: { text: messageText },
-			}),
-		});
+		const endpoints = [
+			`https://graph.instagram.com/${META_API_VERSION}/me/messages`,
+			`https://graph.instagram.com/me/messages`,
+			`${GRAPH_API_BASE}/me/messages`,
+			`${GRAPH_API_BASE}/${account.instagramUserId}/messages`,
+		];
 
-		const data = await response.json();
+		let lastError: string | null = null;
+		for (const ep of endpoints) {
+			try {
+				const response = await fetchWithRetry(ep, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${decryptedToken}`,
+					},
+					body: JSON.stringify({
+						recipient: { id: recipientId },
+						message: { text: messageText },
+					}),
+				});
 
-		if (data.error) {
-			console.error('Meta Send Message error:', data.error);
-			return {
-				success: false,
-				error: `${data.error.message} (code: ${data.error.code})`,
-			};
+				const data = await response.json();
+				if (data && (data.message_id || data.recipient_id)) {
+					return {
+						success: true,
+						messageId: data.message_id || data.recipient_id,
+					};
+				}
+				if (data && data.error) {
+					lastError = `${data.error.message} (code: ${data.error.code})`;
+					console.warn(`[Send DM] Notice from ${ep}:`, data.error);
+				}
+			} catch (e: any) {
+				lastError = e.message;
+			}
 		}
 
 		return {
-			success: true,
-			messageId: data.message_id || data.recipient_id,
+			success: false,
+			error: lastError || 'Failed to deliver Instagram DM.',
 		};
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram DM' };
@@ -848,33 +887,47 @@ export async function sendInstagramPrivateReply(
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
-		// Official Meta Instagram Messaging Private Reply endpoint:
-		// POST /v19.0/me/messages with recipient: { comment_id: "<COMMENT_ID>" }
-		const response = await fetchWithRetry(`${GRAPH_API_BASE}/me/messages`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${decryptedToken}`,
-			},
-			body: JSON.stringify({
-				recipient: { comment_id: commentId },
-				message: { text: messageText },
-			}),
-		});
+		const endpoints = [
+			`https://graph.instagram.com/${META_API_VERSION}/me/messages`,
+			`https://graph.instagram.com/me/messages`,
+			`${GRAPH_API_BASE}/me/messages`,
+			`${GRAPH_API_BASE}/${account.instagramUserId}/messages`,
+		];
 
-		const data = await response.json();
+		let lastError: string | null = null;
+		for (const ep of endpoints) {
+			try {
+				const response = await fetchWithRetry(ep, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${decryptedToken}`,
+					},
+					body: JSON.stringify({
+						recipient: { comment_id: commentId },
+						message: { text: messageText },
+					}),
+				});
 
-		if (data.error) {
-			console.error('Meta Private Reply error:', data.error);
-			return {
-				success: false,
-				error: `${data.error.message} (code: ${data.error.code})`,
-			};
+				const data = await response.json();
+				if (data && (data.message_id || data.recipient_id)) {
+					return {
+						success: true,
+						messageId: data.message_id || data.recipient_id,
+					};
+				}
+				if (data && data.error) {
+					lastError = `${data.error.message} (code: ${data.error.code})`;
+					console.warn(`[Private Reply] Notice from ${ep}:`, data.error);
+				}
+			} catch (e: any) {
+				lastError = e.message;
+			}
 		}
 
 		return {
-			success: true,
-			messageId: data.message_id || data.recipient_id,
+			success: false,
+			error: lastError || 'Failed to send Instagram Private Reply',
 		};
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram Private Reply' };
@@ -896,32 +949,37 @@ export async function sendInstagramPublicCommentReply(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		// Official Meta Graph API: POST /{comment-id}/replies with message
-		const response = await fetchWithRetry(`${GRAPH_API_BASE}/${commentId}/replies`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${decryptedToken}`,
-			},
-			body: JSON.stringify({
-				message: text,
-			}),
-		});
+		const endpoints = [
+			`https://graph.instagram.com/${META_API_VERSION}/${commentId}/replies`,
+			`https://graph.instagram.com/${commentId}/replies`,
+			`${GRAPH_API_BASE}/${commentId}/replies`,
+		];
 
-		const data = await response.json();
+		let lastError: string | null = null;
+		for (const ep of endpoints) {
+			try {
+				const response = await fetchWithRetry(ep, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${decryptedToken}`,
+					},
+					body: JSON.stringify({ message: text }),
+				});
 
-		if (data.error) {
-			console.error('Meta Public Comment Reply error:', data.error);
-			return {
-				success: false,
-				error: `${data.error.message} (code: ${data.error.code})`,
-			};
+				const data = await response.json();
+				if (data && data.id) {
+					return { success: true, replyCommentId: data.id };
+				}
+				if (data && data.error) {
+					lastError = `${data.error.message} (code: ${data.error.code})`;
+				}
+			} catch (e: any) {
+				lastError = e.message;
+			}
 		}
 
-		return {
-			success: true,
-			replyCommentId: data.id,
-		};
+		return { success: false, error: lastError || 'Failed to send public comment reply' };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send public comment reply' };
 	}

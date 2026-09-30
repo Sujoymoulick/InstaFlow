@@ -74,9 +74,17 @@ export const post: APIRoute = async ({ request }) => {
 		const signature = request.headers.get('x-hub-signature-256');
 
 		// Webhook signature verification (HMAC-SHA256)
-		const appSecret = process.env.META_APP_SECRET || (typeof import.meta !== 'undefined' && import.meta.env?.META_APP_SECRET);
-		if (appSecret) {
-			const isValid = verifyWebhookSignature(rawBody, signature, appSecret);
+		const possibleSecrets = [
+			process.env.META_APP_SECRET,
+			process.env.META_IG_APP_SECRET,
+			process.env.META_FB_APP_SECRET,
+			(typeof import.meta !== 'undefined' && import.meta.env?.META_APP_SECRET),
+			(typeof import.meta !== 'undefined' && import.meta.env?.META_IG_APP_SECRET),
+			(typeof import.meta !== 'undefined' && import.meta.env?.META_FB_APP_SECRET),
+		].filter(Boolean) as string[];
+
+		if (possibleSecrets.length > 0 && signature) {
+			const isValid = possibleSecrets.some((sec) => verifyWebhookSignature(rawBody, signature, sec));
 			if (!isValid) {
 				console.warn('[Meta Webhook] POST rejected: invalid HMAC-SHA256 signature');
 				return new Response('Invalid signature', {
@@ -147,6 +155,7 @@ export const post: APIRoute = async ({ request }) => {
 			// B. Incoming Comments (`changes` field)
 			if (entry.changes && Array.isArray(entry.changes)) {
 				for (const change of entry.changes) {
+					// Instagram 'comments' field
 					if (change.field === 'comments' && change.value) {
 						const val = change.value;
 						if (val.text && val.id) {
@@ -162,8 +171,29 @@ export const post: APIRoute = async ({ request }) => {
 								senderUsername,
 								senderFirstName: firstName,
 								commentId: val.id,
-								mediaId,
+								mediaId: mediaId ? String(mediaId) : undefined,
 								text: val.text,
+								rawPayload: change,
+							};
+
+							processingPromises.push(processWebhookEvent(event));
+						}
+					}
+
+					// Facebook Page 'feed' field (for comments on connected page/instagram posts)
+					if (change.field === 'feed' && change.value) {
+						const val = change.value;
+						if (val.item === 'comment' && (val.message || val.text) && val.comment_id) {
+							const mediaId = val.post_id || val.photo_id || val.video_id;
+							const event: WebhookIncomingEvent = {
+								eventId: `comment_${val.comment_id}`,
+								eventType: 'comment',
+								senderId: val.from?.id || 'unknown',
+								senderUsername: val.from?.name,
+								senderFirstName: val.from?.name ? val.from.name.split(' ')[0] : undefined,
+								commentId: val.comment_id,
+								mediaId: mediaId ? String(mediaId) : undefined,
+								text: val.message || val.text,
 								rawPayload: change,
 							};
 
