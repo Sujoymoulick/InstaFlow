@@ -823,10 +823,10 @@ export async function sendInstagramMessage(
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
 		const endpoints = [
-			`https://graph.instagram.com/${META_API_VERSION}/me/messages`,
-			`https://graph.instagram.com/me/messages`,
-			`${GRAPH_API_BASE}/me/messages`,
-			`${GRAPH_API_BASE}/${account.instagramUserId}/messages`,
+			`https://graph.instagram.com/${META_API_VERSION}/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`https://graph.instagram.com/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`${GRAPH_API_BASE}/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`${GRAPH_API_BASE}/${account.instagramUserId}/messages?access_token=${encodeURIComponent(decryptedToken)}`,
 		];
 
 		let lastError: string | null = null;
@@ -841,6 +841,7 @@ export async function sendInstagramMessage(
 					body: JSON.stringify({
 						recipient: { id: recipientId },
 						message: { text: messageText },
+						access_token: decryptedToken,
 					}),
 				});
 
@@ -888,10 +889,10 @@ export async function sendInstagramPrivateReply(
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
 
 		const endpoints = [
-			`https://graph.instagram.com/${META_API_VERSION}/me/messages`,
-			`https://graph.instagram.com/me/messages`,
-			`${GRAPH_API_BASE}/me/messages`,
-			`${GRAPH_API_BASE}/${account.instagramUserId}/messages`,
+			`https://graph.instagram.com/${META_API_VERSION}/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`https://graph.instagram.com/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`${GRAPH_API_BASE}/me/messages?access_token=${encodeURIComponent(decryptedToken)}`,
+			`${GRAPH_API_BASE}/${account.instagramUserId}/messages?access_token=${encodeURIComponent(decryptedToken)}`,
 		];
 
 		let lastError: string | null = null;
@@ -906,6 +907,7 @@ export async function sendInstagramPrivateReply(
 					body: JSON.stringify({
 						recipient: { comment_id: commentId },
 						message: { text: messageText },
+						access_token: decryptedToken,
 					}),
 				});
 
@@ -950,9 +952,9 @@ export async function sendInstagramPublicCommentReply(
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const endpoints = [
-			`https://graph.instagram.com/${META_API_VERSION}/${commentId}/replies`,
-			`https://graph.instagram.com/${commentId}/replies`,
-			`${GRAPH_API_BASE}/${commentId}/replies`,
+			`https://graph.instagram.com/${META_API_VERSION}/${commentId}/replies?access_token=${encodeURIComponent(decryptedToken)}`,
+			`https://graph.instagram.com/${commentId}/replies?access_token=${encodeURIComponent(decryptedToken)}`,
+			`${GRAPH_API_BASE}/${commentId}/replies?access_token=${encodeURIComponent(decryptedToken)}`,
 		];
 
 		let lastError: string | null = null;
@@ -964,7 +966,10 @@ export async function sendInstagramPublicCommentReply(
 						'Content-Type': 'application/json',
 						Authorization: `Bearer ${decryptedToken}`,
 					},
-					body: JSON.stringify({ message: text }),
+					body: JSON.stringify({
+						message: text,
+						access_token: decryptedToken,
+					}),
 				});
 
 				const data = await response.json();
