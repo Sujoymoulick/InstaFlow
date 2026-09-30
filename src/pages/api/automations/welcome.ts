@@ -5,7 +5,8 @@ import { isAuthorizedAdmin } from '../../../lib/auth.js';
 
 export const prerender = false;
 
-export const get: APIRoute = async () => {
+export const get: APIRoute = async ({ request, cookies }) => {
+	if (!isAuthorizedAdmin(request, cookies)) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
 	const db = getDb();
 	if (!db) {
 		return new Response(JSON.stringify({ success: true, settings: null }), {

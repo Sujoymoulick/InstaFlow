@@ -187,7 +187,7 @@ const data = await getAnalyticsData();
 							<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
 								{data.dailyActivity.map((day) => {
 									const total = day.sent + day.failed;
-									const rate = total > 0 ? Math.round((day.sent / total) * 100) : 100;
+									const rate = total > 0 ? Math.round((day.sent / total) * 100) : 0;
 									return (
 										<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
 											<td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{day.date}</td>

@@ -2,5 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "astro",
   "buildCommand": "npm run build",
-  "devCommand": "npm run dev"
+  "devCommand": "npm run dev",
+  "crons": [
+    {
+      "path": "/api/cron/process-instagram-events",
+      "schedule": "* * * * *"
+    }
+  ]
 }

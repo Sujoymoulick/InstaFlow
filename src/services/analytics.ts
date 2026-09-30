@@ -159,7 +159,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
 			.where(eq(schema.automationRules.isActive, true));
 
 		const total = (successRes?.val || 0) + (failRes?.val || 0);
-		const successRate = total > 0 ? Math.round(((successRes?.val || 0) / total) * 100) : 100;
+		const successRate = total > 0 ? Math.round(((successRes?.val || 0) / total) * 100) : 0;
 
 		// Distribution by trigger type
 		const triggerRows = await db

@@ -5,7 +5,8 @@ import { isAuthorizedAdmin } from '../../lib/auth.js';
 
 export const prerender = false;
 
-export const get: APIRoute = async () => {
+export const get: APIRoute = async ({ request, cookies }) => {
+	if (!isAuthorizedAdmin(request, cookies)) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
 	const db = getDb();
 	if (!db) {
 		return new Response(
@@ -70,6 +71,9 @@ export const post: APIRoute = async ({ request, cookies }) => {
 	try {
 		const body = await request.json();
 		const { globalEnabled, rateLimitPerUserMinutes, defaultFallbackResponse } = body;
+		if (typeof rateLimitPerUserMinutes === 'number' && (!Number.isFinite(rateLimitPerUserMinutes) || rateLimitPerUserMinutes < 0 || rateLimitPerUserMinutes > 1440)) {
+			return new Response(JSON.stringify({ error: 'rateLimitPerUserMinutes must be between 0 and 1440.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+		}
 
 		const existing = await db.select().from(schema.automationSettings).limit(1);
 

@@ -34,6 +34,7 @@
 	"scripts": {
 		"astro": "astro",
 		"build": "astro build && node scripts/fix-vercel-runtime.mjs",
+		"check": "tsc --noEmit",
 		"dev": "astro dev",
 		"preview": "astro preview",
 		"start": "astro dev",
@@ -46,7 +47,6 @@
 		"@astrojs/sitemap": "^1.1.0",
 		"@astrojs/tailwind": "^3.0.1",
 		"@astrojs/vercel": "^3.8.2",
-		"@faker-js/faker": "^7.6.0",
 		"@neondatabase/serverless": "^1.1.0",
 		"apexcharts": "^3.37.2",
 		"astro": "^2.0.4",
@@ -72,6 +72,7 @@
 		"eslint-plugin-astro": "^0.23.0",
 		"eslint-plugin-import": "^2.27.5",
 		"eslint-plugin-prettier": "^4.2.1",
-		"eslint-plugin-tsdoc": "^0.2.17"
+		"eslint-plugin-tsdoc": "^0.2.17",
+		"typescript": "5.2.2"
 	}
 }

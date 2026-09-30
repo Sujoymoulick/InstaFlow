@@ -6,8 +6,8 @@ import { url } from '../../lib/data.js';
 export const prerender = false;
 
 const account = await getActiveInstagramAccount();
-const metaAppId = process.env.META_APP_ID;
-const metaAppSecret = process.env.META_APP_SECRET;
+const metaAppId = process.env.META_IG_APP_ID || process.env.META_APP_ID;
+const metaAppSecret = process.env.META_IG_APP_SECRET || process.env.META_APP_SECRET;
 const isMetaConfigured = Boolean(metaAppId && metaAppSecret);
 
 const statusParam = Astro.url.searchParams.get('status');
@@ -20,7 +20,7 @@ if (account && account.tokenExpiresAt) {
 }
 
 const webhookUrl = `${Astro.url.origin}/api/webhooks/instagram`;
-const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_token_change_in_production';
+const verifyTokenConfigured = Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN);
 ---
 
 <LayoutSidebar>
@@ -196,7 +196,7 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 								<!-- Security Notice -->
 								<div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg text-xs text-gray-600 dark:text-gray-300">
 									<span class="font-semibold text-gray-900 dark:text-white">Encryption at rest:</span>
-									Your Meta Page access tokens are symmetrically encrypted at rest using AES-256-GCM.
+									Your Instagram access tokens are encrypted at rest using AES-256-GCM.
 									Plaintext credentials are never saved to the database.
 								</div>
 
@@ -210,15 +210,6 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 											<path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
 										</svg>
 										Reconnect via Instagram
-									</a>
-									<a
-										href="/api/auth/instagram?provider=facebook"
-										class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-xs px-4 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 shadow-sm inline-flex items-center"
-									>
-										<svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24">
-											<path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-										</svg>
-										Reconnect via Facebook Page
 									</a>
 									<button
 										type="button"
@@ -240,7 +231,7 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 								{
 									!isMetaConfigured ? (
 										<div class="p-4 border-l-4 border-yellow-400 bg-yellow-50 dark:bg-gray-700 dark:border-yellow-500 text-xs text-yellow-800 dark:text-yellow-200">
-											<p class="font-bold mb-1">Meta App Credentials Missing</p>
+											<p class="font-bold mb-1">Instagram Login Configuration Missing</p>
 											Please add <code>META_APP_ID</code> and <code>META_APP_SECRET</code> to your
 											environment variables (e.g. in <code>.env</code> locally or in Vercel project settings)
 											before starting the OAuth flow.
@@ -255,15 +246,6 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 													<path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
 												</svg>
 												Connect with Instagram Direct
-											</a>
-											<a
-												href="/api/auth/instagram?provider=facebook"
-												class="inline-flex items-center justify-center text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-3 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 shadow-sm"
-											>
-												<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-													<path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-												</svg>
-												Connect via Facebook Page
 											</a>
 										</div>
 									)
@@ -306,7 +288,7 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 							<input
 								type="text"
 								readonly
-								value={verifyToken}
+								value={verifyTokenConfigured ? 'Configured' : 'Not configured'}
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg block w-full p-2.5 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
 							/>
 						</div>
@@ -338,10 +320,7 @@ const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || 'instaflow_verify_t
 							Switch your Instagram account to <strong>Professional (Creator or Business)</strong> in the Instagram app.
 						</li>
 						<li class="leading-relaxed">
-							Link your Instagram account to a <strong>Facebook Page</strong>.
-						</li>
-						<li class="leading-relaxed">
-							Create a <strong>Meta App</strong> (Type: Business) on <a href="https://developers.facebook.com" target="_blank" class="text-primary-600 hover:underline">developers.facebook.com</a>.
+							Create a <strong>Meta App</strong> with Instagram API with Instagram Login enabled on <a href="https://developers.facebook.com" target="_blank" class="text-primary-600 hover:underline">developers.facebook.com</a>.
 						</li>
 						<li class="leading-relaxed">
 							Add <strong>Instagram Graph API</strong> and <strong>Webhooks</strong> products.

@@ -55,6 +55,7 @@ assert.strictEqual(wildcardMatch.matchedKeyword, '*');
 
 const anyModeMatch = matchesRule('Another completely different comment', 'LINK, PRICE', 'any');
 assert.strictEqual(anyModeMatch.matched, true);
+assert.strictEqual(matchesRule('Any comment', '', 'contains').matched, false, 'Empty keywords must not create an implicit wildcard');
 console.log('  ✓ Wildcard and Any comment match modes work correctly');
 
 // Test D: JSON-formatted keywords
@@ -262,7 +263,7 @@ console.log('  ✓ POST /api/projects validates status against allowed list');
 
 // 10. Meta Instagram Webhook Verification Challenge Tests
 console.log('\n10. Testing Meta Instagram Webhook Verification Challenge (GET):');
-const { verifyMetaWebhookChallenge, get: webhookGetApi } = await import('../src/pages/api/webhooks/instagram.js');
+const { verifyMetaWebhookChallenge, get: webhookGetApi, post: webhookPostApi } = await import('../src/pages/api/webhooks/instagram.js');
 const testVerifyToken = 'instaflow_meta_verify_secret_token_test_123';
 
 // Test A: Successful verification returns exact challenge with HTTP 200
@@ -305,8 +306,29 @@ const mockInvalidUrl = new URL(
 );
 const invalidRouteRes = (await webhookGetApi({ url: mockInvalidUrl, cookies: {} as any } as any)) as Response;
 assert.strictEqual(invalidRouteRes.status, 403, 'APIRoute GET must return 403 for invalid token');
-// 11. Dual Meta OAuth URL Generation Tests
-console.log('\n11. Testing Dual Meta OAuth URL Generation (Instagram & Facebook):');
+
+// POST must fail closed when signatures are absent or invalid.
+const unsignedPost = new Request('https://instaflow-weld.vercel.app/api/webhooks/instagram', { method: 'POST', body: '{"object":"instagram","entry":[]}' });
+const priorAppSecret = process.env.META_APP_SECRET;
+delete process.env.META_APP_SECRET;
+const unsignedPostRes = await webhookPostApi({ request: unsignedPost } as any) as Response;
+assert.strictEqual(unsignedPostRes.status, 503, 'POST without configured signature secret must fail closed');
+process.env.META_APP_SECRET = 'test-signature-secret';
+const invalidSignaturePost = new Request('https://instaflow-weld.vercel.app/api/webhooks/instagram', { method: 'POST', headers: { 'x-hub-signature-256': 'sha256=' + '0'.repeat(64) }, body: '{"object":"instagram","entry":[]}' });
+const invalidSignatureRes = await webhookPostApi({ request: invalidSignaturePost } as any) as Response;
+assert.strictEqual(invalidSignatureRes.status, 401, 'Invalid signature must be rejected');
+if (priorAppSecret === undefined) delete process.env.META_APP_SECRET;
+else process.env.META_APP_SECRET = priorAppSecret;
+
+const { get: cronWorkerGet } = await import('../src/pages/api/cron/process-instagram-events.js');
+const priorCronSecret = process.env.CRON_SECRET;
+process.env.CRON_SECRET = 'cron-test-secret-that-is-long-enough-to-pass';
+const unauthorizedCronRes = await cronWorkerGet({ request: new Request('https://instaflow-weld.vercel.app/api/cron/process-instagram-events') } as any) as Response;
+assert.strictEqual(unauthorizedCronRes.status, 401, 'Queue worker must reject unauthenticated calls');
+if (priorCronSecret === undefined) delete process.env.CRON_SECRET;
+else process.env.CRON_SECRET = priorCronSecret;
+// 11. Instagram Login OAuth URL Generation Tests
+console.log('\n11. Testing Instagram Login OAuth URL Generation:');
 const { getMetaAuthorizationUrl } = await import('../src/services/instagram.js');
 const testOAuthState = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
 const testCallbackUrl = 'https://instaflow-weld.vercel.app/api/auth/instagram/callback';
@@ -319,12 +341,9 @@ assert.ok(igAuthUrl.includes(`state=${testOAuthState}`), 'Must include state par
 assert.ok(igAuthUrl.includes('instagram_business_basic'), 'Must include Instagram business scopes');
 console.log('  ✓ Direct Instagram OAuth authorization URL generated correctly');
 
-// Test B: Facebook Page authorization URL
-const fbAuthUrl = getMetaAuthorizationUrl(testOAuthState, testCallbackUrl, 'facebook');
-assert.ok(fbAuthUrl.startsWith('https://www.facebook.com/'), 'Facebook URL must start with facebook.com');
-assert.ok(fbAuthUrl.includes('/dialog/oauth'), 'Must target dialog/oauth');
-assert.ok(fbAuthUrl.includes(`state=${testOAuthState}`), 'Must include state parameter');
-console.log('  ✓ Facebook Page OAuth authorization URL generated correctly');
+// Facebook Login uses a separate scope and token model; this project is configured for Instagram Login.
+assert.throws(() => getMetaAuthorizationUrl(testOAuthState, testCallbackUrl, 'facebook'), /not configured/);
+console.log('  ✓ Unsupported Facebook Login is rejected instead of silently mixing token flows');
 
 // 12. OAuth Callback Parameter Handling Tests
 console.log('\n12. Testing OAuth Callback Handling for Errors & Missing Codes:');
@@ -343,6 +362,10 @@ const errorRes = (await callbackGetApi({ url: errorUrl, cookies: { get: () => un
 assert.strictEqual(errorRes.status, 302, 'Error param must redirect with 302');
 assert.ok(errorRes.headers.get('Location')?.includes('status=error'));
 assert.ok(errorRes.headers.get('Location')?.includes('Permissions'));
+
+const badStateUrl = new URL('https://instaflow-weld.vercel.app/api/auth/instagram/callback?code=unused&state=attacker');
+const badStateRes = await callbackGetApi({ url: badStateUrl, cookies: { get: (name: string) => name === 'meta_oauth_state' ? { value: 'expected-state' } : undefined, delete: () => {} } as any } as any) as Response;
+assert.ok(badStateRes.headers.get('Location')?.includes('state+mismatch'), 'Callback must reject a mismatched OAuth state before exchanging code');
 // 13. Live Neon Database Schema Validation
 console.log('\n13. Testing Live Database Schema for Instagram Accounts:');
 const { getDb, schema: dbSchema } = await import('../src/db/index.js');
@@ -365,5 +388,3 @@ if (db) {
 }
 
 console.log('\n🎉 ALL INSTAFLOW AUTOMATION & API TESTS PASSED SUCCESSFULLY! ✅\n');
-
-

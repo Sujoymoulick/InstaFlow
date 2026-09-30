@@ -90,6 +90,8 @@ export const webhookEvents = pgTable(
 		recipientId: text('recipient_id'),
 		rawPayload: jsonb('raw_payload').notNull(),
 		status: text('status').notNull().default('pending'), // 'pending' | 'processed' | 'ignored' | 'failed'
+		attemptCount: integer('attempt_count').notNull().default(0),
+		processingStartedAt: timestamp('processing_started_at', { withTimezone: true }),
 		errorMessage: text('error_message'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		processedAt: timestamp('processed_at', { withTimezone: true }),

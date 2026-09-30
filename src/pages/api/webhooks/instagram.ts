@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { verifyWebhookSignature } from '../../../lib/crypto.js';
-import { processWebhookEvent, type WebhookIncomingEvent } from '../../../services/automation-engine.js';
+import { enqueueWebhookEvent, type WebhookIncomingEvent } from '../../../services/automation-engine.js';
 
 export const prerender = false;
 
@@ -83,15 +83,16 @@ export const post: APIRoute = async ({ request }) => {
 			(typeof import.meta !== 'undefined' && import.meta.env?.META_FB_APP_SECRET),
 		].filter(Boolean) as string[];
 
-		if (possibleSecrets.length > 0 && signature) {
-			const isValid = possibleSecrets.some((sec) => verifyWebhookSignature(rawBody, signature, sec));
-			if (!isValid) {
+		if (possibleSecrets.length === 0 || !signature) {
+			return new Response('Webhook signature validation is not configured', { status: 503 });
+		}
+		const isValid = possibleSecrets.some((sec) => verifyWebhookSignature(rawBody, signature, sec));
+		if (!isValid) {
 				console.warn('[Meta Webhook] POST rejected: invalid HMAC-SHA256 signature');
 				return new Response('Invalid signature', {
 					status: 401,
 					headers: { 'Content-Type': 'text/plain' },
 				});
-			}
 		}
 
 		let body: any;
@@ -113,7 +114,7 @@ export const post: APIRoute = async ({ request }) => {
 		}
 
 		const entries = Array.isArray(body.entry) ? body.entry : [];
-		const processingPromises: Promise<any>[] = [];
+		const queuePromises: Promise<boolean>[] = [];
 
 		for (const entry of entries) {
 			// A. Incoming Direct Messages & Postbacks (`messaging` field)
@@ -133,7 +134,7 @@ export const post: APIRoute = async ({ request }) => {
 							rawPayload: msgItem,
 						};
 
-						processingPromises.push(processWebhookEvent(event));
+						queuePromises.push(enqueueWebhookEvent(event));
 					}
 
 					// 2. Messaging Postbacks (e.g. Get Started button / Quick Replies)
@@ -147,7 +148,7 @@ export const post: APIRoute = async ({ request }) => {
 							rawPayload: msgItem,
 						};
 
-						processingPromises.push(processWebhookEvent(event));
+						queuePromises.push(enqueueWebhookEvent(event));
 					}
 				}
 			}
@@ -176,7 +177,7 @@ export const post: APIRoute = async ({ request }) => {
 								rawPayload: change,
 							};
 
-							processingPromises.push(processWebhookEvent(event));
+							queuePromises.push(enqueueWebhookEvent(event));
 						}
 					}
 
@@ -197,24 +198,24 @@ export const post: APIRoute = async ({ request }) => {
 								rawPayload: change,
 							};
 
-							processingPromises.push(processWebhookEvent(event));
+							queuePromises.push(enqueueWebhookEvent(event));
 						}
 					}
 				}
 			}
 		}
 
-		// Await all events to ensure serverless execution completes database operations
-		await Promise.all(processingPromises);
+		// Durable database enqueue is the only work required before acknowledging Meta.
+		const queued = await Promise.all(queuePromises);
 
-		return new Response(JSON.stringify({ status: 'EVENT_RECEIVED', processed: processingPromises.length }), {
+		return new Response(JSON.stringify({ status: 'EVENT_RECEIVED', queued: queued.filter(Boolean).length, duplicates: queued.filter((x) => !x).length }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (error: any) {
-		console.error('[Meta Webhook] Unhandled POST error:', error);
-		return new Response(JSON.stringify({ error: error.message }), {
-			status: 200,
+		console.error('[Meta Webhook] Event ingestion failed before durable persistence.');
+		return new Response(JSON.stringify({ error: 'Webhook event could not be persisted.' }), {
+			status: 503,
 			headers: { 'Content-Type': 'application/json' },
 		});
 	}

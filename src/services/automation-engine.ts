@@ -21,6 +21,21 @@ export interface WebhookIncomingEvent {
 	rawPayload: any;
 }
 
+/** Persist an event before acknowledging Meta; a scheduled Vercel function drains this durable queue. */
+export async function enqueueWebhookEvent(event: WebhookIncomingEvent): Promise<boolean> {
+	const db = getDb();
+	if (!db) throw new Error('Database connection unavailable; webhook event was not queued.');
+	const [queued] = await db.insert(schema.webhookEvents).values({
+		eventId: event.eventId,
+		eventType: event.eventType,
+		senderId: event.senderId,
+		recipientId: event.recipientId || null,
+		rawPayload: { queuedEvent: event },
+		status: 'pending',
+	}).onConflictDoNothing({ target: schema.webhookEvents.eventId }).returning({ id: schema.webhookEvents.id });
+	return Boolean(queued);
+}
+
 /**
  * Normalize text for accurate keyword matching (lowercase, trim whitespace, normalize spaces)
  */
@@ -61,10 +76,11 @@ export function matchesRule(
 ): { matched: boolean; matchedKeyword?: string } {
 	const keywords = parseKeywords(keywordsInput);
 
-	// If matchMode is 'any' or keywords contains '*' or is empty, match any comment/message
-	if (matchMode === 'any' || keywords.includes('*') || keywords.length === 0) {
+	// Match all only when the operator explicitly selected any or entered '*'.
+	if (matchMode === 'any' || keywords.includes('*')) {
 		return { matched: true, matchedKeyword: '*' };
 	}
+	if (keywords.length === 0) return { matched: false };
 
 	const normalizedInput = normalizeText(text);
 
@@ -91,7 +107,7 @@ export function matchesRule(
 /**
  * Main Webhook Event Processing Pipeline
  */
-export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<{
+export async function processWebhookEvent(event: WebhookIncomingEvent, savedEventId?: string): Promise<{
 	success: boolean;
 	status: 'processed' | 'skipped' | 'failed' | 'ignored';
 	message?: string;
@@ -103,22 +119,13 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 	}
 
 	// 1. Duplicate Detection (Idempotency)
-	const existingEvent = await db
-		.select()
-		.from(schema.webhookEvents)
-		.where(eq(schema.webhookEvents.eventId, event.eventId))
-		.limit(1);
-
-	if (existingEvent.length > 0) {
-		return {
-			success: true,
-			status: 'ignored',
-			message: `Duplicate event ${event.eventId} skipped.`,
-		};
-	}
-
-	// 2. Persist Webhook Event in Pending State
-	const [savedEvent] = await db
+	// The unique event_id constraint arbitrates concurrent Meta retries.
+	let savedEvent: schema.WebhookEvent | undefined;
+	if (savedEventId) {
+		[savedEvent] = await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, savedEventId)).limit(1);
+		if (!savedEvent) return { success: false, status: 'failed', message: 'Queued webhook event no longer exists.' };
+	} else {
+		[savedEvent] = await db
 		.insert(schema.webhookEvents)
 		.values({
 			eventId: event.eventId,
@@ -128,7 +135,10 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 			rawPayload: event.rawPayload,
 			status: 'pending',
 		})
+		.onConflictDoNothing({ target: schema.webhookEvents.eventId })
 		.returning();
+	}
+	if (!savedEvent) return { success: true, status: 'ignored', message: `Duplicate event ${event.eventId} skipped.` };
 
 	try {
 		// 3. Check Global Automation Settings
@@ -226,6 +236,7 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 					link: welcomeUrl,
 				});
 
+				await db.update(schema.webhookEvents).set({ status: 'sending' }).where(eq(schema.webhookEvents.id, savedEvent.id));
 				const replyRes = await sendInstagramMessage(
 					event.senderId,
 					personalizedWelcome,
@@ -279,14 +290,9 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 		let matchedKeyword: string | undefined;
 
 		for (const rule of activeRules) {
-			// If rule is scoped to a specific media ID, ensure event mediaId matches (exact or containment)
-			if (rule.mediaId && event.mediaId) {
-				const ruleMedia = String(rule.mediaId).trim();
-				const eventMedia = String(event.mediaId).trim();
-				if (ruleMedia !== eventMedia && !ruleMedia.includes(eventMedia) && !eventMedia.includes(ruleMedia)) {
-					continue;
-				}
-			}
+			if (rule.accountId && rule.accountId !== igAccount.id) continue;
+			if (event.eventType === 'comment' && (!rule.mediaId || rule.mediaId !== event.mediaId)) continue;
+			if (event.eventType === 'message' && rule.mediaId) continue;
 
 			const result = matchesRule(event.text, rule.keywords, rule.matchMode);
 			if (result.matched) {
@@ -321,6 +327,10 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 		let sentPublicReplyText: string | null = null;
 
 		if (event.eventType === 'comment' && event.commentId) {
+			if (!event.mediaId || !event.senderId || event.senderId === 'unknown') {
+				throw new Error('Comment event is missing the media or commenter identifier required for a private reply.');
+			}
+			await db.update(schema.webhookEvents).set({ status: 'sending' }).where(eq(schema.webhookEvents.id, savedEvent.id));
 			// A. Optional Public Comment Reply
 			if (matchedRule.publicReply && matchedRule.publicReply.trim()) {
 				try {
@@ -343,18 +353,9 @@ export async function processWebhookEvent(event: WebhookIncomingEvent): Promise<
 				igAccount,
 			);
 
-			// Fallback: If private reply fails and senderId is known, try sending standard DM
-			if (!replyResult.success && event.senderId && event.senderId !== 'unknown') {
-				console.log(`[Auto-DM] Private reply failed (${replyResult.error}), falling back to direct message to ${event.senderId}`);
-				replyResult = await sendInstagramMessage(
-					event.senderId,
-					personalizedMessage,
-					matchedRule.responseUrl,
-					igAccount,
-				);
-			}
 		} else {
 			// Direct Message Auto-Reply
+			await db.update(schema.webhookEvents).set({ status: 'sending' }).where(eq(schema.webhookEvents.id, savedEvent.id));
 			replyResult = await sendInstagramMessage(
 				event.senderId,
 				personalizedMessage,

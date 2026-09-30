@@ -3,7 +3,7 @@
 import ApexCharts from 'apexcharts';
 
 const getMainChartOptions = () => {
-	let mainChartColors = {};
+	let mainChartColors: Record<string, any> = {};
 
 	if (document.documentElement.classList.contains('dark')) {
 		mainChartColors = {
@@ -368,7 +368,7 @@ if (document.getElementById('sales-by-category')) {
 }
 
 const getVisitorsChartOptions = () => {
-	let visitorsChartColors = {};
+	let visitorsChartColors: Record<string, any> = {};
 
 	if (document.documentElement.classList.contains('dark')) {
 		visitorsChartColors = {
@@ -437,7 +437,7 @@ const getVisitorsChartOptions = () => {
 };
 
 const getSignupsChartOptions = () => {
-	let signupsChartColors = {};
+	let signupsChartColors: Record<string, any> = {};
 
 	if (document.documentElement.classList.contains('dark')) {
 		signupsChartColors = {
@@ -569,7 +569,7 @@ if (document.getElementById('week-signups-chart')) {
 }
 
 const getTrafficChannelsChartOptions = () => {
-	let trafficChannelsChartColors = {};
+	let trafficChannelsChartColors: Record<string, any> = {};
 
 	if (document.documentElement.classList.contains('dark')) {
 		trafficChannelsChartColors = {

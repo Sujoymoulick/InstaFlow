@@ -5,7 +5,10 @@ const IV_LENGTH = 12; // 96 bits for GCM
 const AUTH_TAG_LENGTH = 16;
 
 function getEncryptionKey(): Buffer {
-	const keyStr = process.env.INSTAGRAM_ENCRYPTION_KEY || 'instaflow-default-encryption-key-for-local-dev-32b!';
+	const keyStr = process.env.INSTAGRAM_ENCRYPTION_KEY;
+	if (!keyStr || keyStr.length < 32) {
+		throw new Error('INSTAGRAM_ENCRYPTION_KEY must be configured with at least 32 characters');
+	}
 	// Derive 32-byte key using sha256 to ensure exactly 256 bits
 	return crypto.createHash('sha256').update(keyStr).digest();
 }
@@ -41,6 +44,7 @@ export function decryptToken(encryptedString: string): string {
 		}
 
 		const [ivHex, authTagHex, cipherHex] = parts;
+		if (!ivHex || !authTagHex || cipherHex === undefined) throw new Error('Invalid encrypted token format');
 		const key = getEncryptionKey();
 		const iv = Buffer.from(ivHex, 'hex');
 		const authTag = Buffer.from(authTagHex, 'hex');
@@ -54,8 +58,7 @@ export function decryptToken(encryptedString: string): string {
 		decrypted += decipher.final('utf8');
 
 		return decrypted;
-	} catch (error) {
-		console.error('Failed to decrypt token:', error);
+	} catch {
 		throw new Error('Failed to decrypt sensitive credential');
 	}
 }
@@ -80,6 +83,7 @@ export function verifyWebhookSignature(
 	}
 
 	const expectedSignatureHex = parts[1];
+	if (!expectedSignatureHex) return false;
 	const expectedBuffer = Buffer.from(expectedSignatureHex, 'hex');
 
 	const hmac = crypto.createHmac('sha256', secret);

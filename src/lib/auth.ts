@@ -20,11 +20,9 @@ export function isAllowedEmail(email: string | null | undefined): boolean {
  * Get internal secret used for signing session tokens.
  */
 function getSigningSecret(): string {
-	return (
-		process.env.ADMIN_AUTH_SECRET ||
-		process.env.ADMIN_PASSWORD ||
-		'instaflow_secure_auth_signing_key_777'
-	);
+	const secret = process.env.ADMIN_AUTH_SECRET || process.env.ADMIN_PASSWORD;
+	if (!secret || secret.length < 32) throw new Error('ADMIN_AUTH_SECRET must be configured with at least 32 characters.');
+	return secret;
 }
 
 /**
@@ -59,6 +57,7 @@ export function verifySessionToken(token: string | null | undefined): { valid: b
 	}
 
 	const [email, timestampStr, signature] = parts;
+	if (!email || !timestampStr || !signature) return { valid: false };
 	if (!isAllowedEmail(email)) {
 		return { valid: false };
 	}
@@ -112,15 +111,11 @@ export function validateLogin(
 	}
 
 	const expectedPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_AUTH_SECRET;
-	if (expectedPassword) {
-		if (!password || password !== expectedPassword) {
-			return { success: false, error: 'Invalid password. Please verify your credentials.' };
-		}
-	} else {
-		// If no password is set in environment, ensure at least non-empty password
-		if (!password || password.trim().length === 0) {
-			return { success: false, error: 'Password cannot be empty.' };
-		}
+	if (!expectedPassword || expectedPassword.length < 16) {
+		return { success: false, error: 'Admin credentials are not securely configured.' };
+	}
+	if (!password || password !== expectedPassword) {
+		return { success: false, error: 'Invalid password. Please verify your credentials.' };
 	}
 
 	return { success: true };
@@ -167,7 +162,7 @@ export function verifyAdminSession(
 		const cookieHeader = request.headers.get('cookie') || '';
 		const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${ADMIN_COOKIE_NAME}=([^;]*)`));
 		if (match) {
-			const token = decodeURIComponent(match[1]);
+		const token = decodeURIComponent(match[1]!);
 			const result = verifySessionToken(token);
 			if (result.valid && result.email) {
 				return { authorized: true, email: result.email };

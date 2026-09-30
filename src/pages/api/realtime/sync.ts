@@ -4,10 +4,12 @@ import { getProjectMetrics, getProjects } from '../../../services/projects.js';
 import { getActiveInstagramAccount } from '../../../services/instagram.js';
 import { getDb, schema } from '../../../db/index.js';
 import { count } from 'drizzle-orm';
+import { isAuthorizedAdmin } from '../../../lib/auth.js';
 
 export const prerender = false;
 
-export const get: APIRoute = async () => {
+export const get: APIRoute = async ({ request, cookies }) => {
+	if (!isAuthorizedAdmin(request, cookies)) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
 	try {
 		const db = getDb();
 		const [
@@ -30,10 +32,8 @@ export const get: APIRoute = async () => {
 
 		const rulesCount = Number(rulesCountRes?.[0]?.val || 0);
 
-		const deliveryRate =
-			dashboardMetrics.totalEvents > 0
-				? Math.round((dashboardMetrics.successfulReplies / dashboardMetrics.totalEvents) * 100)
-				: 0;
+		const deliveryAttempts = dashboardMetrics.successfulReplies + dashboardMetrics.failedReplies;
+		const deliveryRate = deliveryAttempts > 0 ? Math.round((dashboardMetrics.successfulReplies / deliveryAttempts) * 100) : 0;
 
 		const system = {
 			database: {
@@ -42,9 +42,9 @@ export const get: APIRoute = async () => {
 				branch: process.env.NEON_BRANCH || 'production',
 			},
 			meta: {
-				configured: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
-				appId: process.env.META_APP_ID || null,
-				apiVersion: process.env.META_API_VERSION || 'v19.0',
+				configured: Boolean((process.env.META_IG_APP_ID || process.env.META_APP_ID) && (process.env.META_IG_APP_SECRET || process.env.META_APP_SECRET)),
+				appId: process.env.META_IG_APP_ID || process.env.META_APP_ID || null,
+				apiVersion: process.env.META_API_VERSION || 'v26.0',
 				webhookVerifyTokenSet: Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN),
 				redirectUri: process.env.META_REDIRECT_URI || null,
 			},

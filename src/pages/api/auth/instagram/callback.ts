@@ -52,7 +52,7 @@ export const get: APIRoute = async ({ url, cookies }) => {
 	code = code.replace(/#_.*$/, '').trim();
 
 	// 3. CSRF State validation (allow graceful matching if state parameter is valid)
-	if (savedState && state && state !== savedState) {
+	if (!savedState || !state || state !== savedState) {
 		return redirectSettings({
 			status: 'error',
 			message: 'OAuth state mismatch (CSRF protection). Please restart the connection flow from settings.',
@@ -64,7 +64,7 @@ export const get: APIRoute = async ({ url, cookies }) => {
 	const result = await exchangeOAuthCodeForAccount(
 		code,
 		process.env.META_REDIRECT_URI || originCallback,
-		savedProvider,
+		savedProvider || 'instagram',
 	);
 
 	if (!result.success) {

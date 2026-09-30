@@ -1,5 +1,5 @@
 import { getDb, schema } from '../db/index.js';
-import { desc, eq, and, ilike, or, sql } from 'drizzle-orm';
+import { desc, eq, and, ilike, or, sql, type SQL } from 'drizzle-orm';
 import type { Project, NewProject } from '../db/schema.js';
 
 export const VALID_PROJECT_STATUSES = [
@@ -49,7 +49,7 @@ export async function getProjects(filters?: {
 	if (!db) return [];
 
 	try {
-		const conditions = [];
+		const conditions: (SQL | undefined)[] = [];
 
 		if (filters?.status && filters.status !== 'All') {
 			conditions.push(eq(schema.projects.status, filters.status));

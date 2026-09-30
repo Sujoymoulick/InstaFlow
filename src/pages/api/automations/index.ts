@@ -6,7 +6,8 @@ import { getActiveInstagramAccount } from '../../../services/instagram.js';
 
 export const prerender = false;
 
-export const get: APIRoute = async () => {
+export const get: APIRoute = async ({ request, cookies }) => {
+	if (!isAuthorizedAdmin(request, cookies)) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
 	const db = getDb();
 	if (!db) {
 		return new Response(JSON.stringify({ rules: [], error: 'DATABASE_URL not configured' }), {
@@ -73,6 +74,15 @@ export const post: APIRoute = async ({ request, cookies }) => {
 
 		const resolvedTriggerType = triggerType || automationType || 'comment_to_dm';
 		const resolvedAutomationType = automationType || triggerType || 'comment_to_dm';
+		if (!['comment_to_dm', 'dm_reply', 'welcome_message'].includes(resolvedTriggerType)) {
+			return new Response(JSON.stringify({ error: 'Unsupported trigger type.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+		}
+		if (resolvedTriggerType === 'comment_to_dm' && !mediaId) {
+			return new Response(JSON.stringify({ error: 'Select a post or reel for comment-to-DM automation.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+		}
+		if (resolvedTriggerType !== 'welcome_message' && matchMode !== 'any' && (!keywords || (Array.isArray(keywords) && keywords.length === 0) || (typeof keywords === 'string' && !keywords.trim()))) {
+			return new Response(JSON.stringify({ error: 'Add at least one trigger keyword or explicitly choose match any.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+		}
 
 		// Ensure keywords are saved formatted as JSON array string
 		let formattedKeywords = keywords;
@@ -90,11 +100,12 @@ export const post: APIRoute = async ({ request, cookies }) => {
 				);
 			}
 		} else {
-			formattedKeywords = JSON.stringify(['*']);
+			formattedKeywords = JSON.stringify([]);
 		}
 
 		// Look up active Instagram account
 		const activeAccount = await getActiveInstagramAccount();
+		if (!activeAccount) return new Response(JSON.stringify({ error: 'Connect an Instagram account before creating automations.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
 
 		const [createdRule] = await db
 			.insert(schema.automationRules)
