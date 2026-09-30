@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import { verifyWebhookSignature } from '../../../lib/crypto.js';
-import { enqueueWebhookEvent, type WebhookIncomingEvent } from '../../../services/automation-engine.js';
+import { enqueueWebhookEvent, processQueuedWebhookEvent, type WebhookIncomingEvent } from '../../../services/automation-engine.js';
 
 export const prerender = false;
 
@@ -114,7 +115,12 @@ export const post: APIRoute = async ({ request }) => {
 		}
 
 		const entries = Array.isArray(body.entry) ? body.entry : [];
-		const queuePromises: Promise<boolean>[] = [];
+		const queuePromises: Array<Promise<string | null>> = [];
+		const queuedEvents: WebhookIncomingEvent[] = [];
+		const enqueue = (event: WebhookIncomingEvent) => {
+			queuedEvents.push(event);
+			queuePromises.push(enqueueWebhookEvent(event));
+		};
 
 		for (const entry of entries) {
 			// A. Incoming Direct Messages & Postbacks (`messaging` field)
@@ -134,7 +140,7 @@ export const post: APIRoute = async ({ request }) => {
 							rawPayload: msgItem,
 						};
 
-						queuePromises.push(enqueueWebhookEvent(event));
+						enqueue(event);
 					}
 
 					// 2. Messaging Postbacks (e.g. Get Started button / Quick Replies)
@@ -148,7 +154,7 @@ export const post: APIRoute = async ({ request }) => {
 							rawPayload: msgItem,
 						};
 
-						queuePromises.push(enqueueWebhookEvent(event));
+						enqueue(event);
 					}
 				}
 			}
@@ -177,7 +183,7 @@ export const post: APIRoute = async ({ request }) => {
 								rawPayload: change,
 							};
 
-							queuePromises.push(enqueueWebhookEvent(event));
+							enqueue(event);
 						}
 					}
 
@@ -198,15 +204,23 @@ export const post: APIRoute = async ({ request }) => {
 								rawPayload: change,
 							};
 
-							queuePromises.push(enqueueWebhookEvent(event));
+							enqueue(event);
 						}
 					}
 				}
 			}
 		}
 
-		// Durable database enqueue is the only work required before acknowledging Meta.
+		// Persist first, then process promptly after the Meta acknowledgement. The database queue
+		// remains durable so the daily Hobby-compatible cron can recover interrupted work.
 		const queued = await Promise.all(queuePromises);
+		const deliveries = queued.flatMap((rowId, index) => {
+			const event = queuedEvents[index];
+			return rowId && event ? [processQueuedWebhookEvent(event, rowId)] : [];
+		});
+		const deliveryWork = Promise.allSettled(deliveries);
+		if (process.env.VERCEL) waitUntil(deliveryWork);
+		else await deliveryWork;
 
 		return new Response(JSON.stringify({ status: 'EVENT_RECEIVED', queued: queued.filter(Boolean).length, duplicates: queued.filter((x) => !x).length }), {
 			status: 200,

@@ -21,8 +21,8 @@ export interface WebhookIncomingEvent {
 	rawPayload: any;
 }
 
-/** Persist an event before acknowledging Meta; a scheduled Vercel function drains this durable queue. */
-export async function enqueueWebhookEvent(event: WebhookIncomingEvent): Promise<boolean> {
+/** Persist an event before acknowledging Meta; the webhook starts delivery and cron recovers interrupted jobs. */
+export async function enqueueWebhookEvent(event: WebhookIncomingEvent): Promise<string | null> {
 	const db = getDb();
 	if (!db) throw new Error('Database connection unavailable; webhook event was not queued.');
 	const [queued] = await db.insert(schema.webhookEvents).values({
@@ -33,7 +33,19 @@ export async function enqueueWebhookEvent(event: WebhookIncomingEvent): Promise<
 		rawPayload: { queuedEvent: event },
 		status: 'pending',
 	}).onConflictDoNothing({ target: schema.webhookEvents.eventId }).returning({ id: schema.webhookEvents.id });
-	return Boolean(queued);
+	return queued?.id || null;
+}
+
+/** Atomically claim a freshly queued event so the cron recovery worker cannot race delivery. */
+export async function processQueuedWebhookEvent(event: WebhookIncomingEvent, eventRowId: string): Promise<void> {
+	const db = getDb();
+	if (!db) throw new Error('Database connection unavailable; queued event remains pending.');
+	const [claimed] = await db.update(schema.webhookEvents)
+		.set({ status: 'processing', processingStartedAt: new Date(), attemptCount: sql`${schema.webhookEvents.attemptCount} + 1` })
+		.where(and(eq(schema.webhookEvents.id, eventRowId), eq(schema.webhookEvents.status, 'pending')))
+		.returning({ id: schema.webhookEvents.id });
+	if (!claimed) return;
+	await processWebhookEvent(event, eventRowId);
 }
 
 /**

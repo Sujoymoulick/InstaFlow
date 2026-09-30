@@ -13,7 +13,8 @@ flowchart LR
   Services --> IG[Meta Instagram API]
   Meta[Meta webhooks] --> Hook[GET/POST /api/webhooks/instagram]
   Hook -->|Verify HMAC, deduplicate, persist pending event| Queue[(webhook_events durable queue)]
-  Cron[Vercel Cron, every minute] --> Worker[GET /api/cron/process-instagram-events]
+  Hook -->|Vercel waitUntil| Engine[Automation engine]
+  Cron[Vercel Cron, daily recovery] --> Worker[GET /api/cron/process-instagram-events]
   Worker --> Queue
   Worker --> Engine[Automation engine]
   Engine --> Rules[(automation_rules and settings)]
@@ -27,9 +28,9 @@ flowchart LR
 2. Instagram Login OAuth is handled by `/api/auth/instagram` and `/api/auth/instagram/callback`. The callback exchanges the authorization code, identifies the professional account, encrypts its token, saves it in Neon, subscribes the account to webhook fields, and syncs media.
 3. `src/services/instagram.ts` calls the official `graph.instagram.com` API for account media, comments, conversations, and messages. Access tokens are decrypted server-side only.
 4. Meta sends comment and messaging events to `/api/webhooks/instagram`. The route validates `X-Hub-Signature-256`, deduplicates events by ID, persists accepted events in `webhook_events`, and acknowledges Meta.
-5. Vercel invokes `/api/cron/process-instagram-events` once per minute. The worker claims pending rows from Postgres and calls the automation engine. The engine checks global settings, active rules, media/trigger matching, and per-user cooldowns before sending a supported private reply or message. It records outcomes in `message_logs` and updates the event status.
+5. On Vercel, `waitUntil` claims and processes each newly queued event after the webhook response. The Hobby-compatible daily cron at `/api/cron/process-instagram-events` recovers events left pending by interrupted invocations. The engine checks global settings, active rules, media/trigger matching, and per-user cooldowns before sending a supported private reply or message. It records outcomes in `message_logs` and updates the event status.
 
-The queue is stored in Postgres, so events can survive a serverless invocation ending. Processing is bounded and retried; it does not use a long-running in-memory worker. Instagram messaging remains subject to Meta permissions, eligibility, recipient interaction, and messaging-window policies. A comment-trigger rule applies to eligible webhook events received after activation; it does not retroactively automate every old comment.
+The queue is stored in Postgres, so events can survive a serverless invocation ending. Processing is bounded and recoverable; it does not use a long-running in-memory worker. Instagram messaging remains subject to Meta permissions, eligibility, recipient interaction, and messaging-window policies. A comment-trigger rule applies to eligible webhook events received after activation; it does not retroactively automate every old comment.
 
 ### Main code areas
 
@@ -42,7 +43,7 @@ The queue is stored in Postgres, so events can survive a serverless invocation e
 | `src/lib/crypto.ts` | AES-256-GCM Instagram token encryption and webhook HMAC validation |
 | `src/db/schema.ts` | Drizzle schema for accounts, media, rules, events, message logs, conversations, settings, and projects |
 | `drizzle/` | Ordered SQL migrations applied by `npm run db:migrate` |
-| `vercel.json` | Vercel build configuration and one-minute webhook queue cron schedule |
+| `vercel.json` | Vercel build configuration and daily webhook queue recovery schedule |
 | `test/instaflow.test.ts` | Core unit/integration verification script |
 
 ## Setup guide
@@ -144,10 +145,10 @@ npm run build
 1. Import the GitHub repository into Vercel and set `main` as the Production Branch.
 2. Add the required environment variables in Vercel for Production. Add suitable values for Preview and Development if those environments should access separate databases/accounts.
 3. Set production `META_REDIRECT_URI` to `https://<your-production-domain>/api/auth/instagram/callback` and add that exact URL to Meta.
-4. Confirm `vercel.json` is included in the deployment. It schedules `/api/cron/process-instagram-events` every minute; Vercel supplies `Authorization: Bearer <CRON_SECRET>` to cron invocations.
+4. Confirm `vercel.json` is included in the deployment. It schedules `/api/cron/process-instagram-events` daily; Vercel supplies `Authorization: Bearer <CRON_SECRET>` to cron invocations. Newly received webhook events are processed promptly with Vercel `waitUntil`; the daily cron is only the recovery path for interrupted work.
 5. Deploy and connect Instagram through the deployed site. A deployment alone does not repair a revoked Instagram token: reconnect the account if OAuth error 190 appears.
 
-**Plan requirement:** this repository's cron schedule runs every minute. Vercel Hobby allows cron jobs only once per day; schedules more frequent than daily require Pro or Enterprise. On Hobby, deployment may fail because of the current schedule. Use a plan that supports per-minute cron execution, or deliberately change `vercel.json` to a supported daily cadence and accept that queued Instagram events may wait until that run. [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+**Plan note:** Vercel Hobby allows cron jobs only once per day. The daily cron is a recovery mechanism; normal event replies run from the webhook invocation. `waitUntil` work is still subject to the configured Vercel Function maximum duration. [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and [Vercel `waitUntil` documentation](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package#waituntil).
 
 Do not put Meta secrets, admin secrets, encryption keys, or the cron secret in browser code or public `PUBLIC_*` variables. Keep `INSTAGRAM_ENCRYPTION_KEY` stable for the lifetime of encrypted account tokens.
 
@@ -184,8 +185,8 @@ All management API routes require the admin session. The Meta webhook verificati
 ## Troubleshooting
 
 - **Instagram OAuth error 190 / invalid token:** Reconnect the Instagram account in `/settings/instagram`. Ensure the OAuth callback and permissions match the Meta app configuration. The token is encrypted in Neon and cannot be reconstructed if Meta revokes it.
-- **No comments:** Check the server-returned Meta API error, account permissions, that the post/Reel belongs to the connected account, and that the comments webhook field is enabled. The comments list is read via the official Instagram API.
-- **Automation did not reply:** Confirm the global automation switch and rule are enabled, the incoming event matches the selected media and trigger, the webhook POST signature is valid, and the pending event is processed by the Vercel cron. Check `/activity` and `webhook_events`/`message_logs` for recorded status and errors.
+- **No comments:** The Comments dialog compares the cached Meta comment count with the comments returned by the official API. If the count is positive but no details are returned, confirm `instagram_business_manage_comments` access in Meta App Review, that the post/Reel belongs to the connected professional account, and reconnect after changing permissions. The API does not provide old comment details to the app in that state.
+- **Automation did not reply:** Confirm the global automation switch and rule are enabled, the incoming event matches the selected media and trigger, the webhook POST signature is valid, and the event status/error in `/activity` or `webhook_events`/`message_logs`. Newly queued events are processed after the webhook response; the cron is only for recovery.
 - **Webhook events remain pending:** Confirm the Vercel cron exists and `CRON_SECRET` is set in Production. Verify the cron endpoint is not blocked and inspect Vercel function logs.
 - **Admin cannot sign in:** Confirm `ALLOWED_ADMIN_EMAIL` and `ADMIN_PASSWORD` (or `ADMIN_AUTH_SECRET`) are set. `ADMIN_AUTH_SECRET` must be at least 32 characters.
 - **Database unavailable:** Confirm `DATABASE_URL` points to the intended Neon branch, includes TLS, and migrations have been applied.

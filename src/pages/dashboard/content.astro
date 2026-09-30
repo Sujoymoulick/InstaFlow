@@ -619,7 +619,10 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 					} else {
 						const empty = document.createElement('div');
 						empty.className = 'text-center py-6 text-xs text-gray-400';
-						empty.textContent = 'Instagram returned no comments for this post. New comments will be handled after you activate an automation.';
+						const reportedCount = Number(data.reportedCount || 0);
+						empty.textContent = reportedCount > 0
+							? `Meta reports ${reportedCount} comment${reportedCount === 1 ? '' : 's'} on this post, but its API returned no comment details. Check that Instagram Business Login has instagram_business_manage_comments access and reconnect the account after updating permissions. New comments can still trigger an active automation through webhooks.`
+							: 'Instagram returned no comment details for this post. New comments can trigger an active automation through webhooks.';
 						commentsContainer.append(empty);
 					}
 				}

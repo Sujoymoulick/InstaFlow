@@ -438,7 +438,7 @@ export async function getInstagramMediaList(options: {
 export async function fetchInstagramComments(
 	mediaId: string,
 	limit = 25,
-): Promise<{ success: boolean; comments: any[]; error?: string }> {
+): Promise<{ success: boolean; comments: any[]; error?: string; reportedCount?: number }> {
 	const account = await getActiveInstagramAccount();
 	if (!account) {
 		return { success: false, comments: [], error: 'No active Instagram account connected. Reconnect Instagram in Settings to load comments.' };
@@ -465,7 +465,7 @@ export async function fetchInstagramComments(
 			comments.push(...data.data);
 			nextUrl = data.paging?.next;
 		}
-		return { success: true, comments: comments.slice(0, Math.min(100, Math.max(1, limit))) };
+		return { success: true, comments: comments.slice(0, Math.min(100, Math.max(1, limit))), reportedCount: media[0].commentsCount };
 	} catch (error: any) {
 		return { success: false, comments: [], error: error.message };
 	}
@@ -626,16 +626,24 @@ export async function sendInstagramMessage(
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
-
-		const response = await fetch(`${GRAPH_API_BASE}/${account.instagramUserId}/messages`, {
-			method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` },
-			body: JSON.stringify({ recipient: { id: recipientId }, message: { text: messageText } }),
-		});
-		const data = await response.json();
-		if (response.ok && data.message_id) return { success: true, messageId: data.message_id };
-		const error = data.error?.message || `Instagram Send API returned HTTP ${response.status}.`;
-		if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
-		return { success: false, error };
+		const endpoints = [
+			`${GRAPH_API_BASE}/${account.instagramUserId}/messages`,
+			`${GRAPH_API_BASE}/me/messages`,
+		];
+		let lastError = 'Instagram Send API did not return a message ID.';
+		for (const endpoint of endpoints) {
+			const requestUrl = new URL(endpoint);
+			requestUrl.searchParams.set('access_token', decryptedToken);
+			const response = await fetchWithRetry(requestUrl.toString(), {
+				method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` },
+				body: JSON.stringify({ recipient: { id: recipientId }, message: { text: messageText }, access_token: decryptedToken }),
+			});
+			const data = await response.json();
+			if (response.ok && (data.message_id || data.recipient_id)) return { success: true, messageId: data.message_id || data.recipient_id };
+			lastError = data.error?.message ? `${data.error.message}${data.error.code ? ` (code: ${data.error.code})` : ''}` : `Instagram Send API returned HTTP ${response.status}.`;
+			if (data.error?.code === 190) await markAccountForReauthorization(account.id, lastError);
+		}
+		return { success: false, error: lastError };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram DM' };
 	}
@@ -658,16 +666,21 @@ export async function sendInstagramPrivateReply(
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const messageText = url && !text.includes(url) ? `${text}\n\n${url}` : text;
-
-		const response = await fetch(`${GRAPH_API_BASE}/${account.instagramUserId}/messages`, {
-			method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` },
-			body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text: messageText } }),
-		});
-		const data = await response.json();
-		if (response.ok && data.message_id) return { success: true, messageId: data.message_id };
-		const error = data.error?.message || `Instagram Private Reply returned HTTP ${response.status}.`;
-		if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
-		return { success: false, error };
+		const endpoints = [`${GRAPH_API_BASE}/${account.instagramUserId}/messages`, `${GRAPH_API_BASE}/me/messages`];
+		let lastError = 'Instagram Private Reply did not return a message ID.';
+		for (const endpoint of endpoints) {
+			const requestUrl = new URL(endpoint);
+			requestUrl.searchParams.set('access_token', decryptedToken);
+			const response = await fetchWithRetry(requestUrl.toString(), {
+				method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` },
+				body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text: messageText }, access_token: decryptedToken }),
+			});
+			const data = await response.json();
+			if (response.ok && (data.message_id || data.recipient_id)) return { success: true, messageId: data.message_id || data.recipient_id };
+			lastError = data.error?.message ? `${data.error.message}${data.error.code ? ` (code: ${data.error.code})` : ''}` : `Instagram Private Reply returned HTTP ${response.status}.`;
+			if (data.error?.code === 190) await markAccountForReauthorization(account.id, lastError);
+		}
+		return { success: false, error: lastError };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram Private Reply' };
 	}
@@ -688,12 +701,17 @@ export async function sendInstagramPublicCommentReply(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const response = await fetch(`${GRAPH_API_BASE}/${commentId}/replies`, {
-			method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` }, body: JSON.stringify({ message: text }),
+		const requestUrl = new URL(`${GRAPH_API_BASE}/${commentId}/replies`);
+		requestUrl.searchParams.set('access_token', decryptedToken);
+		const response = await fetchWithRetry(requestUrl.toString(), {
+			method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${decryptedToken}` },
+			body: JSON.stringify({ message: text, access_token: decryptedToken }),
 		});
 		const data = await response.json();
 		if (response.ok && data.id) return { success: true, replyCommentId: data.id };
-		return { success: false, error: data.error?.message || `Instagram comment reply returned HTTP ${response.status}.` };
+		const error = data.error?.message ? `${data.error.message}${data.error.code ? ` (code: ${data.error.code})` : ''}` : `Instagram comment reply returned HTTP ${response.status}.`;
+		if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
+		return { success: false, error };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send public comment reply' };
 	}
