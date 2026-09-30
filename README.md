@@ -1,6 +1,39 @@
-# InstaFlow — Instagram Automation & Projects Dashboard
+<div align="center">
+  <img src="public/logo.png" alt="InstaFlow Logo" width="160" />
+  <h1>InstaFlow</h1>
+  <p><strong>Instagram Automation &amp; Projects Dashboard</strong></p>
 
-> A full-stack admin dashboard for managing personal projects, SaaS apps, and Instagram DM/comment automation — built with **Astro**, **Tailwind CSS**, **Flowbite**, and **Neon (Postgres)**.
+  <!-- Version & meta badges -->
+  <p>
+    <img src="https://img.shields.io/badge/version-1.0.2-blue?style=flat-square" alt="version" />
+    <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license" />
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome" />
+  </p>
+
+  <!-- Tech stack badges -->
+  <p>
+    <img src="https://img.shields.io/badge/Astro-2.0.4-FF5D01?style=flat-square&logo=astro&logoColor=white" alt="Astro" />
+    <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Tailwind_CSS-3.0.24-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+    <img src="https://img.shields.io/badge/Flowbite-2.1.1-1C64F2?style=flat-square" alt="Flowbite" />
+    <img src="https://img.shields.io/badge/Neon_Postgres-serverless-00E5A0?style=flat-square&logo=postgresql&logoColor=white" alt="Neon Postgres" />
+    <img src="https://img.shields.io/badge/Drizzle_ORM-0.45.3-C5F74F?style=flat-square" alt="Drizzle ORM" />
+    <img src="https://img.shields.io/badge/ApexCharts-3.37.2-00B0FF?style=flat-square" alt="ApexCharts" />
+    <img src="https://img.shields.io/badge/Vercel-SSR-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel" />
+    <img src="https://img.shields.io/badge/pnpm-package_manager-F69220?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm" />
+  </p>
+
+  <!-- Tooling badges -->
+  <p>
+    <img src="https://img.shields.io/badge/ESLint-8.35.0-4B32C3?style=flat-square&logo=eslint&logoColor=white" alt="ESLint" />
+    <img src="https://img.shields.io/badge/Prettier-plugin--astro-F7B93E?style=flat-square&logo=prettier&logoColor=black" alt="Prettier" />
+    <img src="https://img.shields.io/badge/drizzle--kit-0.31.11-C5F74F?style=flat-square" alt="drizzle-kit" />
+    <img src="https://img.shields.io/badge/dotenv-18.0.4-ECD53F?style=flat-square" alt="dotenv" />
+    <img src="https://img.shields.io/badge/shiki-0.14.1-7C3AED?style=flat-square" alt="shiki" />
+  </p>
+
+  <p><em>A full-stack admin dashboard for managing personal projects, SaaS apps, and Instagram DM/comment automation.</em></p>
+</div>
 
 ---
 
@@ -90,18 +123,35 @@ instaflow/
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 Tech Stack & Versions
 
-| Layer | Technology |
-|---|---|
-| Framework | [Astro](https://astro.build/) v2 (SSR mode) |
-| UI Components | [Flowbite](https://flowbite.com/) + [Tailwind CSS](https://tailwindcss.com/) v3 |
-| Charts | [ApexCharts](https://apexcharts.com/) |
-| Database | [Neon](https://neon.tech/) — serverless Postgres |
-| ORM | [Drizzle ORM](https://orm.drizzle.team/) |
-| Deployment | [Vercel](https://vercel.com/) (via `@astrojs/vercel` adapter) |
-| Language | TypeScript (strict mode) |
-| Package Manager | [pnpm](https://pnpm.io/) |
+<div align="center">
+
+| Category | Technology | Package / Specification | Version |
+|:---|:---|:---|:---:|
+| **Core Framework** | [Astro](https://astro.build/) | `astro` | `^2.0.4` |
+| **Framework Integration** | [Astro Tailwind](https://docs.astro.build/en/guides/integrations-guide/tailwind/) | `@astrojs/tailwind` | `^3.0.1` |
+| **Deployment Adapter** | [Astro Vercel SSR](https://docs.astro.build/en/guides/integrations-guide/vercel/) | `@astrojs/vercel` | `^3.8.2` |
+| **SEO & Sitemap** | [Astro Sitemap](https://docs.astro.build/en/guides/integrations-guide/sitemap/) | `@astrojs/sitemap` | `^1.1.0` |
+| **UI Framework** | [Tailwind CSS](https://tailwindcss.com/) | `tailwindcss` | `^3.0.24` |
+| **Component Library** | [Flowbite](https://flowbite.com/) | `flowbite` | `^2.1.1` |
+| **Typography Plugin** | Flowbite Typography | `flowbite-typography` | `^1.0.3` |
+| **Scrollbar Utility** | Tailwind Scrollbar | `tailwind-scrollbar` | `^3.0.0` |
+| **Database** | [Neon Serverless Postgres](https://neon.tech/) | `@neondatabase/serverless` | `^1.1.0` |
+| **ORM** | [Drizzle ORM](https://orm.drizzle.team/) | `drizzle-orm` | `^0.45.3` |
+| **Migration & Schema CLI**| Drizzle Kit | `drizzle-kit` | `^0.31.11` |
+| **Charts & Visualization**| [ApexCharts](https://apexcharts.com/) | `apexcharts` | `^3.37.2` |
+| **Syntax Highlighting** | [Shiki](https://shiki.style/) | `shiki` | `^0.14.1` |
+| **Environment Config** | Dotenv | `dotenv` | `^18.0.4` |
+| **Mock & Fixture Data** | Faker JS | `@faker-js/faker` | `^7.6.0` |
+| **Language & Types** | TypeScript | `typescript` | `^5.54.1` |
+| **Linter** | [ESLint](https://eslint.org/) | `eslint` | `^8.35.0` |
+| **Astro ESLint Parser** | Astro Parser | `astro-eslint-parser` | `^0.11.0` |
+| **Code Formatter** | Prettier | `eslint-plugin-prettier` | `^4.2.1` |
+| **Package Manager** | [pnpm](https://pnpm.io/) | `pnpm` | `≥ 8.x` |
+| **Runtime Environment** | Node.js | `node` | `≥ 18.0.0` |
+
+</div>
 
 ---
 
