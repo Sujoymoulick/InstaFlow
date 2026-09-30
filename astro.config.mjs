@@ -7,12 +7,10 @@ import vercel from '@astrojs/vercel/serverless';
 
 const DEV_PORT = 2121;
 
-// https://astro.build/config
 export default defineConfig({
-	site: process.env.CI
-		? 'https://themesberg.github.io'
-		: `http://localhost:${DEV_PORT}`,
-	base: process.env.CI ? '/flowbite-astro-admin-dashboard' : undefined,
+	site: process.env.VERCEL_URL
+		? `https://${process.env.VERCEL_URL}`
+		: (process.env.SITE_URL || `http://localhost:${DEV_PORT}`),
 
 	output: 'server',
 	adapter: vercel(),

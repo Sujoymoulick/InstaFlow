@@ -30,7 +30,8 @@ export async function fetchData<Selected extends Endpoint>(endpoint: Selected) {
 
 // NOTE: These helpers are useful for unifying paths, app-wide
 export function url(path = '') {
-	return `${import.meta.env.SITE}${import.meta.env.BASE_URL}${path}`;
+	if (!path || path === '/') return '/';
+	return path.startsWith('/') ? path : `/${path}`;
 }
 
 // TODO: Remove old local assets from git history (to make cloning snappier).
