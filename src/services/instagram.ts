@@ -63,33 +63,37 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
 /**
  * Build the official Meta OAuth authorization URL
  */
-export function getMetaAuthorizationUrl(state: string, redirectUriOverride?: string): string {
-	const { appId, redirectUri } = getOAuthConfig();
-	const callbackUrl = redirectUriOverride || redirectUri;
-	const isInstagramLogin = process.env.META_AUTH_TYPE === 'instagram' || appId === '2216387435958871';
-
-	if (isInstagramLogin) {
+export function getMetaAuthorizationUrl(
+	state: string,
+	redirectUriOverride?: string,
+	provider: 'instagram' | 'facebook' = 'instagram',
+): string {
+	const redirectUri = redirectUriOverride || process.env.META_REDIRECT_URI || '';
+	
+	if (provider === 'facebook') {
+		const fbAppId = process.env.META_FB_APP_ID || process.env.META_APP_ID || '2251185325743698';
 		const params = new URLSearchParams({
-			enable_fb_login: '0',
-			force_authentication: '1',
-			client_id: appId,
-			redirect_uri: callbackUrl,
-			response_type: 'code',
+			client_id: fbAppId,
+			redirect_uri: redirectUri,
 			scope: INSTAGRAM_OAUTH_SCOPES,
 			state,
+			response_type: 'code',
 		});
-		return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+		return `https://www.facebook.com/${META_API_VERSION}/dialog/oauth?${params.toString()}`;
 	}
 
+	// Default: Direct Instagram Login for Business
+	const igAppId = process.env.META_IG_APP_ID || (process.env.META_APP_ID === '2216387435958871' ? process.env.META_APP_ID : '2216387435958871');
 	const params = new URLSearchParams({
-		client_id: appId,
-		redirect_uri: callbackUrl,
+		enable_fb_login: '0',
+		force_authentication: '1',
+		client_id: igAppId,
+		redirect_uri: redirectUri,
+		response_type: 'code',
 		scope: INSTAGRAM_OAUTH_SCOPES,
 		state,
-		response_type: 'code',
 	});
-
-	return `https://www.facebook.com/${META_API_VERSION}/dialog/oauth?${params.toString()}`;
+	return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
 /**
@@ -98,48 +102,71 @@ export function getMetaAuthorizationUrl(state: string, redirectUriOverride?: str
 export async function exchangeOAuthCodeForAccount(
 	code: string,
 	redirectUriOverride?: string,
+	preferredProvider?: string,
 ): Promise<{ success: boolean; account?: any; error?: string }> {
-	const { appId, appSecret, redirectUri } = getOAuthConfig();
-	const callbackUrl = redirectUriOverride || redirectUri;
+	const cleanCode = code.replace(/#_.*$/, '').trim();
+	const callbackUrl = redirectUriOverride || process.env.META_REDIRECT_URI || '';
 
-	if (!appId || !appSecret || !callbackUrl) {
+	const defaultSecret = process.env.META_APP_SECRET || '';
+	const igAppId = process.env.META_IG_APP_ID || '2216387435958871';
+	const igSecret = process.env.META_IG_APP_SECRET || defaultSecret;
+
+	const fbAppId = process.env.META_FB_APP_ID || process.env.META_APP_ID || '2251185325743698';
+	const fbSecret = process.env.META_FB_APP_SECRET || defaultSecret;
+
+	const appConfigs: Array<{ appId: string; appSecret: string; type: 'ig' | 'fb' }> = [];
+	
+	if (preferredProvider === 'facebook') {
+		if (fbAppId && fbSecret) appConfigs.push({ appId: fbAppId, appSecret: fbSecret, type: 'fb' });
+		if (igAppId && igSecret && igAppId !== fbAppId) appConfigs.push({ appId: igAppId, appSecret: igSecret, type: 'ig' });
+	} else {
+		if (igAppId && igSecret) appConfigs.push({ appId: igAppId, appSecret: igSecret, type: 'ig' });
+		if (fbAppId && fbSecret && fbAppId !== igAppId) appConfigs.push({ appId: fbAppId, appSecret: fbSecret, type: 'fb' });
+	}
+
+	if (appConfigs.length === 0) {
 		return {
 			success: false,
-			error: 'Meta App credentials or Redirect URI are missing in environment variables.',
+			error: 'Meta App credentials (META_APP_SECRET / META_APP_ID) are missing from environment variables.',
 		};
 	}
 
 	try {
-		// 1. Exchange code for user access token (tries Graph API first, falls back to Instagram API)
 		let shortLivedToken: string | null = null;
+		let successfulAppId = appConfigs[0].appId;
+		let successfulAppSecret = appConfigs[0].appSecret;
 
-		// Method A: Graph API (Facebook Login for Business)
-		const tokenUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
-			client_id: appId,
-			client_secret: appSecret,
-			redirect_uri: callbackUrl,
-			code,
-		}).toString()}`;
+		// 1. Try exchanging code against candidates
+		for (const cfg of appConfigs) {
+			// Method A: Graph API OAuth access token endpoint
+			try {
+				const graphTokenUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
+					client_id: cfg.appId,
+					client_secret: cfg.appSecret,
+					redirect_uri: callbackUrl,
+					code: cleanCode,
+				}).toString()}`;
 
-		try {
-			const tokenResponse = await fetchWithRetry(tokenUrl);
-			const tokenData = await tokenResponse.json();
-			if (tokenData && tokenData.access_token) {
-				shortLivedToken = tokenData.access_token;
+				const response = await fetchWithRetry(graphTokenUrl);
+				const data = await response.json();
+				if (data && data.access_token) {
+					shortLivedToken = data.access_token;
+					successfulAppId = cfg.appId;
+					successfulAppSecret = cfg.appSecret;
+					break;
+				}
+			} catch (e) {
+				console.warn(`Graph API token exchange attempt notice for app ${cfg.appId}:`, e);
 			}
-		} catch (e) {
-			console.warn('Graph API token exchange attempt notice:', e);
-		}
 
-		// Method B: Instagram direct API (Instagram Login for Business)
-		if (!shortLivedToken) {
+			// Method B: Instagram Direct API access token endpoint
 			try {
 				const igFormData = new URLSearchParams({
-					client_id: appId,
-					client_secret: appSecret,
+					client_id: cfg.appId,
+					client_secret: cfg.appSecret,
 					grant_type: 'authorization_code',
 					redirect_uri: callbackUrl,
-					code,
+					code: cleanCode,
 				});
 
 				const igResponse = await fetchWithRetry('https://api.instagram.com/oauth/access_token', {
@@ -150,16 +177,19 @@ export async function exchangeOAuthCodeForAccount(
 				const igData = await igResponse.json();
 				if (igData && igData.access_token) {
 					shortLivedToken = igData.access_token;
+					successfulAppId = cfg.appId;
+					successfulAppSecret = cfg.appSecret;
+					break;
 				}
 			} catch (igErr) {
-				console.warn('Instagram direct token exchange attempt notice:', igErr);
+				console.warn(`Instagram direct token exchange attempt notice for app ${cfg.appId}:`, igErr);
 			}
 		}
 
 		if (!shortLivedToken) {
 			return {
 				success: false,
-				error: 'Failed to exchange authorization code for an access token. Please verify App ID and Secret.',
+				error: 'Failed to exchange authorization code for an access token with Meta. Please verify META_APP_SECRET and App ID.',
 			};
 		}
 
@@ -167,11 +197,12 @@ export async function exchangeOAuthCodeForAccount(
 		let accessToken = shortLivedToken;
 		let tokenExpiresAt = new Date(Date.now() + 60 * 24 * 3600 * 1000);
 
+		// Try FB long-lived exchange
 		try {
 			const longLivedUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
 				grant_type: 'fb_exchange_token',
-				client_id: appId,
-				client_secret: appSecret,
+				client_id: successfulAppId,
+				client_secret: successfulAppSecret,
 				fb_exchange_token: shortLivedToken,
 			}).toString()}`;
 
@@ -183,7 +214,19 @@ export async function exchangeOAuthCodeForAccount(
 				tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
 			}
 		} catch (llErr) {
-			console.warn('Long-lived token exchange notice (using short-lived token):', llErr);
+			// Try IG long-lived exchange
+			try {
+				const igLongLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${successfulAppSecret}&access_token=${shortLivedToken}`;
+				const igLongLivedResponse = await fetchWithRetry(igLongLivedUrl);
+				const igLongLivedData = await igLongLivedResponse.json();
+				if (igLongLivedData.access_token) {
+					accessToken = igLongLivedData.access_token;
+					const expiresIn = igLongLivedData.expires_in ? Number(igLongLivedData.expires_in) : 60 * 24 * 3600;
+					tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+				}
+			} catch (igLLErr) {
+				console.warn('Long-lived token exchange notice (using short-lived token):', igLLErr);
+			}
 		}
 
 		// 3. Resolve Instagram Account info
@@ -200,10 +243,28 @@ export async function exchangeOAuthCodeForAccount(
 				igAccount = directMeData;
 			}
 		} catch (meErr) {
-			console.warn('Direct /me check notice:', meErr);
+			console.warn('Direct Graph API /me check notice:', meErr);
 		}
 
-		// 3B. Check connected Facebook Pages with Instagram Business Account
+		// 3B. Check Instagram Basic Display / Graph Me
+		if (!igAccount) {
+			try {
+				const igMeUrl = `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${accessToken}`;
+				const igMeRes = await fetchWithRetry(igMeUrl);
+				const igMeData = await igMeRes.json();
+				if (igMeData && igMeData.id && igMeData.username) {
+					igAccount = {
+						id: igMeData.id,
+						username: igMeData.username,
+						name: igMeData.username,
+					};
+				}
+			} catch (igMeErr) {
+				console.warn('Instagram Graph /me check notice:', igMeErr);
+			}
+		}
+
+		// 3C. Check connected Facebook Pages with Instagram Business Account
 		if (!igAccount) {
 			try {
 				const pagesUrl = `${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}&access_token=${accessToken}`;
@@ -229,7 +290,7 @@ export async function exchangeOAuthCodeForAccount(
 			return {
 				success: false,
 				error:
-					'No Instagram Professional/Business account found. Please ensure your Instagram account is a Creator or Business account.',
+					'No Instagram Professional/Business account found. Please ensure your Instagram account is a Creator or Business account and permissions are granted.',
 			};
 		}
 

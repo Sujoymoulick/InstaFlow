@@ -305,6 +305,45 @@ const mockInvalidUrl = new URL(
 );
 const invalidRouteRes = (await webhookGetApi({ url: mockInvalidUrl, cookies: {} as any } as any)) as Response;
 assert.strictEqual(invalidRouteRes.status, 403, 'APIRoute GET must return 403 for invalid token');
-console.log('  ✓ Meta Webhook GET verification validates correct token, rejects invalid tokens, and handles missing params');
+// 11. Dual Meta OAuth URL Generation Tests
+console.log('\n11. Testing Dual Meta OAuth URL Generation (Instagram & Facebook):');
+const { getMetaAuthorizationUrl } = await import('../src/services/instagram.js');
+const testOAuthState = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+const testCallbackUrl = 'https://instaflow-weld.vercel.app/api/auth/instagram/callback';
+
+// Test A: Direct Instagram authorization URL
+const igAuthUrl = getMetaAuthorizationUrl(testOAuthState, testCallbackUrl, 'instagram');
+assert.ok(igAuthUrl.startsWith('https://www.instagram.com/oauth/authorize'), 'Instagram URL must start with instagram.com/oauth/authorize');
+assert.ok(igAuthUrl.includes('response_type=code'), 'Must include response_type=code');
+assert.ok(igAuthUrl.includes(`state=${testOAuthState}`), 'Must include state parameter');
+assert.ok(igAuthUrl.includes('instagram_business_basic'), 'Must include Instagram business scopes');
+console.log('  ✓ Direct Instagram OAuth authorization URL generated correctly');
+
+// Test B: Facebook Page authorization URL
+const fbAuthUrl = getMetaAuthorizationUrl(testOAuthState, testCallbackUrl, 'facebook');
+assert.ok(fbAuthUrl.startsWith('https://www.facebook.com/'), 'Facebook URL must start with facebook.com');
+assert.ok(fbAuthUrl.includes('/dialog/oauth'), 'Must target dialog/oauth');
+assert.ok(fbAuthUrl.includes(`state=${testOAuthState}`), 'Must include state parameter');
+console.log('  ✓ Facebook Page OAuth authorization URL generated correctly');
+
+// 12. OAuth Callback Parameter Handling Tests
+console.log('\n12. Testing OAuth Callback Handling for Errors & Missing Codes:');
+const { get: callbackGetApi } = await import('../src/pages/api/auth/instagram/callback.js');
+
+// Test A: Missing code error redirect
+const noCodeUrl = new URL('https://instaflow-weld.vercel.app/api/auth/instagram/callback?state=123');
+const noCodeRes = (await callbackGetApi({ url: noCodeUrl, cookies: { get: () => undefined, delete: () => {} } as any } as any)) as Response;
+assert.strictEqual(noCodeRes.status, 302, 'Missing code must redirect with 302');
+assert.ok(noCodeRes.headers.get('Location')?.includes('status=error'), 'Redirect must have status=error');
+assert.ok(noCodeRes.headers.get('Location')?.includes('Authorization+code+missing') || noCodeRes.headers.get('Location')?.includes('code'), 'Redirect must explain code is missing');
+
+// Test B: Meta error response (e.g. user cancelled)
+const errorUrl = new URL('https://instaflow-weld.vercel.app/api/auth/instagram/callback?error=access_denied&error_description=Permissions+error');
+const errorRes = (await callbackGetApi({ url: errorUrl, cookies: { get: () => undefined, delete: () => {} } as any } as any)) as Response;
+assert.strictEqual(errorRes.status, 302, 'Error param must redirect with 302');
+assert.ok(errorRes.headers.get('Location')?.includes('status=error'));
+assert.ok(errorRes.headers.get('Location')?.includes('Permissions'));
+console.log('  ✓ OAuth Callback gracefully handles missing codes and Meta rejection errors');
 
 console.log('\n🎉 ALL INSTAFLOW AUTOMATION & API TESTS PASSED SUCCESSFULLY! ✅\n');
+
