@@ -28,9 +28,12 @@
 		"Julian Cataldo <https://twitter.com/Julian_Cataldo>"
 	],
 	"type": "module",
+	"engines": {
+		"node": ">=20.0.0"
+	},
 	"scripts": {
 		"astro": "astro",
-		"build": "astro build",
+		"build": "astro build && node scripts/fix-vercel-runtime.mjs",
 		"dev": "astro dev",
 		"preview": "astro preview",
 		"start": "astro dev",
