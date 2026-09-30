@@ -5,14 +5,14 @@ import { decryptToken, encryptToken } from '../lib/crypto.js';
 export const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
-export const INSTAGRAM_OAUTH_SCOPES = [
-	'instagram_basic',
-	'instagram_manage_messages',
-	'instagram_manage_comments',
-	'pages_show_list',
-	'pages_read_engagement',
-	'pages_manage_metadata',
-].join(',');
+export const INSTAGRAM_OAUTH_SCOPES =
+	process.env.META_OAUTH_SCOPES ||
+	[
+		'instagram_business_basic',
+		'instagram_business_manage_messages',
+		'instagram_business_manage_comments',
+		'instagram_business_content_publish',
+	].join(',');
 
 export interface InstagramOAuthConfig {
 	appId: string;
@@ -117,43 +117,64 @@ export async function exchangeOAuthCodeForAccount(
 		const shortLivedToken = tokenData.access_token;
 
 		// 2. Exchange short-lived token for long-lived access token (60-day)
-		const longLivedUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
-			grant_type: 'fb_exchange_token',
-			client_id: appId,
-			client_secret: appSecret,
-			fb_exchange_token: shortLivedToken,
-		}).toString()}`;
+		let accessToken = shortLivedToken;
+		let tokenExpiresAt = new Date(Date.now() + 60 * 24 * 3600 * 1000);
 
-		const longLivedResponse = await fetchWithRetry(longLivedUrl);
-		const longLivedData = await longLivedResponse.json();
-		const accessToken = longLivedData.access_token || shortLivedToken;
-		const expiresIn = longLivedData.expires_in ? Number(longLivedData.expires_in) : 60 * 24 * 3600;
-		const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+		try {
+			const longLivedUrl = `${GRAPH_API_BASE}/oauth/access_token?${new URLSearchParams({
+				grant_type: 'fb_exchange_token',
+				client_id: appId,
+				client_secret: appSecret,
+				fb_exchange_token: shortLivedToken,
+			}).toString()}`;
 
-		// 3. Find connected Facebook Page with an Instagram Business / Creator Account
-		const pagesUrl = `${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}&access_token=${accessToken}`;
-		const pagesResponse = await fetchWithRetry(pagesUrl);
-		const pagesData = await pagesResponse.json();
-
-		if (pagesData.error) {
-			return {
-				success: false,
-				error: pagesData.error.message || 'Failed to fetch connected Facebook Pages.',
-			};
+			const longLivedResponse = await fetchWithRetry(longLivedUrl);
+			const longLivedData = await longLivedResponse.json();
+			if (longLivedData.access_token) {
+				accessToken = longLivedData.access_token;
+				const expiresIn = longLivedData.expires_in ? Number(longLivedData.expires_in) : 60 * 24 * 3600;
+				tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+			}
+		} catch (llErr) {
+			console.warn('Long-lived token exchange notice (using short-lived token):', llErr);
 		}
 
+		// 3. Resolve Instagram Account info
 		let igAccount: any = null;
 		let pageAccessToken = accessToken;
 		let pageId: string | null = null;
 
-		if (pagesData.data && Array.isArray(pagesData.data)) {
-			for (const page of pagesData.data) {
-				if (page.instagram_business_account) {
-					igAccount = page.instagram_business_account;
-					pageAccessToken = page.access_token || accessToken;
-					pageId = page.id;
-					break;
+		// 3A. Check direct Instagram User Account info (Instagram Login for Business)
+		try {
+			const directMeUrl = `${GRAPH_API_BASE}/me?fields=id,username,name,profile_picture_url&access_token=${accessToken}`;
+			const directMeRes = await fetchWithRetry(directMeUrl);
+			const directMeData = await directMeRes.json();
+			if (directMeData && directMeData.id && directMeData.username) {
+				igAccount = directMeData;
+			}
+		} catch (meErr) {
+			console.warn('Direct /me check notice:', meErr);
+		}
+
+		// 3B. Check connected Facebook Pages with Instagram Business Account
+		if (!igAccount) {
+			try {
+				const pagesUrl = `${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}&access_token=${accessToken}`;
+				const pagesResponse = await fetchWithRetry(pagesUrl);
+				const pagesData = await pagesResponse.json();
+
+				if (pagesData.data && Array.isArray(pagesData.data)) {
+					for (const page of pagesData.data) {
+						if (page.instagram_business_account) {
+							igAccount = page.instagram_business_account;
+							pageAccessToken = page.access_token || accessToken;
+							pageId = page.id;
+							break;
+						}
+					}
 				}
+			} catch (pagesErr) {
+				console.warn('Facebook Pages check notice:', pagesErr);
 			}
 		}
 
@@ -161,7 +182,7 @@ export async function exchangeOAuthCodeForAccount(
 			return {
 				success: false,
 				error:
-					'No Instagram Professional/Business account found linked to your Facebook Pages. Please ensure your Instagram account is set to Professional and connected to a Facebook Page.',
+					'No Instagram Professional/Business account found. Please ensure your Instagram account is a Creator or Business account.',
 			};
 		}
 
