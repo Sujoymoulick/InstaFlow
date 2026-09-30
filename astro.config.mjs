@@ -10,7 +10,7 @@ const DEV_PORT = 2121;
 export default defineConfig({
 	site: process.env.VERCEL_URL
 		? `https://${process.env.VERCEL_URL}`
-		: (process.env.SITE_URL || `http://localhost:${DEV_PORT}`),
+		: (process.env.SITE_URL || 'https://instaflow-weld.vercel.app'),
 
 	output: 'server',
 	adapter: vercel(),
