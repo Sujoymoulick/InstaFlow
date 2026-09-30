@@ -1,279 +1,195 @@
-<div align="center">
-  <img src="public/logo.png" alt="InstaFlow Logo" width="160" />
-  <h1>InstaFlow</h1>
-  <p><strong>Instagram Automation &amp; Projects Dashboard</strong></p>
+# InstaFlow
 
-  <!-- Version & meta badges -->
-  <p>
-    <img src="https://img.shields.io/badge/version-1.0.2-blue?style=flat-square" alt="version" />
-    <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license" />
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome" />
-  </p>
+InstaFlow is an Astro server-rendered dashboard for connecting an Instagram professional account, syncing posts and Reels, managing comment-to-DM and DM reply automations, and tracking webhook delivery. It also includes a personal projects dashboard.
 
-  <!-- Tech stack badges -->
-  <p>
-    <img src="https://img.shields.io/badge/Astro-2.0.4-FF5D01?style=flat-square&logo=astro&logoColor=white" alt="Astro" />
-    <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-    <img src="https://img.shields.io/badge/Tailwind_CSS-3.0.24-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
-    <img src="https://img.shields.io/badge/Flowbite-2.1.1-1C64F2?style=flat-square" alt="Flowbite" />
-    <img src="https://img.shields.io/badge/Neon_Postgres-serverless-00E5A0?style=flat-square&logo=postgresql&logoColor=white" alt="Neon Postgres" />
-    <img src="https://img.shields.io/badge/Drizzle_ORM-0.45.3-C5F74F?style=flat-square" alt="Drizzle ORM" />
-    <img src="https://img.shields.io/badge/ApexCharts-3.37.2-00B0FF?style=flat-square" alt="ApexCharts" />
-    <img src="https://img.shields.io/badge/Vercel-SSR-000000?style=flat-square&logo=vercel&logoColor=white" alt="Vercel" />
-    <img src="https://img.shields.io/badge/pnpm-package_manager-F69220?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm" />
-  </p>
+## Architecture
 
-  <!-- Tooling badges -->
-  <p>
-    <img src="https://img.shields.io/badge/ESLint-8.35.0-4B32C3?style=flat-square&logo=eslint&logoColor=white" alt="ESLint" />
-    <img src="https://img.shields.io/badge/Prettier-plugin--astro-F7B93E?style=flat-square&logo=prettier&logoColor=black" alt="Prettier" />
-    <img src="https://img.shields.io/badge/drizzle--kit-0.31.11-C5F74F?style=flat-square" alt="drizzle-kit" />
-    <img src="https://img.shields.io/badge/dotenv-18.0.4-ECD53F?style=flat-square" alt="dotenv" />
-    <img src="https://img.shields.io/badge/shiki-0.14.1-7C3AED?style=flat-square" alt="shiki" />
-  </p>
-
-  <p><em>A full-stack admin dashboard for managing personal projects, SaaS apps, and Instagram DM/comment automation.</em></p>
-</div>
-
----
-
-## 🖥 Overview
-
-**InstaFlow** is a self-hosted, real-time operations dashboard that gives you two superpowers in one place:
-
-1. **Personal Project Tracker** — Keep tabs on all your websites, SaaS products, and side-projects across lifecycle stages (Draft → In Development → Published).
-2. **Instagram Automation Engine** — Define keyword-based rules that automatically reply to Instagram comments and Direct Messages via the Meta Webhooks API, with built-in rate limiting, delivery tracking, and a live activity feed.
-
----
-
-## ✨ Key Features
-
-### 📊 Dashboard (Home)
-- **4-stat overview cards** — Total Projects, Published, In Development, Draft
-- **My Projects panel** — A compact, filterable list of all your apps with status badges and quick links
-- **Instagram Automation KPIs** — Active Rules count, total Events received, Successful Replies, Failed Replies, and Delivery Rate %
-- **Recent Automation Activity table** — Live feed of the last 10 events showing event type (Comment / DM), Sender ID, Matched Keyword, Rule name, delivery Status (Delivered / Failed / Rate-Limited), and Timestamp
-- **Status banners** — Friendly alerts when the Neon database or Instagram webhook isn't configured yet
-
-### 🤖 Automation Rules (`/automations`)
-- Create, edit, and delete keyword-triggered reply rules
-- Each rule defines: **trigger keywords** (JSON array), **reply template**, **event type** (comment, DM, or both), and an **enabled/disabled** toggle
-- Rules are matched in real time when Instagram webhooks fire
-
-### ⚙️ Global Settings (`/settings`)
-- **Global kill switch** — Pause all outgoing automated replies without deleting rules (events are still logged)
-- **Per-user rate limit** — Minimum cooldown (in minutes) before the same user can receive another automated reply; prevents spam
-- **Default fallback message** — Optional catch-all reply sent when no keyword rule matches an incoming DM
-
-### 📈 Analytics (`/analytics`)
-- Event volume and delivery success metrics over time
-
-### 📬 Activity Log (`/activity`)
-- Full paginated history of all automation events
-
-### 📥 Inbox (`/inbox`)
-- Browse incoming messages and manually inspect matched rules
-
-### 🧪 Playground (`/playground`)
-- Test automation rules against sample payloads without firing live replies
-
-### 🔒 Authentication
-- Sign in, sign up, forgot password, reset password, and profile lock pages
-
----
-
-## 🗂 Project Structure
-
-```
-instaflow/
-├── src/
-│   ├── app/                    # Layouts, sidebar, navbar, footers
-│   ├── assets/                 # SVGs and static images
-│   ├── components/             # Atomic UI elements (color-mode switcher, pagination, etc.)
-│   ├── db/
-│   │   ├── index.ts            # Neon DB connection factory
-│   │   └── schema.ts           # Drizzle ORM schema (automationRules, automationEvents, projects, settings)
-│   ├── lib/
-│   │   └── data.ts             # URL helpers and shared utilities
-│   ├── modules/
-│   │   ├── InstaFlowDashboard.astro   # Main dashboard view (metrics + activity table)
-│   │   ├── InstaFlowSettings.astro    # Global automation settings panel
-│   │   └── ...                        # Other page modules
-│   ├── pages/
-│   │   ├── index.astro              # Home → renders InstaFlowDashboard
-│   │   ├── automations/
-│   │   │   ├── index.astro          # List all automation rules
-│   │   │   ├── new.astro            # Create a new rule
-│   │   │   └── [id].astro           # Edit / delete a rule
-│   │   ├── activity.astro           # Full activity log
-│   │   ├── analytics.astro          # Analytics charts
-│   │   ├── inbox.astro              # Inbox view
-│   │   ├── settings.astro           # Global settings page
-│   │   ├── settings/instagram.astro # Instagram account / webhook config
-│   │   ├── dashboard/projects.astro # Project management board
-│   │   └── api/                     # Catch-all REST endpoints (CRUD)
-│   ├── services/
-│   │   ├── analytics.ts        # getDashboardMetrics(), getRecentActivity()
-│   │   ├── automation-engine.ts # Core rule-matching and reply dispatch
-│   │   ├── instagram.ts        # Meta Graph API / Webhooks integration
-│   │   └── projects.ts         # getProjectMetrics()
-│   └── types/                  # TypeScript data entity types
-└── data/                       # Static JSON data sources (fallback / seeding)
+```mermaid
+flowchart LR
+  Browser[Admin browser] --> Astro[Astro SSR pages and API routes]
+  Astro --> Auth[Admin session and authorization]
+  Astro --> Services[Instagram, automation, analytics, projects services]
+  Services --> Neon[(Neon PostgreSQL via Drizzle ORM)]
+  Services --> IG[Meta Instagram API]
+  Meta[Meta webhooks] --> Hook[GET/POST /api/webhooks/instagram]
+  Hook -->|Verify HMAC, deduplicate, persist pending event| Queue[(webhook_events durable queue)]
+  Cron[Vercel Cron, every minute] --> Worker[GET /api/cron/process-instagram-events]
+  Worker --> Queue
+  Worker --> Engine[Automation engine]
+  Engine --> Rules[(automation_rules and settings)]
+  Engine --> IG
+  Engine --> Logs[(message_logs and webhook event status)]
 ```
 
----
+### Request and event flow
 
-## 🛠 Tech Stack & Versions
+1. Astro renders dashboard pages and serves authenticated API routes. Sensitive API routes check the signed admin session in `src/lib/auth.ts`.
+2. Instagram Login OAuth is handled by `/api/auth/instagram` and `/api/auth/instagram/callback`. The callback exchanges the authorization code, identifies the professional account, encrypts its token, saves it in Neon, subscribes the account to webhook fields, and syncs media.
+3. `src/services/instagram.ts` calls the official `graph.instagram.com` API for account media, comments, conversations, and messages. Access tokens are decrypted server-side only.
+4. Meta sends comment and messaging events to `/api/webhooks/instagram`. The route validates `X-Hub-Signature-256`, deduplicates events by ID, persists accepted events in `webhook_events`, and acknowledges Meta.
+5. Vercel invokes `/api/cron/process-instagram-events` once per minute. The worker claims pending rows from Postgres and calls the automation engine. The engine checks global settings, active rules, media/trigger matching, and per-user cooldowns before sending a supported private reply or message. It records outcomes in `message_logs` and updates the event status.
 
-<div align="center">
+The queue is stored in Postgres, so events can survive a serverless invocation ending. Processing is bounded and retried; it does not use a long-running in-memory worker. Instagram messaging remains subject to Meta permissions, eligibility, recipient interaction, and messaging-window policies. A comment-trigger rule applies to eligible webhook events received after activation; it does not retroactively automate every old comment.
 
-| Category | Technology | Package / Specification | Version |
-|:---|:---|:---|:---:|
-| **Core Framework** | [Astro](https://astro.build/) | `astro` | `^2.0.4` |
-| **Framework Integration** | [Astro Tailwind](https://docs.astro.build/en/guides/integrations-guide/tailwind/) | `@astrojs/tailwind` | `^3.0.1` |
-| **Deployment Adapter** | [Astro Vercel SSR](https://docs.astro.build/en/guides/integrations-guide/vercel/) | `@astrojs/vercel` | `^3.8.2` |
-| **SEO & Sitemap** | [Astro Sitemap](https://docs.astro.build/en/guides/integrations-guide/sitemap/) | `@astrojs/sitemap` | `^1.1.0` |
-| **UI Framework** | [Tailwind CSS](https://tailwindcss.com/) | `tailwindcss` | `^3.0.24` |
-| **Component Library** | [Flowbite](https://flowbite.com/) | `flowbite` | `^2.1.1` |
-| **Typography Plugin** | Flowbite Typography | `flowbite-typography` | `^1.0.3` |
-| **Scrollbar Utility** | Tailwind Scrollbar | `tailwind-scrollbar` | `^3.0.0` |
-| **Database** | [Neon Serverless Postgres](https://neon.tech/) | `@neondatabase/serverless` | `^1.1.0` |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team/) | `drizzle-orm` | `^0.45.3` |
-| **Migration & Schema CLI**| Drizzle Kit | `drizzle-kit` | `^0.31.11` |
-| **Charts & Visualization**| [ApexCharts](https://apexcharts.com/) | `apexcharts` | `^3.37.2` |
-| **Syntax Highlighting** | [Shiki](https://shiki.style/) | `shiki` | `^0.14.1` |
-| **Environment Config** | Dotenv | `dotenv` | `^18.0.4` |
-| **Mock & Fixture Data** | Faker JS | `@faker-js/faker` | `^7.6.0` |
-| **Language & Types** | TypeScript | `typescript` | `^5.54.1` |
-| **Linter** | [ESLint](https://eslint.org/) | `eslint` | `^8.35.0` |
-| **Astro ESLint Parser** | Astro Parser | `astro-eslint-parser` | `^0.11.0` |
-| **Code Formatter** | Prettier | `eslint-plugin-prettier` | `^4.2.1` |
-| **Package Manager** | [pnpm](https://pnpm.io/) | `pnpm` | `≥ 8.x` |
-| **Runtime Environment** | Node.js | `node` | `≥ 18.0.0` |
+### Main code areas
 
-</div>
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js ≥ 18
-- pnpm (`npm i -g pnpm`)
-- A [Neon](https://neon.tech/) account with a Postgres database
-- A Meta Developer App with Instagram Webhooks configured (for automation features)
-
-### 1. Clone & Install
-
-```sh
-git clone https://github.com/your-username/instaflow.git
-cd instaflow
-pnpm install
-```
-
-### 2. Configure Environment Variables
-
-Create a `.env` file at the project root:
-
-```env
-# Neon Postgres connection string
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-
-# Meta / Instagram Webhooks
-INSTAGRAM_VERIFY_TOKEN=your_webhook_verify_token
-INSTAGRAM_ACCESS_TOKEN=your_page_access_token
-INSTAGRAM_PAGE_ID=your_instagram_page_id
-```
-
-### 3. Run Database Migrations
-
-```sh
-pnpm db:generate   # Generate migration files from schema
-pnpm db:migrate    # Apply migrations to the database
-```
-
-Or push the schema directly (for development):
-
-```sh
-pnpm db:push
-```
-
-### 4. Start the Dev Server
-
-```sh
-pnpm dev
-```
-
-The dashboard will be available at `http://localhost:4321`.
-
-### 5. Build for Production
-
-```sh
-pnpm build
-pnpm preview   # Preview the built output locally
-```
-
----
-
-## 🔁 How Automation Works
-
-```
-Instagram Comment / DM
-        │
-        ▼
-  Meta Webhook POST ──▶ /api/webhook
-        │
-        ▼
-  automation-engine.ts
-    ├── Is global automation enabled?  (globalEnabled setting)
-    ├── Is the user within rate limit? (rateLimitPerUserMinutes)
-    ├── Does any rule's keyword match the message?
-    │       ├── YES → send rule's reply template via Graph API
-    │       └── NO  → send defaultFallbackResponse (if set)
-        │
-        ▼
-  Log event to `automationEvents` table
-  (eventType, senderId, matchedKeyword, ruleName, status, errorDetails)
-```
-
-Every event is logged regardless of outcome, so you always have a full audit trail visible in the **Recent Activity** table and **Activity Log** page.
-
----
-
-## 📐 Database Schema (Drizzle ORM)
-
-| Table | Description |
+| Path | Responsibility |
 |---|---|
-| `automationRules` | Keyword rules with reply templates and trigger type |
-| `automationEvents` | Log of every incoming event and its dispatch result |
-| `automationSettings` | Global kill switch, rate limit, and fallback message |
-| `projects` | Personal websites, apps, and SaaS projects with status |
+| `src/pages/` | Astro pages and API routes, including OAuth, media, inbox, automation, webhook, and cron endpoints |
+| `src/services/instagram.ts` | Instagram OAuth, token refresh, Graph API calls, and media/conversation synchronization |
+| `src/services/automation-engine.ts` | Webhook persistence, idempotency, rule matching, delivery, retries, and execution logging |
+| `src/lib/auth.ts` | Admin login checks and signed session cookies |
+| `src/lib/crypto.ts` | AES-256-GCM Instagram token encryption and webhook HMAC validation |
+| `src/db/schema.ts` | Drizzle schema for accounts, media, rules, events, message logs, conversations, settings, and projects |
+| `drizzle/` | Ordered SQL migrations applied by `npm run db:migrate` |
+| `vercel.json` | Vercel build configuration and one-minute webhook queue cron schedule |
+| `test/instaflow.test.ts` | Core unit/integration verification script |
 
----
+## Setup guide
 
-## 🛠 Developer Tools
+### Requirements
 
-This project ships with a fully configured local development experience:
+- Node.js 20 or newer
+- npm
+- A Neon PostgreSQL database
+- A Meta developer app configured for Instagram Login and the Instagram API
+- A Vercel project for production webhooks and scheduled queue processing
 
-- **TypeScript**: strictest Astro settings — full-stack type safety
-- **ESLint**: `astro-eslint-parser` + `eslint-plugin-astro` + airbnb-typescript ruleset
-- **Prettier**: `prettier-plugin-astro` (bundled with Astro)
-- **Editorconfig**: aligned with Prettier settings
-- **VS Code**: extension recommendations and workspace settings
-- **Tailwind**: Astro + Vite + PostCSS integration
-- **Flowbite**: core + typography plugins
+### 1. Install the project
 
----
+```sh
+git clone https://github.com/Sujoymoulick/InstaFlow.git
+cd InstaFlow
+npm ci
+```
 
-## 🌐 Deployment
+### 2. Configure local environment
 
-The project is pre-configured for **Vercel** deployment via the `@astrojs/vercel` adapter. SSR (Server-Side Rendering) is enabled by default since the dashboard fetches live data from Neon on every request.
+Create `.env.local` in the project root. Start with `.env.example`, then replace each placeholder. `.env.local` is git-ignored.
 
-For other targets, swap the adapter in `astro.config.mjs`. For static export, uncomment `output: "server"` and switch to a static adapter.
+```sh
+cp .env.example .env.local
+```
 
----
+Set these values:
 
-## 📄 License
+| Variable | Required | Purpose |
+|---|---:|---|
+| `DATABASE_URL` | Yes | Neon PostgreSQL connection string with TLS enabled. |
+| `META_APP_ID` | Yes* | Meta app ID used by Instagram Login OAuth. |
+| `META_APP_SECRET` | Yes* | Server-side Meta app secret for OAuth and webhook signatures. |
+| `META_IG_APP_ID` | No | Instagram app ID override if distinct from `META_APP_ID`. |
+| `META_IG_APP_SECRET` | No | Instagram app secret override if distinct from `META_APP_SECRET`. |
+| `META_REDIRECT_URI` | Yes | Exact OAuth callback URL. Locally: `http://localhost:2121/api/auth/instagram/callback`. |
+| `META_WEBHOOK_VERIFY_TOKEN` | Yes for webhooks | Secret string you choose and enter in Meta webhook configuration. |
+| `INSTAGRAM_ENCRYPTION_KEY` | Yes | Random secret used to encrypt Instagram tokens at rest. Keep the same value for existing encrypted tokens. |
+| `ADMIN_AUTH_SECRET` | Yes | At least 32 characters; signs admin sessions and is the fallback admin password. |
+| `ADMIN_PASSWORD` | Recommended | Optional separate admin login password (at least 16 characters). |
+| `ALLOWED_ADMIN_EMAIL` | Recommended | The only email allowed to sign in. Set this to your admin email. |
+| `CRON_SECRET` | Yes for queue worker | Random secret, at least 32 characters, used to protect the Vercel cron endpoint. |
+| `META_API_VERSION` | No | Graph API version; defaults to `v26.0` in this codebase. |
+| `SITE_URL` | No | Canonical site URL used by Astro when `VERCEL_URL` is unavailable. |
 
-MIT © [Bergside Inc.](https://flowbite.com) — Built on the [Flowbite Astro Admin Dashboard](https://github.com/themesberg/flowbite-astro-admin-dashboard) template.
+*Set the `META_IG_*` pair or the `META_*` pair. If both are set, the Instagram-specific values take precedence for Instagram OAuth.
+
+Generate secrets locally without putting them in source control:
+
+```sh
+openssl rand -hex 32
+```
+
+Use distinct generated values for `INSTAGRAM_ENCRYPTION_KEY`, `ADMIN_AUTH_SECRET`, and `CRON_SECRET`. Do not rotate the encryption key unless you first migrate or reconnect accounts whose access tokens were encrypted with the old key.
+
+### 3. Prepare the database
+
+Apply the checked-in migrations to the Neon database:
+
+```sh
+npm run db:migrate
+```
+
+The script creates a migration ledger and applies ordered SQL files from `drizzle/`. `npm run db:push` is available for local schema prototyping; use the committed migrations for deployed environments.
+
+### 4. Configure the Meta app
+
+In the Meta developer dashboard:
+
+1. Enable Instagram Login for a professional (Business or Creator) account.
+2. Add the exact `META_REDIRECT_URI` as an allowed OAuth redirect URI. Use the local callback for local development and the production callback for Vercel.
+3. Request the permissions used by this project: `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages`.
+4. Configure the Instagram webhook callback as `https://<your-domain>/api/webhooks/instagram` and use the same value as `META_WEBHOOK_VERIFY_TOKEN` for verification.
+5. Subscribe to the `comments`, `messages`, and `messaging_postbacks` fields. The app also subscribes the connected Instagram account to these fields during OAuth connection.
+6. Ensure the Meta app has the access level, review approval, and test-user/account configuration needed for the accounts you plan to connect.
+
+Local OAuth can be tested with `http://localhost:2121`, but Meta cannot deliver public webhooks to localhost. Use a public HTTPS development tunnel configured in Meta if you need to test inbound events locally.
+
+### 5. Start the app
+
+```sh
+npm run dev
+```
+
+Astro listens on `http://localhost:2121`. Sign in at `/authentication/sign-in`, connect Instagram from **Instagram Connection**, sync media, then create and activate an automation for a post or Reel.
+
+### 6. Verify before deployment
+
+```sh
+npm run check
+npm test
+npm run build
+```
+
+### 7. Deploy with Vercel
+
+1. Import the GitHub repository into Vercel and set `main` as the Production Branch.
+2. Add the required environment variables in Vercel for Production. Add suitable values for Preview and Development if those environments should access separate databases/accounts.
+3. Set production `META_REDIRECT_URI` to `https://<your-production-domain>/api/auth/instagram/callback` and add that exact URL to Meta.
+4. Confirm `vercel.json` is included in the deployment. It schedules `/api/cron/process-instagram-events` every minute; Vercel supplies `Authorization: Bearer <CRON_SECRET>` to cron invocations.
+5. Deploy and connect Instagram through the deployed site. A deployment alone does not repair a revoked Instagram token: reconnect the account if OAuth error 190 appears.
+
+**Plan requirement:** this repository's cron schedule runs every minute. Vercel Hobby allows cron jobs only once per day; schedules more frequent than daily require Pro or Enterprise. On Hobby, deployment may fail because of the current schedule. Use a plan that supports per-minute cron execution, or deliberately change `vercel.json` to a supported daily cadence and accept that queued Instagram events may wait until that run. [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+Do not put Meta secrets, admin secrets, encryption keys, or the cron secret in browser code or public `PUBLIC_*` variables. Keep `INSTAGRAM_ENCRYPTION_KEY` stable for the lifetime of encrypted account tokens.
+
+## Pages and routes
+
+| URL | Description |
+|---|---|
+| `/` | Overview dashboard |
+| `/dashboard/content` | Synced posts/Reels, comments, and comment-to-DM configuration |
+| `/dashboard/inbox` | Instagram conversations and message history |
+| `/automations` | Automation rules and delivery controls |
+| `/automations/welcome` | Welcome-message configuration |
+| `/activity` | Webhook and message execution activity |
+| `/analytics` | Automation analytics |
+| `/settings/instagram` | Connect, reconnect, or disconnect Instagram |
+| `/api/webhooks/instagram` | Public Meta webhook verification (`GET`) and event ingestion (`POST`) |
+| `/api/cron/process-instagram-events` | Authenticated Vercel cron worker |
+
+All management API routes require the admin session. The Meta webhook verification and event endpoints must remain publicly reachable; the event POST is authenticated by Meta's request signature rather than the admin cookie.
+
+## Database tables
+
+| Table | Stored data |
+|---|---|
+| `instagram_accounts` | Connected professional account metadata, encrypted token, expiration, and connection state |
+| `instagram_media` | Synced post/Reel IDs, captions, media URLs, permalink, counts, and timestamps |
+| `automation_rules` | Trigger type, selected media, keyword matching, response templates, and enabled state |
+| `webhook_events` | Unique event IDs, raw payload, queue status, retry count, and processing errors |
+| `message_logs` | Incoming text, matched rule, sent private/public replies, result, and timestamp |
+| `conversations` | Cached Instagram conversation and participant metadata |
+| `automation_settings` | Global automation switch, user cooldown, fallback, and welcome-message settings |
+| `projects` | Project tracker data |
+
+## Troubleshooting
+
+- **Instagram OAuth error 190 / invalid token:** Reconnect the Instagram account in `/settings/instagram`. Ensure the OAuth callback and permissions match the Meta app configuration. The token is encrypted in Neon and cannot be reconstructed if Meta revokes it.
+- **No comments:** Check the server-returned Meta API error, account permissions, that the post/Reel belongs to the connected account, and that the comments webhook field is enabled. The comments list is read via the official Instagram API.
+- **Automation did not reply:** Confirm the global automation switch and rule are enabled, the incoming event matches the selected media and trigger, the webhook POST signature is valid, and the pending event is processed by the Vercel cron. Check `/activity` and `webhook_events`/`message_logs` for recorded status and errors.
+- **Webhook events remain pending:** Confirm the Vercel cron exists and `CRON_SECRET` is set in Production. Verify the cron endpoint is not blocked and inspect Vercel function logs.
+- **Admin cannot sign in:** Confirm `ALLOWED_ADMIN_EMAIL` and `ADMIN_PASSWORD` (or `ADMIN_AUTH_SECRET`) are set. `ADMIN_AUTH_SECRET` must be at least 32 characters.
+- **Database unavailable:** Confirm `DATABASE_URL` points to the intended Neon branch, includes TLS, and migrations have been applied.
+
+## License
+
+MIT. The dashboard started from the [Flowbite Astro Admin Dashboard](https://github.com/themesberg/flowbite-astro-admin-dashboard) template.
