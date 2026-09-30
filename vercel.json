@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/process-instagram-events",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
