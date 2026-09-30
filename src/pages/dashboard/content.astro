@@ -521,15 +521,17 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 </LayoutSidebar>
 
 <script>
-	// Sync Media Button Handler
-	const syncBtn = document.getElementById('sync-media-btn') || document.querySelector('.sync-media-trigger-btn');
-	const syncIcon = document.getElementById('sync-icon');
-
-	if (syncBtn) {
-		syncBtn.addEventListener('click', async () => {
+	// Sync Media Button Handlers
+	document.querySelectorAll('#sync-media-btn, .sync-media-trigger-btn').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const syncIcon = document.getElementById('sync-icon');
 			if (syncIcon) syncIcon.classList.add('animate-spin');
 			try {
-				const res = await fetch('/api/instagram/media', { method: 'POST' });
+				const res = await fetch('/api/instagram/media', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({}),
+				});
 				const data = await res.json();
 				if (data.success) {
 					window.location.reload();
@@ -542,7 +544,7 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 				if (syncIcon) syncIcon.classList.remove('animate-spin');
 			}
 		});
-	}
+	});
 
 	// Comments Modal
 	const commentsModal = document.getElementById('comments-modal');

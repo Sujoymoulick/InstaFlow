@@ -394,11 +394,26 @@ export async function getActiveInstagramAccount(): Promise<schema.InstagramAccou
 		const accounts = await db
 			.select()
 			.from(schema.instagramAccounts)
-			.where(eq(schema.instagramAccounts.status, 'connected'))
 			.orderBy(desc(schema.instagramAccounts.updatedAt))
-			.limit(1);
+			.limit(5);
 
-		return accounts[0] || null;
+		if (accounts.length === 0) return null;
+
+		// 1. Prefer explicitly connected accounts
+		const connected = accounts.find((a) => a.status === 'connected');
+		if (connected) return connected;
+
+		// 2. Fall back to any non-disconnected account and self-heal status
+		const recoverable = accounts.find((a) => a.status !== 'disconnected');
+		if (recoverable) {
+			await db
+				.update(schema.instagramAccounts)
+				.set({ status: 'connected', lastError: null, updatedAt: new Date() })
+				.where(eq(schema.instagramAccounts.id, recoverable.id));
+			return { ...recoverable, status: 'connected', lastError: null };
+		}
+
+		return null;
 	} catch (error) {
 		console.error('Error fetching active Instagram account:', error);
 		return null;
@@ -406,7 +421,7 @@ export async function getActiveInstagramAccount(): Promise<schema.InstagramAccou
 }
 
 /**
- * Sync and fetch Instagram posts & reels from Meta Graph API
+ * Sync and fetch Instagram posts & reels from Meta Graph / Instagram API
  */
 export async function syncInstagramMedia(
 	accountId?: string,
@@ -423,25 +438,51 @@ export async function syncInstagramMedia(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const fields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count';
-		const mediaUrl = `${GRAPH_API_BASE}/${account.instagramUserId}/media?fields=${fields}&limit=${limit}&access_token=${decryptedToken}`;
+		let rawItems: any[] | null = null;
+		let lastApiError: string | null = null;
 
-		const response = await fetchWithRetry(mediaUrl);
-		const data = await response.json();
+		// Candidate endpoints ordered by provider type (Instagram Direct vs Facebook Graph)
+		const candidateUrls = [
+			// Candidate A: Instagram Basic / Direct User Media endpoint
+			`https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,username,children{id,media_type,media_url,thumbnail_url}&limit=${limit}&access_token=${decryptedToken}`,
+			// Candidate B: Instagram Direct User ID endpoint
+			`https://graph.instagram.com/${account.instagramUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,username&limit=${limit}&access_token=${decryptedToken}`,
+			// Candidate C: Facebook Page Graph API Instagram Business Account with metrics
+			`${GRAPH_API_BASE}/${account.instagramUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count&limit=${limit}&access_token=${decryptedToken}`,
+			// Candidate D: Facebook Page Graph API with standard fields
+			`${GRAPH_API_BASE}/${account.instagramUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&limit=${limit}&access_token=${decryptedToken}`,
+			// Candidate E: Facebook Graph /me/media endpoint
+			`${GRAPH_API_BASE}/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&limit=${limit}&access_token=${decryptedToken}`,
+		];
 
-		if (data.error) {
-			console.error('Meta media fetch error:', data.error);
-			if (db && data.error.code === 190) {
-				// Token expired or invalid
-				await db
-					.update(schema.instagramAccounts)
-					.set({ status: 'expired', lastError: data.error.message })
-					.where(eq(schema.instagramAccounts.id, account.id));
+		for (const url of candidateUrls) {
+			try {
+				const response = await fetchWithRetry(url);
+				const data = await response.json();
+
+				if (data && Array.isArray(data.data)) {
+					rawItems = data.data;
+					break;
+				} else if (data && data.error) {
+					lastApiError = data.error.message;
+					console.warn(`[Media Sync] Notice from ${url.split('?')[0]}: ${data.error.message}`);
+				}
+			} catch (fetchErr: any) {
+				lastApiError = fetchErr.message;
+				console.warn(`[Media Sync] Network notice on ${url.split('?')[0]}: ${fetchErr.message}`);
 			}
-			return { success: false, count: 0, media: [], error: data.error.message };
 		}
 
-		const rawItems = Array.isArray(data.data) ? data.data : [];
+		if (!rawItems) {
+			console.warn('[Media Sync] Could not fetch media items from any Meta/Instagram endpoint. Last error:', lastApiError);
+			return {
+				success: false,
+				count: 0,
+				media: [],
+				error: lastApiError || 'No posts or media could be retrieved from Instagram.',
+			};
+		}
+
 		const syncedMedia: schema.InstagramMedia[] = [];
 
 		if (db && rawItems.length > 0) {
@@ -517,13 +558,24 @@ export async function getInstagramMediaList(options: {
 		const account = await getActiveInstagramAccount();
 		if (!account) return { media: [], total: 0 };
 
-		let query = db
+		let allMedia = await db
 			.select()
 			.from(schema.instagramMedia)
 			.where(eq(schema.instagramMedia.accountId, account.id))
 			.orderBy(desc(schema.instagramMedia.timestamp));
 
-		const allMedia = await query;
+		// If no media in DB yet, attempt on-demand sync from Meta
+		if (allMedia.length === 0) {
+			const syncRes = await syncInstagramMedia(account.id, options.limit || 50);
+			if (syncRes.success && syncRes.media.length > 0) {
+				allMedia = await db
+					.select()
+					.from(schema.instagramMedia)
+					.where(eq(schema.instagramMedia.accountId, account.id))
+					.orderBy(desc(schema.instagramMedia.timestamp));
+			}
+		}
+
 		let filtered = allMedia;
 
 		if (options.type === 'posts') {
@@ -560,7 +612,7 @@ export async function getInstagramMediaList(options: {
 }
 
 /**
- * Fetch comments for a specific Instagram Post or Reel from official Meta Graph API
+ * Fetch comments for a specific Instagram Post or Reel from official Meta Graph / Instagram API
  */
 export async function fetchInstagramComments(
 	mediaId: string,
@@ -573,16 +625,35 @@ export async function fetchInstagramComments(
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const url = `${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`;
+		const candidateUrls = [
+			`${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,timestamp,username,from,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`,
+			`https://graph.instagram.com/${mediaId}/comments?fields=id,text,timestamp,username,like_count,replies{id,text,username,timestamp}&limit=${limit}&access_token=${decryptedToken}`,
+			`https://graph.instagram.com/${mediaId}/comments?fields=id,text,timestamp,username&limit=${limit}&access_token=${decryptedToken}`,
+		];
 
-		const response = await fetchWithRetry(url);
-		const data = await response.json();
+		let comments: any[] | null = null;
+		let lastError: string | null = null;
 
-		if (data.error) {
-			return { success: false, comments: [], error: data.error.message };
+		for (const url of candidateUrls) {
+			try {
+				const response = await fetchWithRetry(url);
+				const data = await response.json();
+				if (data && Array.isArray(data.data)) {
+					comments = data.data;
+					break;
+				} else if (data && data.error) {
+					lastError = data.error.message;
+				}
+			} catch (e: any) {
+				lastError = e.message;
+			}
 		}
 
-		return { success: true, comments: data.data || [] };
+		if (comments === null) {
+			return { success: false, comments: [], error: lastError || 'Failed to fetch comments.' };
+		}
+
+		return { success: true, comments };
 	} catch (error: any) {
 		return { success: false, comments: [], error: error.message };
 	}
