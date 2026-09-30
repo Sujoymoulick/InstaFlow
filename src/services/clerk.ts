@@ -113,16 +113,24 @@ export async function getClerkApps(): Promise<
 		updatedAt: Date;
 	}> = [];
 
-	// Check if local .env has a direct CLERK_SECRET_KEY
-	if (process.env.CLERK_SECRET_KEY && process.env.CLERK_SECRET_KEY.startsWith('sk_')) {
-		apps.push({
+	// Check if local .env has a direct CLERK_SECRET_KEY (filter out template placeholders)
+	const envSecret = process.env.CLERK_SECRET_KEY?.trim();
+	if (
+		envSecret &&
+		envSecret.startsWith('sk_') &&
+		!envSecret.includes('your_') &&
+		!envSecret.includes('placeholder')
+	) {
+		const isLive = envSecret.startsWith('sk_live_');
+		const defaultName = isLive ? 'SEND VIRTUAL GIFT (Production)' : 'Primary Clerk Project';
+		apps.unshift({
 			id: 'clerk-env-main',
-			name: process.env.CLERK_PROJECT_NAME || 'Primary Clerk Project',
+			name: process.env.CLERK_PROJECT_NAME || defaultName,
 			publishableKey: process.env.PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '',
 			instanceUrl: process.env.CLERK_INSTANCE_URL || null,
-			projectSlug: 'primary',
+			projectSlug: 'primary-production',
 			isDefault: true,
-			secretKey: process.env.CLERK_SECRET_KEY,
+			secretKey: envSecret,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		});

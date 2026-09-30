@@ -25,6 +25,10 @@ let metrics: ClerkMetrics = {
 };
 let fetchError = '';
 
+const hasLiveEnvKey = Boolean(process.env.CLERK_SECRET_KEY && process.env.CLERK_SECRET_KEY.startsWith('sk_live_'));
+const isPlaceholderSet = Boolean(process.env.CLERK_SECRET_KEY && (process.env.CLERK_SECRET_KEY.includes('your_') || process.env.CLERK_SECRET_KEY.includes('placeholder')));
+const currentAppIsLive = currentApp ? (currentApp.secretKey?.startsWith('sk_live_') || currentApp.publishableKey?.startsWith('pk_live_')) : hasLiveEnvKey;
+
 try {
 	if (isAllProjects) {
 		const data = await fetchClerkData('', { fetchAll: true });
@@ -213,6 +217,15 @@ try {
 					<h2 class="text-lg font-bold text-white tracking-wide">
 						{isAllProjects ? `All Projects (${apps.length} Active Clerk Environments)` : currentApp?.name}
 					</h2>
+					{currentAppIsLive ? (
+						<span class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide">
+							Live Production
+						</span>
+					) : (
+						<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide">
+							Test / Dev Mode
+						</span>
+					)}
 					{currentApp?.instanceUrl && (
 						<span class="text-xs bg-indigo-800/80 text-indigo-200 px-2.5 py-0.5 rounded-md font-mono">
 							{currentApp.instanceUrl.replace('https://', '')}
@@ -226,7 +239,7 @@ try {
 						<>
 							<span class="font-mono">Key: {currentApp?.publishableKey ? `${currentApp.publishableKey.substring(0, 16)}...` : 'Not Set'}</span>
 							<span>•</span>
-							<span>Status: <span class="text-emerald-300 font-semibold">Active & Live</span></span>
+							<span>Status: <span class="text-emerald-300 font-semibold">{currentAppIsLive ? 'Production Live' : 'Active (Test Keys)'}</span></span>
 						</>
 					)}
 				</div>
@@ -246,6 +259,23 @@ try {
 				</a>
 			</div>
 		</div>
+
+		<!-- Production Readiness Guidance Banner -->
+		{!hasLiveEnvKey && (
+			<div class="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50/70 dark:bg-gray-800 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 flex items-start gap-3">
+				<div class="p-2 bg-blue-100 dark:bg-blue-950/80 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+				</div>
+				<div class="flex-1 text-xs leading-relaxed">
+					<span class="font-bold text-sm text-gray-900 dark:text-white block mb-0.5">
+						Ready for Clerk Live Production Keys:
+					</span>
+					Placeholders are ready in your <code class="font-mono bg-blue-100 dark:bg-gray-700 px-1 py-0.5 rounded text-indigo-700 dark:text-indigo-300">.env</code> and <code class="font-mono bg-blue-100 dark:bg-gray-700 px-1 py-0.5 rounded text-indigo-700 dark:text-indigo-300">.env.example</code> files. When you paste your real live keys (<code class="font-mono text-emerald-700 dark:text-emerald-400 font-bold">sk_live_...</code> and <code class="font-mono text-emerald-700 dark:text-emerald-400 font-bold">pk_live_...</code>), this dashboard will immediately stream live production user counts and active sessions.
+				</div>
+			</div>
+		)}
 
 		<!-- Error Message if fetch failed -->
 		{fetchError && (
