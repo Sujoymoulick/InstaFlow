@@ -1,0 +1,213 @@
+---
+import { asset, url } from '../lib/data.js';
+import { ALLOWED_ADMIN_EMAIL } from '../lib/auth.js';
+
+interface Props {
+	errorMessage?: string;
+	infoMessage?: string;
+	emailValue?: string;
+}
+
+const { errorMessage = '', infoMessage = '', emailValue = '' } = Astro.props;
+const displayEmail = emailValue || ALLOWED_ADMIN_EMAIL;
+---
+
+<div
+	class="w-full flex flex-col items-center justify-center px-6 pt-8 mx-auto pt:mt-0 dark:bg-gray-900"
+>
+	<a
+		href="/"
+		class="flex items-center justify-center mb-6 text-2xl font-semibold lg:mb-8 dark:text-white"
+	>
+		<img src="/logo.png" alt="InstaFlow Logo" class="h-10 w-10 mr-3 object-contain" />
+		<span class="self-center text-2xl font-bold whitespace-nowrap dark:text-white">InstaFlow</span>
+	</a>
+	<!-- Card -->
+	<div
+		class="w-full max-w-lg p-6 space-y-6 sm:p-8 bg-white rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 dark:bg-gray-800"
+	>
+		<div class="space-y-2">
+			<div class="flex items-center justify-between">
+				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+					Sign in to platform
+				</h2>
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300">
+					Admin Only
+				</span>
+			</div>
+			<p class="text-sm text-gray-500 dark:text-gray-400">
+				Single-operator access restricted to verified administrator.
+			</p>
+		</div>
+
+		{errorMessage && (
+			<div
+				class="flex items-start p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-700/60 dark:text-red-400 border border-red-200 dark:border-red-800"
+				role="alert"
+			>
+				<svg
+					class="flex-shrink-0 inline w-5 h-5 mr-3 mt-0.5"
+					aria-hidden="true"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="currentColor"
+					viewBox="0 0 20 20"
+				>
+					<path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+				</svg>
+				<div>
+					<span class="font-semibold block">Authentication Error</span>
+					<span>{errorMessage}</span>
+				</div>
+			</div>
+		)}
+
+		{infoMessage && (
+			<div
+				class="flex items-center p-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-700/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+				role="alert"
+			>
+				<svg
+					class="flex-shrink-0 inline w-5 h-5 mr-3"
+					aria-hidden="true"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="currentColor"
+					viewBox="0 0 20 20"
+				>
+					<path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+				</svg>
+				<div>
+					<span>{infoMessage}</span>
+				</div>
+			</div>
+		)}
+
+		<!-- Client-side real-time warning for unauthorized emails -->
+		<div
+			id="email-client-warning"
+			class="hidden items-center p-3 text-sm text-amber-800 rounded-lg bg-amber-50 dark:bg-gray-700/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+			role="alert"
+		>
+			<svg
+				class="flex-shrink-0 inline w-4 h-4 mr-2"
+				aria-hidden="true"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="currentColor"
+				viewBox="0 0 20 20"
+			>
+				<path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+			</svg>
+			<span>Notice: Only <strong>{ALLOWED_ADMIN_EMAIL}</strong> is authorized to sign in.</span>
+		</div>
+
+		<form class="mt-6 space-y-5" method="POST" action="/authentication/sign-in">
+			<div>
+				<label
+					for="email"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+					>Your email</label
+				>
+				<div class="relative">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
+						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+							<path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+							<path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+						</svg>
+					</div>
+					<input
+						type="email"
+						name="email"
+						id="email"
+						value={displayEmail}
+						class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						placeholder={ALLOWED_ADMIN_EMAIL}
+						required
+					/>
+				</div>
+				<p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+					Access restricted to: <span class="font-semibold text-primary-600 dark:text-primary-400">{ALLOWED_ADMIN_EMAIL}</span>
+				</p>
+			</div>
+
+			<div>
+				<label
+					for="password"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+					>Your password</label
+				>
+				<div class="relative">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500 dark:text-gray-400">
+						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+						</svg>
+					</div>
+					<input
+						type="password"
+						name="password"
+						id="password"
+						placeholder="••••••••"
+						class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						required
+					/>
+				</div>
+			</div>
+
+			<div class="flex items-center justify-between">
+				<div class="flex items-center">
+					<input
+						id="remember"
+						name="remember"
+						type="checkbox"
+						checked
+						class="w-4 h-4 border-gray-300 rounded bg-gray-50 text-primary-600 focus:ring-3 focus:ring-primary-300 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+					/>
+					<label
+						for="remember"
+						class="ml-2 text-sm font-medium text-gray-900 dark:text-white"
+					>
+						Remember this device (30 days)
+					</label>
+				</div>
+				<a
+					href="/authentication/forgot-password"
+					class="text-sm font-medium text-primary-700 hover:underline dark:text-primary-500"
+					>Lost Password?</a
+				>
+			</div>
+
+			<button
+				type="submit"
+				id="submit-button"
+				class="w-full px-5 py-3 text-base font-medium text-center text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 transition-colors"
+			>
+				Sign in to InstaFlow
+			</button>
+
+			<div class="pt-2 text-center border-t border-gray-100 dark:border-gray-700">
+				<span class="text-xs text-gray-500 dark:text-gray-400">
+					InstaFlow Automation Portal · Authorized Operator Only
+				</span>
+			</div>
+		</form>
+	</div>
+</div>
+
+<script define:vars={{ allowedEmail: ALLOWED_ADMIN_EMAIL }}>
+	const emailInput = document.getElementById('email');
+	const warningBanner = document.getElementById('email-client-warning');
+
+	if (emailInput && warningBanner) {
+		const checkEmail = () => {
+			const val = (emailInput.value || '').trim().toLowerCase();
+			if (val && val !== allowedEmail) {
+				warningBanner.classList.remove('hidden');
+				warningBanner.classList.add('flex');
+			} else {
+				warningBanner.classList.add('hidden');
+				warningBanner.classList.remove('flex');
+			}
+		};
+
+		emailInput.addEventListener('input', checkEmail);
+		checkEmail();
+	}
+</script>

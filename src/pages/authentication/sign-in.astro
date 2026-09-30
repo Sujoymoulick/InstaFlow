@@ -1,0 +1,61 @@
+---
+import LayoutStacked from '../../app/LayoutStacked.astro';
+import FormSignIn from '../../modules/FormSignIn.astro';
+import {
+	verifyAdminSession,
+	validateLogin,
+	setAdminSession,
+	ALLOWED_ADMIN_EMAIL,
+} from '../../lib/auth.js';
+
+export const prerender = false;
+
+// If already authorized, redirect to dashboard
+const session = verifyAdminSession(Astro.cookies, Astro.request);
+if (session.authorized) {
+	return Astro.redirect('/dashboard');
+}
+
+let errorMessage = '';
+let infoMessage = '';
+let emailValue = '';
+
+// Check query params for notifications
+const loggedOut = Astro.url.searchParams.get('logged_out');
+if (loggedOut) {
+	infoMessage = 'You have been securely signed out.';
+}
+
+const errorParam = Astro.url.searchParams.get('error');
+if (errorParam) {
+	errorMessage = errorParam;
+}
+
+if (Astro.request.method === 'POST') {
+	try {
+		const formData = await Astro.request.formData();
+		emailValue = ((formData.get('email') as string) || '').trim();
+		const password = ((formData.get('password') as string) || '').trim();
+
+		const validation = validateLogin(emailValue, password);
+		if (!validation.success) {
+			errorMessage = validation.error || `Access denied. Only ${ALLOWED_ADMIN_EMAIL} is authorized.`;
+		} else {
+			setAdminSession(Astro.cookies, emailValue);
+			return Astro.redirect('/dashboard');
+		}
+	} catch (err: any) {
+		errorMessage = err?.message || 'An unexpected error occurred during login. Please try again.';
+	}
+}
+---
+
+<LayoutStacked title="Sign In | InstaFlow">
+	<div class="min-h-screen align-middle flex items-center justify-center pb-[12vh]">
+		<FormSignIn
+			errorMessage={errorMessage}
+			infoMessage={infoMessage}
+			emailValue={emailValue}
+		/>
+	</div>
+</LayoutStacked>

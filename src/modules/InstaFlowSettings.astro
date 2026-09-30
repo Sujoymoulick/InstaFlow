@@ -1,0 +1,165 @@
+---
+import { getDb, schema } from '../db/index.js';
+import { url } from '../lib/data.js';
+
+let settings: schema.AutomationSetting | null = null;
+const db = getDb();
+if (db) {
+	try {
+		const res = await db.select().from(schema.automationSettings).limit(1);
+		if (res.length > 0) {
+			settings = res[0];
+		}
+	} catch (e) {
+		// Handled gracefully
+	}
+}
+
+const globalEnabled = settings ? settings.globalEnabled : true;
+const rateLimit = settings ? settings.rateLimitPerUserMinutes : 5;
+const fallbackResponse = settings?.defaultFallbackResponse || '';
+---
+
+<div class="p-4 mb-4 bg-white border border-gray-200 rounded-lg shadow-sm 2xl:col-span-2 dark:border-gray-700 sm:p-6 dark:bg-gray-800">
+	<div class="flex items-center justify-between border-b pb-4 mb-4 dark:border-gray-700">
+		<div>
+			<h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+				InstaFlow Global Automation Settings
+			</h3>
+			<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+				Configure global switches, spam protection rate limits, and fallback rules.
+			</p>
+		</div>
+		<a
+			href={url('settings/instagram')}
+			class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline flex items-center"
+		>
+			Manage Instagram Account &rarr;
+		</a>
+	</div>
+
+	<div id="settings-alert" class="hidden mb-4 p-3 text-xs rounded-lg" role="alert"></div>
+
+	<form id="global-settings-form" class="space-y-6">
+		<!-- Global Kill Switch -->
+		<div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+			<div>
+				<span class="text-sm font-semibold text-gray-900 dark:text-white block">
+					Global Automation Switch
+				</span>
+				<span class="text-xs text-gray-500 dark:text-gray-400">
+					When paused, all incoming comments and DMs will be logged but no automated replies will be sent.
+				</span>
+			</div>
+			<label class="relative inline-flex items-center cursor-pointer">
+				<input
+					type="checkbox"
+					id="global-enabled"
+					checked={globalEnabled}
+					class="sr-only peer"
+				/>
+				<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+			</label>
+		</div>
+
+		<!-- Rate Limiting -->
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div>
+				<label
+					for="rate-limit"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+				>
+					Per-User Rate Limit (Minutes)
+				</label>
+				<input
+					type="number"
+					id="rate-limit"
+					min="0"
+					max="1440"
+					value={rateLimit}
+					class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+				/>
+				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					Minimum interval before sending another automated reply to the same user. Set to 0 to disable.
+				</p>
+			</div>
+
+			<!-- Fallback response -->
+			<div>
+				<label
+					for="fallback-response"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+				>
+					Default Fallback Message (Optional)
+				</label>
+				<input
+					type="text"
+					id="fallback-response"
+					value={fallbackResponse}
+					placeholder="Leave blank to ignore unmatched messages"
+					class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+				/>
+				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					Sent only when no specific keyword rules match an incoming DM.
+				</p>
+			</div>
+		</div>
+
+		<div>
+			<button
+				type="submit"
+				id="save-settings-btn"
+				class="text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-primary-600 dark:hover:bg-primary-700"
+			>
+				Save Automation Settings
+			</button>
+		</div>
+	</form>
+</div>
+
+<script>
+	const form = document.getElementById('global-settings-form') as HTMLFormElement;
+	const alertBox = document.getElementById('settings-alert') as HTMLDivElement;
+	const saveBtn = document.getElementById('save-settings-btn') as HTMLButtonElement;
+
+	if (form) {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			saveBtn.disabled = true;
+			saveBtn.textContent = 'Saving...';
+
+			const payload = {
+				globalEnabled: (document.getElementById('global-enabled') as HTMLInputElement).checked,
+				rateLimitPerUserMinutes: Number((document.getElementById('rate-limit') as HTMLInputElement).value || 5),
+				defaultFallbackResponse: (document.getElementById('fallback-response') as HTMLInputElement).value.trim() || null,
+			};
+
+			try {
+				const res = await fetch('/api/settings', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await res.json();
+				if (res.ok) {
+					alertBox.className = 'mb-4 p-3 text-xs text-green-800 rounded-lg bg-green-50 dark:bg-gray-700 dark:text-green-300';
+					alertBox.textContent = 'Settings saved successfully!';
+					alertBox.classList.remove('hidden');
+					setTimeout(() => alertBox.classList.add('hidden'), 3000);
+				} else {
+					alertBox.className = 'mb-4 p-3 text-xs text-red-800 rounded-lg bg-red-50 dark:bg-gray-700 dark:text-red-300';
+					alertBox.textContent = data.error || 'Failed to save settings.';
+					alertBox.classList.remove('hidden');
+				}
+			} catch (err: any) {
+				alertBox.className = 'mb-4 p-3 text-xs text-red-800 rounded-lg bg-red-50 dark:bg-gray-700 dark:text-red-300';
+				alertBox.textContent = err.message || 'Network error.';
+				alertBox.classList.remove('hidden');
+			} finally {
+				saveBtn.disabled = false;
+				saveBtn.textContent = 'Save Automation Settings';
+			}
+		});
+	}
+</script>

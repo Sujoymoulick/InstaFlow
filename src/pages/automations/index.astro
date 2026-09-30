@@ -1,0 +1,417 @@
+---
+import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../db/index.js';
+import { desc } from 'drizzle-orm';
+import { url } from '../../lib/data.js';
+
+export const prerender = false;
+
+const db = getDb();
+let rules: schema.AutomationRule[] = [];
+let dbError: string | null = null;
+
+if (db) {
+	try {
+		rules = await db
+			.select()
+			.from(schema.automationRules)
+			.orderBy(desc(schema.automationRules.createdAt));
+	} catch (e: any) {
+		dbError = e.message;
+	}
+} else {
+	dbError = 'DATABASE_URL not configured. Using local preview mode.';
+}
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<!-- Breadcrumb -->
+		<div class="mb-4">
+			<nav class="flex mb-4" aria-label="Breadcrumb">
+				<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+					<li class="inline-flex items-center">
+						<a
+							href={url()}
+							class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+						>
+							<svg
+								class="w-5 h-5 mr-2.5"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+								xmlns="http://www.w3.org/2000/svg"
+								><path
+									d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+								></path></svg
+							>
+							Home
+						</a>
+					</li>
+					<li>
+						<div class="flex items-center">
+							<svg
+								class="w-6 h-6 text-gray-400"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+								xmlns="http://www.w3.org/2000/svg"
+								><path
+									fill-rule="evenodd"
+									d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+									clip-rule="evenodd"></path></svg
+							>
+							<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
+								>Automations</span
+							>
+						</div>
+					</li>
+				</ol>
+			</nav>
+
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div>
+					<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+						Automation Rules
+					</h1>
+					<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+						Manage comment triggers, keyword detection, and automated Instagram replies.
+					</p>
+				</div>
+				<div>
+					<a
+						href={url('automations/new')}
+						class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+					>
+						<svg
+							class="w-4 h-4 mr-2"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 4v16m8-8H4"></path></svg
+						>
+						Create Rule
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Optional DB Warning -->
+		{
+			dbError && !db && (
+				<div
+					class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700"
+					role="alert"
+				>
+					<span class="font-medium">Database Notice:</span> {dbError}
+				</div>
+			)
+		}
+
+		<!-- Search & Filter Controls -->
+		<div
+			class="p-4 mb-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4"
+		>
+			<div class="w-full sm:w-80">
+				<label for="rule-search" class="sr-only">Search</label>
+				<div class="relative">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+						<svg
+							class="w-5 h-5 text-gray-500 dark:text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+								clip-rule="evenodd"></path></svg
+						>
+					</div>
+					<input
+						type="text"
+						id="rule-search"
+						class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						placeholder="Search rules or keywords..."
+					/>
+				</div>
+			</div>
+			<div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+				<span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+					{rules.length} {rules.length === 1 ? 'Rule' : 'Rules'} Configured
+				</span>
+			</div>
+		</div>
+
+		<!-- Rules Table or Empty State -->
+		{
+			rules.length === 0 ? (
+				<div class="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<svg
+						class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+						></path>
+					</svg>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+						No automation rules yet
+					</h3>
+					<p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-5">
+						Create your first rule to automatically send Direct Messages when users comment or send
+						messages with specific keywords.
+					</p>
+					<a
+						href={url('automations/new')}
+						class="inline-flex items-center text-white bg-primary-700 hover:bg-primary-800 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-primary-600 dark:hover:bg-primary-700"
+					>
+						+ Create Automation Rule
+					</a>
+				</div>
+			) : (
+				<div class="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 overflow-hidden">
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400" id="rules-table">
+							<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+								<tr>
+									<th scope="col" class="px-6 py-3">
+										Rule Name
+									</th>
+									<th scope="col" class="px-6 py-3">
+										Trigger
+									</th>
+									<th scope="col" class="px-6 py-3">
+										Keywords & Mode
+									</th>
+									<th scope="col" class="px-6 py-3">
+										Response Preview
+									</th>
+									<th scope="col" class="px-6 py-3">
+										Status
+									</th>
+									<th scope="col" class="px-6 py-3 text-right">
+										Actions
+									</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+								{rules.map((rule) => {
+									let keywordArray: string[] = [];
+									try {
+										keywordArray = JSON.parse(rule.keywords);
+									} catch {
+										keywordArray = rule.keywords.split(',').map((k) => k.trim());
+									}
+
+									return (
+										<tr
+											class="hover:bg-gray-50 dark:hover:bg-gray-700 rule-row"
+											data-rule-id={rule.id}
+											data-rule-name={rule.name.toLowerCase()}
+											data-keywords={keywordArray.join(' ').toLowerCase()}
+										>
+											<td class="px-6 py-4 font-semibold text-gray-900 whitespace-nowrap dark:text-white">
+												<a
+													href={url(`automations/${rule.id}`)}
+													class="hover:underline text-primary-600 dark:text-primary-500"
+												>
+													{rule.name}
+												</a>
+											</td>
+											<td class="px-6 py-4 whitespace-nowrap">
+												{rule.triggerType === 'comment_to_dm' && (
+													<span class="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">
+														Comment-to-DM
+													</span>
+												)}
+												{rule.triggerType === 'dm_reply' && (
+													<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+														Incoming DM
+													</span>
+												)}
+												{rule.triggerType === 'welcome_message' && (
+													<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
+														Welcome Message
+													</span>
+												)}
+											</td>
+											<td class="px-6 py-4">
+												<div class="flex flex-wrap gap-1 max-w-xs">
+													{keywordArray.map((kw) => (
+														<span class="bg-gray-100 text-gray-800 text-xs font-mono px-2 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
+															{kw}
+														</span>
+													))}
+												</div>
+												<span class="text-xs text-gray-400 mt-1 block">
+													Match: {rule.matchMode}
+												</span>
+											</td>
+											<td class="px-6 py-4 max-w-sm">
+												<p class="truncate text-gray-700 dark:text-gray-300 text-xs">
+													{rule.responseText}
+												</p>
+												{rule.responseUrl && (
+													<a
+														href={rule.responseUrl}
+														target="_blank"
+														rel="noreferrer"
+														class="text-xs text-primary-600 hover:underline dark:text-primary-500 truncate block mt-0.5"
+													>
+														{rule.responseUrl}
+													</a>
+												)}
+											</td>
+											<td class="px-6 py-4 whitespace-nowrap">
+												<button
+													type="button"
+													class={`toggle-status-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full cursor-pointer transition ${
+														rule.isActive
+															? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+															: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+													}`}
+													data-id={rule.id}
+													data-active={rule.isActive ? 'true' : 'false'}
+												>
+													<span
+														class={`w-2 h-2 mr-1.5 rounded-full ${
+															rule.isActive ? 'bg-green-500' : 'bg-gray-400'
+														}`}
+													></span>
+													{rule.isActive ? 'Active' : 'Paused'}
+												</button>
+											</td>
+											<td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+												<a
+													href={url(`automations/${rule.id}`)}
+													class="font-medium text-primary-600 dark:text-primary-500 hover:underline text-xs"
+												>
+													Edit
+												</a>
+												<button
+													type="button"
+													class="duplicate-btn font-medium text-gray-600 dark:text-gray-400 hover:underline text-xs"
+													data-id={rule.id}
+												>
+													Duplicate
+												</button>
+												<button
+													type="button"
+													class="delete-btn font-medium text-red-600 dark:text-red-500 hover:underline text-xs"
+													data-id={rule.id}
+													data-name={rule.name}
+												>
+													Delete
+												</button>
+											</td>
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			)
+		}
+	</div>
+</LayoutSidebar>
+
+<script>
+	// Search filter
+	const searchInput = document.getElementById('rule-search') as HTMLInputElement;
+	const rows = document.querySelectorAll('.rule-row');
+
+	if (searchInput) {
+		searchInput.addEventListener('input', (e) => {
+			const query = (e.target as HTMLInputElement).value.toLowerCase();
+			rows.forEach((row) => {
+				const name = row.getAttribute('data-rule-name') || '';
+				const kws = row.getAttribute('data-keywords') || '';
+				if (name.includes(query) || kws.includes(query)) {
+					(row as HTMLElement).style.display = '';
+				} else {
+					(row as HTMLElement).style.display = 'none';
+				}
+			});
+		});
+	}
+
+	// Toggle active/pause status
+	document.querySelectorAll('.toggle-status-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			if (!id) return;
+
+			target.classList.add('opacity-50');
+			try {
+				const res = await fetch(`/api/automations/${id}/toggle`, { method: 'POST' });
+				if (res.ok) {
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					alert(data.error || 'Failed to toggle status');
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error');
+			} finally {
+				target.classList.remove('opacity-50');
+			}
+		});
+	});
+
+	// Duplicate rule
+	document.querySelectorAll('.duplicate-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			if (!id) return;
+
+			try {
+				const res = await fetch(`/api/automations/${id}/duplicate`, { method: 'POST' });
+				if (res.ok) {
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					alert(data.error || 'Failed to duplicate rule');
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error');
+			}
+		});
+	});
+
+	// Delete rule
+	document.querySelectorAll('.delete-btn').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			const name = target.getAttribute('data-name');
+			if (!id) return;
+
+			if (!confirm(`Are you sure you want to delete rule "${name}"?`)) {
+				return;
+			}
+
+			try {
+				const res = await fetch(`/api/automations/${id}`, { method: 'DELETE' });
+				if (res.ok) {
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					alert(data.error || 'Failed to delete rule');
+				}
+			} catch (err: any) {
+				alert(err.message || 'Network error');
+			}
+		});
+	});
+</script>

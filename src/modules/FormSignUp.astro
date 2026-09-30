@@ -1,0 +1,165 @@
+---
+import { asset, url } from '../lib/data.js';
+import { ALLOWED_ADMIN_EMAIL } from '../lib/auth.js';
+
+interface Props {
+	errorMessage?: string;
+	emailValue?: string;
+}
+
+const { errorMessage = '', emailValue = '' } = Astro.props;
+const displayEmail = emailValue || ALLOWED_ADMIN_EMAIL;
+---
+
+<div
+	class="w-full flex flex-col items-center justify-center px-6 pt-8 mx-auto pt:mt-0 dark:bg-gray-900"
+>
+	<a
+		href="/"
+		class="flex items-center justify-center mb-6 text-2xl font-semibold lg:mb-8 dark:text-white"
+	>
+		<img src="/logo.png" alt="InstaFlow Logo" class="h-10 w-10 mr-3 object-contain" />
+		<span class="self-center text-2xl font-bold whitespace-nowrap dark:text-white">InstaFlow</span>
+	</a>
+	<!-- Card -->
+	<div
+		class="w-full max-w-lg p-6 space-y-6 sm:p-8 bg-white rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 dark:bg-gray-800"
+	>
+		<div class="space-y-2">
+			<div class="flex items-center justify-between">
+				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+					Register Admin Account
+				</h2>
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+					Restricted
+				</span>
+			</div>
+			<p class="text-sm text-gray-500 dark:text-gray-400">
+				Registration is exclusive to the designated administrator.
+			</p>
+		</div>
+
+		{errorMessage && (
+			<div
+				class="flex items-start p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-700/60 dark:text-red-400 border border-red-200 dark:border-red-800"
+				role="alert"
+			>
+				<svg
+					class="flex-shrink-0 inline w-5 h-5 mr-3 mt-0.5"
+					aria-hidden="true"
+					xmlns="http://www.w3.org/2000/svg"
+					fill="currentColor"
+					viewBox="0 0 20 20"
+				>
+					<path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+				</svg>
+				<div>
+					<span class="font-semibold block">Registration Blocked</span>
+					<span>{errorMessage}</span>
+				</div>
+			</div>
+		)}
+
+		<div
+			id="signup-client-warning"
+			class="hidden items-center p-3 text-sm text-amber-800 rounded-lg bg-amber-50 dark:bg-gray-700/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+			role="alert"
+		>
+			<svg
+				class="flex-shrink-0 inline w-4 h-4 mr-2"
+				aria-hidden="true"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="currentColor"
+				viewBox="0 0 20 20"
+			>
+				<path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+			</svg>
+			<span>Registration is locked to <strong>{ALLOWED_ADMIN_EMAIL}</strong> only.</span>
+		</div>
+
+		<form class="mt-6 space-y-5" method="POST" action="/authentication/sign-up">
+			<div>
+				<label
+					for="email"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+					>Admin Email</label
+				>
+				<input
+					type="email"
+					name="email"
+					id="email"
+					value={displayEmail}
+					class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+					placeholder={ALLOWED_ADMIN_EMAIL}
+					required
+				/>
+				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					Only <strong class="text-primary-600 dark:text-primary-400">{ALLOWED_ADMIN_EMAIL}</strong> can be registered.
+				</p>
+			</div>
+			<div>
+				<label
+					for="password"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+					>Password</label
+				>
+				<input
+					type="password"
+					name="password"
+					id="password"
+					placeholder="••••••••"
+					class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+					required
+				/>
+			</div>
+			<div>
+				<label
+					for="confirm-password"
+					class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+					>Confirm password</label
+				>
+				<input
+					type="password"
+					name="confirm-password"
+					id="confirm-password"
+					placeholder="••••••••"
+					class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+					required
+				/>
+			</div>
+			<button
+				type="submit"
+				class="w-full px-5 py-3 text-base font-medium text-center text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 transition-colors"
+				>Initialize Admin Account</button
+			>
+			<div class="text-sm font-medium text-gray-500 dark:text-gray-400 text-center">
+				Already have an account? <a
+					href="/authentication/sign-in"
+					class="text-primary-700 hover:underline dark:text-primary-500"
+					>Sign in here</a
+				>
+			</div>
+		</form>
+	</div>
+</div>
+
+<script define:vars={{ allowedEmail: ALLOWED_ADMIN_EMAIL }}>
+	const emailInput = document.getElementById('email');
+	const warningBanner = document.getElementById('signup-client-warning');
+
+	if (emailInput && warningBanner) {
+		const checkEmail = () => {
+			const val = (emailInput.value || '').trim().toLowerCase();
+			if (val && val !== allowedEmail) {
+				warningBanner.classList.remove('hidden');
+				warningBanner.classList.add('flex');
+			} else {
+				warningBanner.classList.add('hidden');
+				warningBanner.classList.remove('flex');
+			}
+		};
+
+		emailInput.addEventListener('input', checkEmail);
+		checkEmail();
+	}
+</script>

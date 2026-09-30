@@ -1,0 +1,207 @@
+---
+import LayoutSidebar from '../app/LayoutSidebar.astro';
+import { getAnalyticsData } from '../services/analytics.js';
+import { url } from '../lib/data.js';
+
+export const prerender = false;
+
+const data = await getAnalyticsData();
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path></svg
+						>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
+							>Analytics</span
+						>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<div class="mb-6">
+			<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+				Automation Analytics
+			</h1>
+			<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+				Performance benchmarks, delivery success rates, and automation usage trends.
+			</p>
+		</div>
+
+		<!-- 3 Key Metric Cards -->
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Success Rate</span>
+				<div class="flex items-baseline mt-2">
+					<h3 class="text-3xl font-bold text-gray-900 dark:text-white">{data.successRate}%</h3>
+					<span class="ml-2 text-xs font-medium text-green-500">Official API delivery</span>
+				</div>
+				<div class="w-full bg-gray-200 rounded-full h-2 mt-3 dark:bg-gray-700">
+					<div class="bg-primary-600 h-2 rounded-full" style={`width: ${data.successRate}%`}></div>
+				</div>
+			</div>
+
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Total Ingested Webhooks</span>
+				<div class="flex items-baseline mt-2">
+					<h3 class="text-3xl font-bold text-gray-900 dark:text-white">{data.totalEvents.toLocaleString()}</h3>
+				</div>
+				<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+					{data.skippedEvents} events skipped by rate limiting
+				</p>
+			</div>
+
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Active Rule Coverage</span>
+				<div class="flex items-baseline mt-2">
+					<h3 class="text-3xl font-bold text-gray-900 dark:text-white">{data.activeRulesCount}</h3>
+					<span class="ml-2 text-xs font-medium text-purple-600 dark:text-purple-400">Live rules</span>
+				</div>
+				<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+					{data.successfulReplies} total replies sent
+				</p>
+			</div>
+		</div>
+
+		<!-- Breakdown Grids -->
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+			<!-- Trigger Type Breakdown -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+					Usage by Trigger Channel
+				</h3>
+				{
+					data.triggerTypeDistribution.length === 0 ? (
+						<p class="text-xs text-gray-500 dark:text-gray-400 py-6 text-center">
+							No trigger channel data yet.
+						</p>
+					) : (
+						<div class="space-y-4">
+							{data.triggerTypeDistribution.map((item) => (
+								<div>
+									<div class="flex justify-between text-sm font-medium mb-1">
+										<span class="text-gray-700 dark:text-gray-300 capitalize">
+											{item.type === 'comment_to_dm' ? 'Comment to DM' : item.type === 'dm_reply' ? 'Direct Message' : item.type}
+										</span>
+										<span class="text-gray-900 dark:text-white font-bold">{item.count}</span>
+									</div>
+									<div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+										<div
+											class="bg-primary-600 h-2 rounded-full"
+											style={`width: ${Math.min(100, (item.count / Math.max(1, data.successfulReplies + data.failedReplies)) * 100)}%`}
+										></div>
+									</div>
+								</div>
+							))}
+						</div>
+					)
+				}
+			</div>
+
+			<!-- Top Performing Rules -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+					Top Triggered Automation Rules
+				</h3>
+				{
+					data.topRules.length === 0 ? (
+						<p class="text-xs text-gray-500 dark:text-gray-400 py-6 text-center">
+							No rule triggers recorded yet.
+						</p>
+					) : (
+						<ul class="divide-y divide-gray-200 dark:divide-gray-700">
+							{data.topRules.map((rule, idx) => (
+								<li class="py-3 flex items-center justify-between">
+									<div class="flex items-center space-x-3">
+										<span class="text-xs font-bold text-gray-400 w-4">#{idx + 1}</span>
+										<span class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">
+											{rule.ruleName}
+										</span>
+									</div>
+									<span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+										{rule.count} triggers
+									</span>
+								</li>
+							))}
+						</ul>
+					)
+				}
+			</div>
+		</div>
+
+		<!-- Daily Activity Table -->
+		<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+				Recent Daily Activity History
+			</h3>
+			<p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+				Daily breakdown of successful versus failed automated responses over the last 7 days.
+			</p>
+			{
+				data.dailyActivity.length === 0 ? (
+					<p class="text-xs text-gray-500 dark:text-gray-400 py-4 text-center">
+						No daily events in the past 7 days.
+					</p>
+				) : (
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+							<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+								<tr>
+									<th scope="col" class="px-4 py-3">Date</th>
+									<th scope="col" class="px-4 py-3">Successful Replies</th>
+									<th scope="col" class="px-4 py-3">Failed / Retried</th>
+									<th scope="col" class="px-4 py-3">Daily Success %</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+								{data.dailyActivity.map((day) => {
+									const total = day.sent + day.failed;
+									const rate = total > 0 ? Math.round((day.sent / total) * 100) : 100;
+									return (
+										<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+											<td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{day.date}</td>
+											<td class="px-4 py-3 text-green-600 font-semibold">{day.sent}</td>
+											<td class="px-4 py-3 text-red-600 font-semibold">{day.failed}</td>
+											<td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{rate}%</td>
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+				)
+			}
+		</div>
+	</div>
+</LayoutSidebar>

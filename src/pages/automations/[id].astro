@@ -1,0 +1,506 @@
+---
+import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { getDb, schema } from '../../db/index.js';
+import { eq } from 'drizzle-orm';
+import { url } from '../../lib/data.js';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+const db = getDb();
+
+let rule: schema.AutomationRule | null = null;
+let notFound = false;
+
+if (!db) {
+	notFound = true;
+} else if (id) {
+	try {
+		const res = await db
+			.select()
+			.from(schema.automationRules)
+			.where(eq(schema.automationRules.id, id))
+			.limit(1);
+		if (res.length > 0) {
+			rule = res[0];
+		} else {
+			notFound = true;
+		}
+	} catch (e) {
+		notFound = true;
+	}
+}
+
+let keywordDisplay = '';
+if (rule) {
+	try {
+		const parsed = JSON.parse(rule.keywords);
+		keywordDisplay = Array.isArray(parsed) ? parsed.join(', ') : rule.keywords;
+	} catch {
+		keywordDisplay = rule.keywords;
+	}
+}
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path></svg
+						>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<a
+							href={url('automations')}
+							class="ml-1 text-gray-700 hover:text-primary-600 md:ml-2 dark:text-gray-300 dark:hover:text-white"
+							>Automations</a
+						>
+					</div>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
+							>Edit Rule</span
+						>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		{
+			notFound || !rule ? (
+				<div class="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+					<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Rule Not Found</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+						The requested automation rule could not be found or the database is not configured.
+					</p>
+					<a
+						href={url('automations')}
+						class="text-white bg-primary-700 hover:bg-primary-800 font-medium rounded-lg text-sm px-4 py-2 dark:bg-primary-600 dark:hover:bg-primary-700"
+					>
+						Back to Automations
+					</a>
+				</div>
+			) : (
+				<div>
+					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+						<div>
+							<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+								Edit: {rule.name}
+							</h1>
+							<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+								Created on {new Date(rule.createdAt).toLocaleDateString()} &bull; Last updated {new Date(rule.updatedAt).toLocaleDateString()}
+							</p>
+						</div>
+						<div class="mt-4 sm:mt-0 flex items-center space-x-2">
+							<button
+								type="button"
+								id="delete-rule-btn"
+								class="text-red-700 hover:text-white border border-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-4 py-2 text-center dark:border-red-500 dark:text-red-500 dark:hover:text-white dark:hover:bg-red-600 dark:focus:ring-red-900"
+							>
+								Delete Rule
+							</button>
+						</div>
+					</div>
+
+					<!-- Alert Container -->
+					<div id="alert-box" class="hidden mb-4 p-4 text-sm rounded-lg" role="alert"></div>
+
+					<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+						<!-- Form Column (2/3) -->
+						<div class="xl:col-span-2 p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+							<form id="edit-rule-form" class="space-y-6" data-rule-id={rule.id}>
+								<!-- Rule Name -->
+								<div>
+									<label
+										for="rule-name"
+										class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+									>
+										Rule Name
+									</label>
+									<input
+										type="text"
+										id="rule-name"
+										required
+										value={rule.name}
+										class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+									/>
+								</div>
+
+								<!-- Trigger Type -->
+								<div>
+									<label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+										Trigger Type
+									</label>
+									<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+										<label class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700">
+											<input
+												type="radio"
+												name="triggerType"
+												value="comment_to_dm"
+												checked={rule.triggerType === 'comment_to_dm'}
+												class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+											/>
+											<div class="ml-3 text-sm">
+												<span class="font-medium text-gray-900 dark:text-white">Comment-to-DM</span>
+												<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+													Reply to comments privately.
+												</p>
+											</div>
+										</label>
+
+										<label class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700">
+											<input
+												type="radio"
+												name="triggerType"
+												value="dm_reply"
+												checked={rule.triggerType === 'dm_reply'}
+												class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+											/>
+											<div class="ml-3 text-sm">
+												<span class="font-medium text-gray-900 dark:text-white">Direct Message DM</span>
+												<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+													Incoming DM response.
+												</p>
+											</div>
+										</label>
+
+										<label class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700">
+											<input
+												type="radio"
+												name="triggerType"
+												value="welcome_message"
+												checked={rule.triggerType === 'welcome_message'}
+												class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+											/>
+											<div class="ml-3 text-sm">
+												<span class="font-medium text-gray-900 dark:text-white">Welcome Messaging</span>
+												<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+													First-time interaction.
+												</p>
+											</div>
+										</label>
+									</div>
+								</div>
+
+								<!-- Keywords & Match Mode -->
+								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+									<div class="md:col-span-2">
+										<label
+											for="keywords"
+											class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+										>
+											Keywords (comma-separated)
+										</label>
+										<input
+											type="text"
+											id="keywords"
+											required
+											value={keywordDisplay}
+											class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 font-mono"
+										/>
+									</div>
+
+									<div>
+										<label
+											for="match-mode"
+											class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+										>
+											Match Mode
+										</label>
+										<select
+											id="match-mode"
+											class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+										>
+											<option value="contains" selected={rule.matchMode === 'contains'}>
+												Contains keyword
+											</option>
+											<option value="exact" selected={rule.matchMode === 'exact'}>
+												Exact match only
+											</option>
+										</select>
+									</div>
+								</div>
+
+								<!-- Response Text -->
+								<div>
+									<label
+										for="response-text"
+										class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+									>
+										Response Text
+									</label>
+									<textarea
+										id="response-text"
+										rows="4"
+										required
+										class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+									>{rule.responseText}</textarea>
+								</div>
+
+								<!-- Optional Link / URL -->
+								<div>
+									<label
+										for="response-url"
+										class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+									>
+										Optional URL or CTA Link
+									</label>
+									<input
+										type="url"
+										id="response-url"
+										value={rule.responseUrl || ''}
+										placeholder="https://example.com"
+										class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+									/>
+								</div>
+
+								<!-- Active Status Toggle -->
+								<div class="flex items-center">
+									<input
+										type="checkbox"
+										id="is-active"
+										checked={rule.isActive}
+										class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+									/>
+									<label for="is-active" class="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+										Rule is Active and listening for triggers
+									</label>
+								</div>
+
+								<!-- Submit / Cancel -->
+								<div class="flex items-center space-x-3 pt-2">
+									<button
+										type="submit"
+										id="submit-btn"
+										class="text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+									>
+										Save Changes
+									</button>
+									<a
+										href={url('automations')}
+										class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white"
+									>
+										Cancel
+									</a>
+								</div>
+							</form>
+						</div>
+
+						<!-- Simulator & Test Column (1/3) -->
+						<div class="xl:col-span-1 space-y-4">
+							<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+								<h3 class="text-base font-semibold text-gray-900 dark:text-white mb-2">
+									Keyword Match Simulator
+								</h3>
+								<p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+									Test how Instagram messages or comments evaluate against your keywords.
+								</p>
+
+								<div>
+									<label for="sim-input" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+										Sample Incoming Comment or DM
+									</label>
+									<input
+										type="text"
+										id="sim-input"
+										placeholder="e.g. Can you DM me the pricing link?"
+										class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+									/>
+								</div>
+
+								<div id="sim-result" class="mt-3 p-3 rounded-lg text-xs font-medium bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+									Type a test message above to evaluate match.
+								</div>
+							</div>
+
+							<!-- Live DM Bubble Preview -->
+							<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+								<h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+									Response Preview
+								</h3>
+								<div class="bg-gray-100 dark:bg-gray-900 p-3 rounded-xl border dark:border-gray-700 text-xs">
+									<div class="bg-primary-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm">
+										<p id="preview-text" class="whitespace-pre-wrap">{rule.responseText}</p>
+										{rule.responseUrl && (
+											<p id="preview-url" class="text-blue-100 underline text-[11px] mt-1 break-all">
+												{rule.responseUrl}
+											</p>
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			)
+		}
+	</div>
+</LayoutSidebar>
+
+<script>
+	const form = document.getElementById('edit-rule-form') as HTMLFormElement;
+	const alertBox = document.getElementById('alert-box') as HTMLDivElement;
+	const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+	const deleteBtn = document.getElementById('delete-rule-btn') as HTMLButtonElement;
+
+	const responseTextInput = document.getElementById('response-text') as HTMLTextAreaElement;
+	const responseUrlInput = document.getElementById('response-url') as HTMLInputElement;
+	const keywordsInput = document.getElementById('keywords') as HTMLInputElement;
+	const matchModeSelect = document.getElementById('match-mode') as HTMLSelectElement;
+
+	const simInput = document.getElementById('sim-input') as HTMLInputElement;
+	const simResult = document.getElementById('sim-result') as HTMLDivElement;
+
+	// Live Simulator
+	function runSimulation() {
+		if (!simInput || !simResult || !keywordsInput || !matchModeSelect) return;
+		const text = simInput.value.trim().toLowerCase();
+		if (!text) {
+			simResult.className = 'mt-3 p-3 rounded-lg text-xs font-medium bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+			simResult.textContent = 'Type a test message above to evaluate match.';
+			return;
+		}
+
+		const keywords = keywordsInput.value.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+		const mode = matchModeSelect.value;
+
+		let matchedKw = '';
+		for (const kw of keywords) {
+			if (mode === 'exact') {
+				if (text === kw) {
+					matchedKw = kw;
+					break;
+				}
+			} else {
+				if (text.includes(kw)) {
+					matchedKw = kw;
+					break;
+				}
+			}
+		}
+
+		if (matchedKw) {
+			simResult.className = 'mt-3 p-3 rounded-lg text-xs font-medium bg-green-50 text-green-800 dark:bg-green-900 dark:text-green-300';
+			simResult.innerHTML = `✓ <strong>MATCHED</strong> on keyword: <code>${matchedKw}</code> (${mode})`;
+		} else {
+			simResult.className = 'mt-3 p-3 rounded-lg text-xs font-medium bg-red-50 text-red-800 dark:bg-red-900 dark:text-red-300';
+			simResult.innerHTML = `✗ <strong>NO MATCH</strong> against configured keywords.`;
+		}
+	}
+
+	if (simInput) simInput.addEventListener('input', runSimulation);
+	if (keywordsInput) keywordsInput.addEventListener('input', runSimulation);
+	if (matchModeSelect) matchModeSelect.addEventListener('change', runSimulation);
+
+	// Form Submission (PUT)
+	if (form) {
+		const ruleId = form.getAttribute('data-rule-id');
+
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			submitBtn.disabled = true;
+			submitBtn.textContent = 'Saving...';
+
+			const triggerTypeEl = document.querySelector('input[name="triggerType"]:checked') as HTMLInputElement;
+
+			const payload = {
+				name: (document.getElementById('rule-name') as HTMLInputElement).value.trim(),
+				triggerType: triggerTypeEl?.value || 'comment_to_dm',
+				keywords: keywordsInput.value.trim(),
+				matchMode: matchModeSelect.value,
+				responseText: responseTextInput.value.trim(),
+				responseUrl: responseUrlInput.value.trim() || null,
+				isActive: (document.getElementById('is-active') as HTMLInputElement).checked,
+			};
+
+			try {
+				const res = await fetch(`/api/automations/${ruleId}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await res.json();
+
+				if (res.ok) {
+					alertBox.className = 'mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400';
+					alertBox.textContent = 'Rule updated successfully!';
+					alertBox.classList.remove('hidden');
+					setTimeout(() => {
+						window.location.href = '/automations';
+					}, 1000);
+				} else {
+					alertBox.className = 'mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400';
+					alertBox.textContent = data.error || 'Failed to update rule.';
+					alertBox.classList.remove('hidden');
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Save Changes';
+				}
+			} catch (err: any) {
+				alertBox.className = 'mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400';
+				alertBox.textContent = err.message || 'Network error.';
+				alertBox.classList.remove('hidden');
+				submitBtn.disabled = false;
+				submitBtn.textContent = 'Save Changes';
+			}
+		});
+
+		// Delete Button
+		if (deleteBtn && ruleId) {
+			deleteBtn.addEventListener('click', async () => {
+				if (!confirm('Are you sure you want to permanently delete this automation rule?')) {
+					return;
+				}
+
+				try {
+					const res = await fetch(`/api/automations/${ruleId}`, { method: 'DELETE' });
+					if (res.ok) {
+						window.location.href = '/automations';
+					} else {
+						const data = await res.json();
+						alert(data.error || 'Failed to delete rule');
+					}
+				} catch (err: any) {
+					alert(err.message || 'Network error');
+				}
+			});
+		}
+	}
+</script>

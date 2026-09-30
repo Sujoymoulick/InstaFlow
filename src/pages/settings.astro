@@ -1,0 +1,14 @@
+---
+import LayoutSidebar from '../app/LayoutSidebar.astro';
+import InstaFlowSettings from '../modules/InstaFlowSettings.astro';
+import UserSettings from '../modules/UserSettings.astro';
+
+export const prerender = false;
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<InstaFlowSettings />
+	</div>
+	<UserSettings />
+</LayoutSidebar>

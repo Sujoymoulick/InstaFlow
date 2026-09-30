@@ -1,0 +1,55 @@
+---
+import LayoutStacked from '../../app/LayoutStacked.astro';
+import FormSignUp from '../../modules/FormSignUp.astro';
+import {
+	verifyAdminSession,
+	validateLogin,
+	setAdminSession,
+	isAllowedEmail,
+	ALLOWED_ADMIN_EMAIL,
+} from '../../lib/auth.js';
+
+export const prerender = false;
+
+// If already authorized, redirect to dashboard
+const session = verifyAdminSession(Astro.cookies, Astro.request);
+if (session.authorized) {
+	return Astro.redirect('/dashboard');
+}
+
+let errorMessage = '';
+let emailValue = '';
+
+if (Astro.request.method === 'POST') {
+	try {
+		const formData = await Astro.request.formData();
+		emailValue = ((formData.get('email') as string) || '').trim();
+		const password = ((formData.get('password') as string) || '').trim();
+		const confirmPassword = ((formData.get('confirm-password') as string) || '').trim();
+
+		if (!emailValue) {
+			errorMessage = 'Please enter an email address.';
+		} else if (!isAllowedEmail(emailValue)) {
+			errorMessage = `Registration is restricted. Only ${ALLOWED_ADMIN_EMAIL} is authorized to access InstaFlow.`;
+		} else if (password !== confirmPassword) {
+			errorMessage = 'Passwords do not match.';
+		} else {
+			const validation = validateLogin(emailValue, password);
+			if (!validation.success) {
+				errorMessage = validation.error || 'Failed to initialize account.';
+			} else {
+				setAdminSession(Astro.cookies, emailValue);
+				return Astro.redirect('/dashboard');
+			}
+		}
+	} catch (err: any) {
+		errorMessage = err?.message || 'An error occurred during registration.';
+	}
+}
+---
+
+<LayoutStacked title="Sign Up | InstaFlow">
+	<div class="min-h-screen align-middle flex items-center justify-center pb-[12vh]">
+		<FormSignUp errorMessage={errorMessage} emailValue={emailValue} />
+	</div>
+</LayoutStacked>

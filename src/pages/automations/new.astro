@@ -1,0 +1,425 @@
+---
+import LayoutSidebar from '../../app/LayoutSidebar.astro';
+import { url } from '../../lib/data.js';
+
+export const prerender = false;
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path></svg
+						>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<a
+							href={url('automations')}
+							class="ml-1 text-gray-700 hover:text-primary-600 md:ml-2 dark:text-gray-300 dark:hover:text-white"
+							>Automations</a
+						>
+					</div>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
+							>New Rule</span
+						>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<div class="mb-6">
+			<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+				Create Automation Rule
+			</h1>
+			<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+				Define trigger conditions and the response to send automatically to Instagram users.
+			</p>
+		</div>
+
+		<!-- Error/Success Banner Container -->
+		<div id="alert-box" class="hidden mb-4 p-4 text-sm rounded-lg" role="alert"></div>
+
+		<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+			<!-- Form Column (2/3) -->
+			<div
+				class="xl:col-span-2 p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6"
+			>
+				<form id="create-rule-form" class="space-y-6">
+					<!-- Rule Name -->
+					<div>
+						<label
+							for="rule-name"
+							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+							>Rule Name</label
+						>
+						<input
+							type="text"
+							id="rule-name"
+							required
+							placeholder="e.g. Pricing Inquiry Auto-Reply"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						/>
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							An internal name to identify this automation rule.
+						</p>
+					</div>
+
+					<!-- Trigger Type -->
+					<div>
+						<label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+							>Trigger Type</label
+						>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+							<label
+								class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700"
+							>
+								<input
+									type="radio"
+									name="triggerType"
+									value="comment_to_dm"
+									checked
+									class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+								/>
+								<div class="ml-3 text-sm">
+									<span class="font-medium text-gray-900 dark:text-white">Comment-to-DM</span>
+									<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+										Triggers private reply when user leaves a comment.
+									</p>
+								</div>
+							</label>
+
+							<label
+								class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700"
+							>
+								<input
+									type="radio"
+									name="triggerType"
+									value="dm_reply"
+									class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+								/>
+								<div class="ml-3 text-sm">
+									<span class="font-medium text-gray-900 dark:text-white">Direct Message DM</span>
+									<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+										Auto-replies when user sends an incoming DM.
+									</p>
+								</div>
+							</label>
+
+							<label
+								class="flex p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700"
+							>
+								<input
+									type="radio"
+									name="triggerType"
+									value="welcome_message"
+									class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+								/>
+								<div class="ml-3 text-sm">
+									<span class="font-medium text-gray-900 dark:text-white">Welcome Messaging</span>
+									<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+										Greets users on their first interaction.
+									</p>
+								</div>
+							</label>
+						</div>
+					</div>
+
+					<!-- Keywords & Match Mode -->
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div class="md:col-span-2">
+							<label
+								for="keywords"
+								class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+								>Keywords (comma-separated)</label
+							>
+							<input
+								type="text"
+								id="keywords"
+								required
+								placeholder="price, pricing, discount, info, link"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500 font-mono"
+							/>
+							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+								Separate multiple triggers with commas. Case-insensitive.
+							</p>
+						</div>
+
+						<div>
+							<label
+								for="match-mode"
+								class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+								>Match Mode</label
+							>
+							<select
+								id="match-mode"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+							>
+								<option value="contains" selected>Contains keyword</option>
+								<option value="exact">Exact match only</option>
+							</select>
+							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+								How user text is compared.
+							</p>
+						</div>
+					</div>
+
+					<!-- Response Text -->
+					<div>
+						<label
+							for="response-text"
+							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+							>Response Text</label
+						>
+						<textarea
+							id="response-text"
+							rows="4"
+							required
+							placeholder="Hey there! Thanks for reaching out. Here is the link you requested:"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						></textarea>
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							The message that will be sent via Instagram Direct Message.
+						</p>
+					</div>
+
+					<!-- Optional Link / URL -->
+					<div>
+						<label
+							for="response-url"
+							class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+							>Optional URL or CTA Link</label
+						>
+						<input
+							type="url"
+							id="response-url"
+							placeholder="https://example.com/checkout"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+						/>
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							Appended to the message or formatted as action link.
+						</p>
+					</div>
+
+					<!-- Active Status Toggle -->
+					<div class="flex items-center">
+						<input
+							type="checkbox"
+							id="is-active"
+							checked
+							class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 dark:bg-gray-700 dark:border-gray-600"
+						/>
+						<label for="is-active" class="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+							Enable rule immediately upon creation
+						</label>
+					</div>
+
+					<!-- Submit / Cancel -->
+					<div class="flex items-center space-x-3 pt-2">
+						<button
+							type="submit"
+							id="submit-btn"
+							class="text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+						>
+							Save & Activate Rule
+						</button>
+						<a
+							href={url('automations')}
+							class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-white"
+						>
+							Cancel
+						</a>
+					</div>
+				</form>
+			</div>
+
+			<!-- Live Preview Column (1/3) -->
+			<div class="xl:col-span-1">
+				<div
+					class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sticky top-20"
+				>
+					<h3 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
+						Live DM Preview
+					</h3>
+					<p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+						Simulated Instagram conversation bubble as viewed by the user.
+					</p>
+
+					<!-- Simulated Phone Screen / DM container -->
+					<div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-xl border dark:border-gray-700">
+						<div class="flex items-center pb-3 border-b dark:border-gray-800 mb-3">
+							<div
+								class="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold"
+							>
+								IG
+							</div>
+							<div class="ml-2">
+								<p class="text-xs font-semibold text-gray-900 dark:text-white">Your Business</p>
+								<p class="text-[10px] text-green-500">Active now</p>
+							</div>
+						</div>
+
+						<!-- Chat bubble -->
+						<div class="space-y-3">
+							<div class="flex justify-end">
+								<div
+									class="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-3 py-2 rounded-2xl rounded-tr-none max-w-[85%]"
+								>
+									<span id="preview-user-message">Send me the price please!</span>
+								</div>
+							</div>
+
+							<div class="flex justify-start">
+								<div
+									class="bg-primary-600 text-white text-xs px-3 py-2 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm"
+								>
+									<p id="preview-response-text" class="whitespace-pre-wrap">
+										Hey there! Thanks for reaching out. Here is the link you requested:
+									</p>
+									<p id="preview-response-url" class="text-blue-100 underline text-[11px] mt-1 break-all">
+										https://example.com/checkout
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="mt-4 p-3 bg-blue-50 dark:bg-gray-700/50 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+						<p class="font-medium text-primary-700 dark:text-primary-400 mb-1">
+							Meta Policy Compliance
+						</p>
+						Official Instagram Messaging API allows 1 automated response per user comment within 7 days,
+						and standard 24-hour messaging window for direct messages.
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script>
+	const form = document.getElementById('create-rule-form') as HTMLFormElement;
+	const alertBox = document.getElementById('alert-box') as HTMLDivElement;
+	const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+	const responseTextInput = document.getElementById('response-text') as HTMLTextAreaElement;
+	const responseUrlInput = document.getElementById('response-url') as HTMLInputElement;
+	const keywordsInput = document.getElementById('keywords') as HTMLInputElement;
+
+	const previewResponse = document.getElementById('preview-response-text');
+	const previewUrl = document.getElementById('preview-response-url');
+	const previewUserMsg = document.getElementById('preview-user-message');
+
+	// Live preview updates
+	if (responseTextInput && previewResponse) {
+		responseTextInput.addEventListener('input', () => {
+			previewResponse.textContent = responseTextInput.value || 'Type your response message...';
+		});
+	}
+
+	if (responseUrlInput && previewUrl) {
+		responseUrlInput.addEventListener('input', () => {
+			previewUrl.textContent = responseUrlInput.value || '';
+			previewUrl.style.display = responseUrlInput.value ? 'block' : 'none';
+		});
+	}
+
+	if (keywordsInput && previewUserMsg) {
+		keywordsInput.addEventListener('input', () => {
+			const kws = keywordsInput.value.split(',').filter(Boolean);
+			if (kws.length > 0) {
+				previewUserMsg.textContent = `Can you send me info about ${kws[0].trim()}?`;
+			}
+		});
+	}
+
+	// Form submission
+	if (form) {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			submitBtn.disabled = true;
+			submitBtn.textContent = 'Saving rule...';
+
+			const triggerTypeEl = document.querySelector('input[name="triggerType"]:checked') as HTMLInputElement;
+
+			const payload = {
+				name: (document.getElementById('rule-name') as HTMLInputElement).value.trim(),
+				triggerType: triggerTypeEl?.value || 'comment_to_dm',
+				keywords: keywordsInput.value.trim(),
+				matchMode: (document.getElementById('match-mode') as HTMLSelectElement).value,
+				responseText: responseTextInput.value.trim(),
+				responseUrl: responseUrlInput.value.trim() || null,
+				isActive: (document.getElementById('is-active') as HTMLInputElement).checked,
+			};
+
+			try {
+				const res = await fetch('/api/automations', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await res.json();
+
+				if (res.ok) {
+					alertBox.className = 'mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400';
+					alertBox.textContent = 'Rule created successfully! Redirecting...';
+					alertBox.classList.remove('hidden');
+					setTimeout(() => {
+						window.location.href = '/automations';
+					}, 1000);
+				} else {
+					alertBox.className = 'mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400';
+					alertBox.textContent = data.error || 'Failed to create rule.';
+					alertBox.classList.remove('hidden');
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Save & Activate Rule';
+				}
+			} catch (err: any) {
+				alertBox.className = 'mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400';
+				alertBox.textContent = err.message || 'Network error.';
+				alertBox.classList.remove('hidden');
+				submitBtn.disabled = false;
+				submitBtn.textContent = 'Save & Activate Rule';
+			}
+		});
+	}
+</script>

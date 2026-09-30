@@ -1,0 +1,219 @@
+---
+import LayoutSidebar from '../app/LayoutSidebar.astro';
+import { getRecentActivity, getDashboardMetrics } from '../services/analytics.js';
+import { url } from '../lib/data.js';
+
+export const prerender = false;
+
+const activityList = await getRecentActivity(100);
+const metrics = await getDashboardMetrics();
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-6">
+		<!-- Breadcrumbs -->
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path></svg
+						>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+							><path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"></path></svg
+						>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page"
+							>Activity Log</span
+						>
+					</div>
+				</li>
+			</ol>
+		</nav>
+
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+					Activity Audit Log
+				</h1>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Detailed inspection of every Instagram webhook trigger, matched rule, and delivery outcome.
+				</p>
+			</div>
+			<!-- Summary counters -->
+			<div class="flex items-center space-x-3 mt-4 sm:mt-0">
+				<span class="inline-flex items-center text-xs font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full dark:bg-green-900 dark:text-green-300">
+					{metrics.successfulReplies} Sent
+				</span>
+				<span class="inline-flex items-center text-xs font-medium text-red-700 bg-red-100 px-3 py-1 rounded-full dark:bg-red-900 dark:text-red-300">
+					{metrics.failedReplies} Failed
+				</span>
+			</div>
+		</div>
+
+		<!-- Filter Bar -->
+		<div
+			class="p-4 mb-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4"
+		>
+			<div class="w-full sm:w-80">
+				<input
+					type="text"
+					id="activity-search"
+					class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+					placeholder="Search by keyword, sender, or rule..."
+				/>
+			</div>
+			<div class="flex items-center space-x-2">
+				<select
+					id="status-filter"
+					class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+				>
+					<option value="all">All Statuses</option>
+					<option value="sent">Delivered (Sent)</option>
+					<option value="failed">Failed</option>
+					<option value="skipped">Rate Limited / Skipped</option>
+				</select>
+			</div>
+		</div>
+
+		<!-- Table -->
+		<div class="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 overflow-hidden">
+			{
+				activityList.length === 0 ? (
+					<div class="p-8 text-center">
+						<p class="text-gray-500 dark:text-gray-400 text-sm">No activity recorded yet in the database.</p>
+					</div>
+				) : (
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400" id="activity-table">
+							<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+								<tr>
+									<th scope="col" class="px-4 py-3">Event Type</th>
+									<th scope="col" class="px-4 py-3">Sender ID</th>
+									<th scope="col" class="px-4 py-3">Matched Keyword</th>
+									<th scope="col" class="px-4 py-3">Rule Name</th>
+									<th scope="col" class="px-4 py-3">Incoming Text</th>
+									<th scope="col" class="px-4 py-3">Sent Reply</th>
+									<th scope="col" class="px-4 py-3">Status</th>
+									<th scope="col" class="px-4 py-3">Timestamp</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+								{activityList.map((item) => (
+									<tr
+										class="hover:bg-gray-50 dark:hover:bg-gray-700 activity-row"
+										data-status={item.status}
+										data-text={`${item.matchedKeyword || ''} ${item.ruleName || ''} ${item.senderId} ${item.incomingText || ''}`.toLowerCase()}
+									>
+										<td class="px-4 py-3 whitespace-nowrap">
+											{item.eventType === 'comment' ? (
+												<span class="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">
+													Comment
+												</span>
+											) : (
+												<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+													DM
+												</span>
+											)}
+										</td>
+										<td class="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">
+											{item.senderId}
+										</td>
+										<td class="px-4 py-3 font-mono text-xs">
+											{item.matchedKeyword ? (
+												<span class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+													{item.matchedKeyword}
+												</span>
+											) : (
+												'—'
+											)}
+										</td>
+										<td class="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+											{item.ruleName || 'Default'}
+										</td>
+										<td class="px-4 py-3 max-w-xs truncate text-xs" title={item.incomingText || ''}>
+											{item.incomingText || '—'}
+										</td>
+										<td class="px-4 py-3 max-w-xs truncate text-xs" title={item.sentReplyText || ''}>
+											{item.sentReplyText || '—'}
+										</td>
+										<td class="px-4 py-3 whitespace-nowrap">
+											{item.status === 'sent' && (
+												<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">
+													Sent
+												</span>
+											)}
+											{item.status === 'failed' && (
+												<span
+													class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-red-900 dark:text-red-300 cursor-help"
+													title={item.errorDetails || 'Failed'}
+												>
+													Failed
+												</span>
+											)}
+											{item.status === 'skipped' && (
+												<span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-yellow-900 dark:text-yellow-300">
+													Skipped
+												</span>
+											)}
+										</td>
+										<td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+											{new Date(item.createdAt).toLocaleString()}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				)}
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script>
+	const searchInput = document.getElementById('activity-search') as HTMLInputElement;
+	const statusFilter = document.getElementById('status-filter') as HTMLSelectElement;
+	const rows = document.querySelectorAll('.activity-row');
+
+	function filterTable() {
+		const query = searchInput ? searchInput.value.toLowerCase() : '';
+		const status = statusFilter ? statusFilter.value : 'all';
+
+		rows.forEach((row) => {
+			const rowStatus = row.getAttribute('data-status') || '';
+			const rowText = row.getAttribute('data-text') || '';
+
+			const matchesQuery = !query || rowText.includes(query);
+			const matchesStatus = status === 'all' || rowStatus === status;
+
+			if (matchesQuery && matchesStatus) {
+				(row as HTMLElement).style.display = '';
+			} else {
+				(row as HTMLElement).style.display = 'none';
+			}
+		});
+	}
+
+	if (searchInput) searchInput.addEventListener('input', filterTable);
+	if (statusFilter) statusFilter.addEventListener('change', filterTable);
+</script>

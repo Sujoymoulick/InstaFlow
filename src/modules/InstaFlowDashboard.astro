@@ -1,0 +1,659 @@
+---
+import { getDashboardMetrics, getRecentActivity } from '../services/analytics.js';
+import { getProjectMetrics } from '../services/projects.js';
+import { url } from '../lib/data.js';
+
+const metrics = await getDashboardMetrics();
+const recentActivity = await getRecentActivity(10);
+const projectMetrics = await getProjectMetrics();
+
+const deliveryRate =
+	metrics.totalEvents > 0
+		? Math.round((metrics.successfulReplies / metrics.totalEvents) * 100)
+		: 0;
+---
+
+<div class="px-4 pt-6 pb-12">
+	<!-- Breadcrumb & Header -->
+	<div class="mb-6">
+		<nav class="flex mb-4" aria-label="Breadcrumb">
+			<ol class="inline-flex items-center space-x-1 text-sm font-medium md:space-x-2">
+				<li class="inline-flex items-center">
+					<a
+						href={url()}
+						class="inline-flex items-center text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white"
+					>
+						<svg
+							class="w-5 h-5 mr-2.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+							></path>
+						</svg>
+						Home
+					</a>
+				</li>
+				<li>
+					<div class="flex items-center">
+						<svg
+							class="w-6 h-6 text-gray-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+						<span class="ml-1 text-gray-400 md:ml-2 dark:text-gray-500" aria-current="page">
+							Dashboard
+						</span>
+					</div>
+				</li>
+			</ol>
+		</nav>
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+					InstaFlow Automation &amp; Projects Dashboard
+				</h1>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Real-time monitoring of personal websites, SaaS apps, and Instagram Auto-DMs.
+				</p>
+			</div>
+			<div class="flex items-center space-x-3">
+				<a
+					href={url('dashboard/projects')}
+					class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+				>
+					<svg
+						class="w-4 h-4 mr-2"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+					</svg>
+					Manage Projects
+				</a>
+				<a
+					href={url('automations/new')}
+					class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+				>
+					<svg
+						class="w-4 h-4 mr-2"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+					</svg>
+					New Rule
+				</a>
+			</div>
+		</div>
+	</div>
+
+	<!-- Status Banners (Database / Instagram) -->
+	{
+		!metrics.dbConfigured && (
+			<div
+				class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700"
+				role="alert"
+			>
+				<div class="flex items-center">
+					<svg
+						class="w-5 h-5 mr-2"
+						fill="currentColor"
+						viewBox="0 0 20 20"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+							clip-rule="evenodd"
+						></path>
+					</svg>
+					<span class="font-medium">Neon Database Not Connected:</span>
+					<span class="ml-1">
+						Configure <code>DATABASE_URL</code> in your environment variables or Vercel dashboard to
+						persist projects, automation rules, and webhook events.
+					</span>
+				</div>
+			</div>
+		)
+	}
+
+	<!-- SECTION 1: Key Project Statistics Cards (Replacing Stock Products, Stock Customers, Product Details, Customer Statistics) -->
+	<div class="mb-4">
+		<h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+			Personal Projects Overview
+		</h2>
+		<div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<!-- Total Projects (Replaces Stock Products) -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Total Projects
+						</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+							{projectMetrics.total}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Websites, SaaS &amp; tools
+						</p>
+					</div>
+					<div class="p-3 bg-blue-50 rounded-lg text-primary-600 dark:bg-gray-700 dark:text-primary-400">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- Published Projects (Replaces Stock Customers) -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Published Projects
+						</span>
+						<h3 class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+							{projectMetrics.published}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Live &amp; publicly available
+						</p>
+					</div>
+					<div class="p-3 bg-green-50 rounded-lg text-green-600 dark:bg-gray-700 dark:text-green-400">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- In Development (Replaces Product Details) -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							In Development
+						</span>
+						<h3 class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
+							{projectMetrics.inDevelopment}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Active coding &amp; building
+						</p>
+					</div>
+					<div class="p-3 bg-yellow-50 rounded-lg text-yellow-600 dark:bg-gray-700 dark:text-yellow-400">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- Draft Projects (Replaces Customer Statistics) -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Draft Projects
+						</span>
+						<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+							{projectMetrics.draft}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Planning &amp; concept phase
+						</p>
+					</div>
+					<div class="p-3 bg-indigo-50 rounded-lg text-indigo-600 dark:bg-gray-700 dark:text-indigo-400">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- SECTION 2: Dedicated "My Projects" Overview Section -->
+	<div class="p-4 mb-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+			<div>
+				<div class="flex items-center space-x-2">
+					<h3 class="text-lg font-bold text-gray-900 dark:text-white">
+						My Projects
+					</h3>
+					<span class="bg-primary-100 text-primary-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-primary-900 dark:text-primary-300">
+						{projectMetrics.total} total
+					</span>
+				</div>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400 mt-1">
+					Compact overview of recently updated personal websites, apps, and SaaS initiatives.
+				</p>
+			</div>
+			<div class="flex items-center space-x-3 mt-3 sm:mt-0">
+				<!-- Quick counts -->
+				<div class="hidden md:flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+					<span class="inline-flex items-center">
+						<span class="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+						{projectMetrics.published} Published
+					</span>
+					<span class="inline-flex items-center">
+						<span class="w-2 h-2 mr-1 bg-yellow-500 rounded-full"></span>
+						{projectMetrics.inDevelopment} In Dev
+					</span>
+					<span class="inline-flex items-center">
+						<span class="w-2 h-2 mr-1 bg-indigo-500 rounded-full"></span>
+						{projectMetrics.planning} Planning
+					</span>
+				</div>
+				<a
+					href={url('dashboard/projects')}
+					class="inline-flex items-center px-3.5 py-2 text-xs font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+				>
+					View All Projects
+					<svg class="w-3.5 h-3.5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+					</svg>
+				</a>
+			</div>
+		</div>
+
+		<!-- Compact Recent Projects List or Empty State -->
+		{
+			projectMetrics.recentProjects.length === 0 ? (
+				<div class="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+					<svg
+						class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-2"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+						></path>
+					</svg>
+					<h4 class="text-base font-semibold text-gray-900 dark:text-white">No projects added yet</h4>
+					<p class="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-4">
+						Start tracking your websites, tools, and SaaS products alongside your Instagram automations.
+					</p>
+					<a
+						href={url('dashboard/projects?action=new')}
+						class="inline-flex items-center px-4 py-2 text-xs font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+					>
+						<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+						</svg>
+						Add Your First Project
+					</a>
+				</div>
+			) : (
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+						<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+							<tr>
+								<th scope="col" class="px-4 py-3">Project</th>
+								<th scope="col" class="px-4 py-3">Category</th>
+								<th scope="col" class="px-4 py-3">Status</th>
+								<th scope="col" class="px-4 py-3">Last Updated</th>
+								<th scope="col" class="px-4 py-3 text-right">Live Link</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+							{projectMetrics.recentProjects.map((p) => {
+								const statusColor =
+									p.status === 'Published'
+										? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+										: p.status === 'In Development'
+										? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+										: p.status === 'Testing'
+										? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+										: p.status === 'Completed'
+										? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
+										: p.status === 'On Hold'
+										? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+										: p.status === 'Archived'
+										? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+										: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
+
+								return (
+									<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+										<td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
+											<div class="flex items-center space-x-3">
+												{p.logoUrl ? (
+													<img
+														src={p.logoUrl}
+														alt={p.name}
+														class="w-8 h-8 rounded-lg object-cover border border-gray-200 dark:border-gray-700 flex-shrink-0"
+													/>
+												) : (
+													<div class="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
+														{p.name.charAt(0).toUpperCase()}
+													</div>
+												)}
+												<div>
+													<a
+														href={url('dashboard/projects')}
+														class="font-semibold hover:underline text-gray-900 dark:text-white"
+													>
+														{p.name}
+													</a>
+													{p.description && (
+														<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+															{p.description}
+														</p>
+													)}
+												</div>
+											</div>
+										</td>
+										<td class="px-4 py-3 whitespace-nowrap">
+											<span class="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
+												{p.category}
+											</span>
+										</td>
+										<td class="px-4 py-3 whitespace-nowrap">
+											<span class={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColor}`}>
+												{p.status}
+											</span>
+										</td>
+										<td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+											{new Date(p.updatedAt).toLocaleDateString()}
+										</td>
+										<td class="px-4 py-3 whitespace-nowrap text-right">
+											{p.liveUrl ? (
+												<a
+													href={p.liveUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="inline-flex items-center text-xs font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 bg-green-50 dark:bg-green-950/40 px-2 py-1 rounded border border-green-200 dark:border-green-800"
+												>
+													<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+													</svg>
+													Live
+												</a>
+											) : (
+												<span class="text-xs text-gray-400 italic">—</span>
+											)}
+										</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+				</div>
+			)
+		}
+	</div>
+
+	<!-- SECTION 3: Instagram Automation Metrics -->
+	<div class="mb-4">
+		<h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+			Instagram Automation Metrics
+		</h2>
+		<div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<!-- Total Incoming Events -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Total Automations
+						</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+							{metrics.totalEvents.toLocaleString()}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							Comments &amp; Direct Messages
+						</p>
+					</div>
+					<div class="p-3 bg-blue-50 rounded-lg text-primary-600 dark:bg-gray-700 dark:text-primary-400">
+						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+							<path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+							<path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- Active Rules & IG Connection Status -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Active Automations
+						</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+							{metrics.activeRules.toLocaleString()}
+						</h3>
+						<div class="flex items-center mt-1">
+							{
+								metrics.instagramConnected ? (
+									<span class="inline-flex items-center text-xs font-medium text-green-600 dark:text-green-400">
+										<span class="w-2 h-2 mr-1 bg-green-500 rounded-full animate-pulse"></span>
+										@{metrics.instagramUsername}
+									</span>
+								) : (
+									<span class="inline-flex items-center text-xs font-medium text-yellow-600 dark:text-yellow-400">
+										<span class="w-2 h-2 mr-1 bg-yellow-500 rounded-full"></span>
+										IG Disconnected
+									</span>
+								)
+							}
+						</div>
+					</div>
+					<div class="p-3 bg-purple-50 rounded-lg text-purple-600 dark:bg-gray-700 dark:text-purple-400">
+						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+							<path
+								fill-rule="evenodd"
+								d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- Successful Replies -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Successful Replies
+						</span>
+						<h3 class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+							{metrics.successfulReplies.toLocaleString()}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							{deliveryRate}% delivery rate
+						</p>
+					</div>
+					<div class="p-3 bg-green-50 rounded-lg text-green-600 dark:bg-gray-700 dark:text-green-400">
+						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+							<path
+								fill-rule="evenodd"
+								d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+
+			<!-- Failed Replies -->
+			<div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+							Failed Replies
+						</span>
+						<h3 class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
+							{metrics.failedReplies.toLocaleString()}
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							API errors or rate limits
+						</p>
+					</div>
+					<div class="p-3 bg-red-50 rounded-lg text-red-600 dark:bg-gray-700 dark:text-red-400">
+						<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+							<path
+								fill-rule="evenodd"
+								d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+								clip-rule="evenodd"
+							></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- SECTION 4: Recent Automation Activity Table -->
+	<div class="p-4 mt-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+			<div>
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+					Recent Automation Activity
+				</h3>
+				<p class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Latest incoming events, matched keywords, and automated responses.
+				</p>
+			</div>
+			<a
+				href={url('activity')}
+				class="inline-flex items-center mt-2 sm:mt-0 text-sm font-medium text-primary-600 hover:underline dark:text-primary-500"
+			>
+				View all activity
+				<svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+				</svg>
+			</a>
+		</div>
+
+		<!-- Table or Empty State -->
+		{
+			recentActivity.length === 0 ? (
+				<div class="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+					<svg
+						class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+						></path>
+					</svg>
+					<h4 class="text-base font-medium text-gray-900 dark:text-white">No incoming activity yet</h4>
+					<p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-4">
+						When users comment on your Instagram posts or send Direct Messages matching your rules,
+						they will appear here in real time.
+					</p>
+					<div class="flex justify-center gap-3">
+						<a
+							href={url('automations/new')}
+							class="text-white bg-primary-700 hover:bg-primary-800 font-medium rounded-lg text-sm px-4 py-2 dark:bg-primary-600 dark:hover:bg-primary-700"
+						>
+							Create First Automation Rule
+						</a>
+						<a
+							href={url('settings/instagram')}
+							class="text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg text-sm px-4 py-2 dark:bg-gray-700 dark:text-gray-200"
+						>
+							Verify Instagram Webhook
+						</a>
+					</div>
+				</div>
+			) : (
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+						<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+							<tr>
+								<th scope="col" class="px-4 py-3">Event</th>
+								<th scope="col" class="px-4 py-3">Sender ID</th>
+								<th scope="col" class="px-4 py-3">Matched Keyword</th>
+								<th scope="col" class="px-4 py-3">Rule</th>
+								<th scope="col" class="px-4 py-3">Status</th>
+								<th scope="col" class="px-4 py-3">Timestamp</th>
+							</tr>
+						</thead>
+						<tbody>
+							{recentActivity.map((item) => (
+								<tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+									<td class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+										<span class="inline-flex items-center">
+											{item.eventType === 'comment' ? (
+												<span class="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-purple-900 dark:text-purple-300">
+													Comment
+												</span>
+											) : (
+												<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+													DM
+												</span>
+											)}
+										</span>
+									</td>
+									<td class="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">
+										{item.senderId}
+									</td>
+									<td class="px-4 py-3 font-medium text-gray-900 dark:text-white">
+										{item.matchedKeyword ? (
+											<span class="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
+												{item.matchedKeyword}
+											</span>
+										) : (
+											<span class="text-gray-400">—</span>
+										)}
+									</td>
+									<td class="px-4 py-3 text-gray-900 dark:text-white">
+										{item.ruleName || 'Default'}
+									</td>
+									<td class="px-4 py-3">
+										{item.status === 'sent' && (
+											<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">
+												Delivered
+											</span>
+										)}
+										{item.status === 'failed' && (
+											<span
+												class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-red-900 dark:text-red-300"
+												title={item.errorDetails || ''}
+											>
+												Failed
+											</span>
+										)}
+										{item.status === 'skipped' && (
+											<span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-yellow-900 dark:text-yellow-300">
+												Rate Limited
+											</span>
+										)}
+									</td>
+									<td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+										{new Date(item.createdAt).toLocaleString()}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)
+		}
+	</div>
+</div>

@@ -1,0 +1,8 @@
+---
+import { clearAdminAuthCookie } from '../../lib/auth.js';
+
+export const prerender = false;
+
+clearAdminAuthCookie(Astro.cookies);
+return Astro.redirect('/authentication/sign-in?logged_out=1');
+---
