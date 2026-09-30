@@ -194,6 +194,26 @@ export const projects = pgTable(
 	}),
 );
 
+export const clerkApps = pgTable(
+	'clerk_apps',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		name: varchar('name', { length: 255 }).notNull(),
+		publishableKey: text('publishable_key').notNull(),
+		secretKeyEncrypted: text('secret_key_encrypted').notNull(),
+		instanceUrl: text('instance_url'),
+		projectSlug: varchar('project_slug', { length: 255 }),
+		isDefault: boolean('is_default').notNull().default(false),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => ({
+		nameIdx: index('idx_clerk_apps_name').on(table.name),
+		isDefaultIdx: index('idx_clerk_apps_is_default').on(table.isDefault),
+		createdAtIdx: index('idx_clerk_apps_created_at').on(table.createdAt),
+	}),
+);
+
 export type InstagramAccount = typeof instagramAccounts.$inferSelect;
 export type NewInstagramAccount = typeof instagramAccounts.$inferInsert;
 
@@ -217,3 +237,7 @@ export type NewAutomationSetting = typeof automationSettings.$inferInsert;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
+
+export type ClerkApp = typeof clerkApps.$inferSelect;
+export type NewClerkApp = typeof clerkApps.$inferInsert;
+
