@@ -21,7 +21,7 @@ export const get: APIRoute = async ({ request, cookies, url }) => {
 		if (refresh) {
 			const apiResult = await fetchInstagramConversations(isNaN(limit) ? 20 : limit);
 			return new Response(JSON.stringify(apiResult), {
-				status: 200,
+				status: apiResult.success ? 200 : 400,
 				headers: { 'Content-Type': 'application/json' },
 			});
 		}
@@ -46,7 +46,7 @@ export const get: APIRoute = async ({ request, cookies, url }) => {
 		// Fall back to live Meta Graph API fetch
 		const apiResult = await fetchInstagramConversations(isNaN(limit) ? 20 : limit);
 		return new Response(JSON.stringify(apiResult), {
-			status: 200,
+			status: apiResult.success ? 200 : 400,
 			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (error: any) {

@@ -308,7 +308,10 @@ if (account && db) {
 				if (data.success) {
 					window.location.reload();
 				} else {
-					alert(data.error || 'Failed to refresh conversations');
+					const message = data.error || 'Failed to refresh conversations';
+					if (/190|access token|reconnect|authorization/i.test(message)) {
+						window.location.assign('/settings/instagram?status=error&message=' + encodeURIComponent('Instagram authorization is invalid. Reconnect your account to restore comments and inbox access.'));
+					} else alert(message);
 				}
 			} catch (e: any) {
 				alert(e.message || 'Network error');
@@ -355,9 +358,24 @@ if (account && db) {
 							</div>
 						`)
 							.join('');
+					} else if (!data.success) {
+						messagesPane.replaceChildren();
+						const error = document.createElement('div');
+						error.className = 'text-center py-8 text-xs text-red-500';
+						error.textContent = data.error || 'Could not load this conversation.';
+						messagesPane.append(error);
+						if (/190|access token|reconnect|authorization/i.test(error.textContent)) {
+							const link = document.createElement('a');
+							link.href = '/settings/instagram';
+							link.className = 'block text-center mt-2 text-primary-600 underline';
+							link.textContent = 'Reconnect Instagram';
+							messagesPane.append(link);
+						}
+					} else {
+						messagesPane.textContent = 'No messages were returned for this conversation.';
 					}
 				} catch (err) {
-					console.warn('Could not fetch thread messages:', err);
+					messagesPane.textContent = `Could not load messages: ${(err as Error).message}`;
 				}
 			}
 		});
@@ -405,7 +423,10 @@ if (account && db) {
 						pane.scrollTop = pane.scrollHeight;
 					}
 				} else {
-					alert(data.error || 'Failed to send direct message');
+					const message = data.error || 'Failed to send direct message';
+					if (/190|access token|reconnect|authorization/i.test(message)) {
+						window.location.assign('/settings/instagram?status=error&message=' + encodeURIComponent('Instagram authorization is invalid. Reconnect your account to restore comments and inbox access.'));
+					} else alert(message);
 				}
 			} catch (err: any) {
 				alert(err.message || 'Network error sending DM');

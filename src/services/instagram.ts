@@ -240,7 +240,8 @@ export async function getActiveInstagramAccount(): Promise<schema.InstagramAccou
 					return { ...connected, ...updated };
 				} catch (error) {
 					const message = error instanceof Error ? error.message : 'Instagram token refresh failed.';
-					await db.update(schema.instagramAccounts).set({ status: 'error', lastError: message, updatedAt: new Date() }).where(eq(schema.instagramAccounts.id, connected.id));
+					const invalidToken = /190|invalid oauth access token|cannot parse access token/i.test(message);
+					await db.update(schema.instagramAccounts).set({ status: invalidToken ? 'expired' : 'error', lastError: invalidToken ? `Instagram authorization is no longer valid: ${message}. Reconnect the account.` : message, updatedAt: new Date() }).where(eq(schema.instagramAccounts.id, connected.id));
 					return null;
 				}
 			}
@@ -276,14 +277,14 @@ export async function syncInstagramMedia(
 		let lastApiError: string | null = null;
 
 		// Candidate endpoints ordered by provider type (Instagram Direct vs Facebook Graph)
-		let nextUrl: string | undefined = `${GRAPH_API_BASE}/me/media?${new URLSearchParams({ fields: 'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,username,children{id,media_type,media_url,thumbnail_url}', limit: String(Math.min(100, Math.max(1, limit))), access_token: decryptedToken })}`;
+		let nextUrl: string | undefined = `${GRAPH_API_BASE}/me/media?${new URLSearchParams({ fields: 'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,username,comments_count,like_count,children{id,media_type,media_url,thumbnail_url}', limit: String(Math.min(100, Math.max(1, limit))), access_token: decryptedToken })}`;
 		const maxPages = Math.ceil(Math.min(500, Math.max(1, limit)) / 100);
 		for (let page = 0; nextUrl && page < maxPages; page += 1) {
 			try {
 				const response = await fetchWithRetry(nextUrl);
 				const data = await response.json();
 
-				if (data && Array.isArray(data.data)) {
+				if (response.ok && data && Array.isArray(data.data)) {
 					rawItems ||= [];
 					rawItems.push(...data.data);
 					nextUrl = data.paging?.next;
@@ -440,43 +441,42 @@ export async function fetchInstagramComments(
 ): Promise<{ success: boolean; comments: any[]; error?: string }> {
 	const account = await getActiveInstagramAccount();
 	if (!account) {
-		return { success: false, comments: [], error: 'No active Instagram account connected.' };
+		return { success: false, comments: [], error: 'No active Instagram account connected. Reconnect Instagram in Settings to load comments.' };
 	}
 
 	try {
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
-		const candidateUrls = [
-			// Direct Instagram Graph endpoints
-			`${GRAPH_API_BASE}/${mediaId}/comments?${new URLSearchParams({ fields: 'id,text,timestamp,username,like_count,from{id,username}', limit: String(Math.min(100, Math.max(1, limit))), access_token: decryptedToken })}`,
-		];
+		const db = getDb();
+		const media = await db?.select().from(schema.instagramMedia).where(and(eq(schema.instagramMedia.mediaId, mediaId), eq(schema.instagramMedia.accountId, account.id))).limit(1);
+		if (!media?.length) return { success: false, comments: [], error: 'This post or Reel is not in the connected Instagram account. Sync your media and try again.' };
 
-		let comments: any[] | null = null;
-		let lastError: string | null = null;
-
-		for (const url of candidateUrls) {
-			try {
-				const response = await fetchWithRetry(url);
-				const data = await response.json();
-				if (data && Array.isArray(data.data)) {
-					comments = data.data;
-					break;
-				} else if (data && data.error) {
-					lastError = data.error.message;
-					console.warn(`[Comments Fetch] Notice from ${url.split('?')[0]}: ${data.error.message}`);
-				}
-			} catch (e: any) {
-				lastError = e.message;
+		// Keep to documented comment fields supported by Instagram Login. `from{...}` is not
+		// consistently available for comments returned through this API login flow.
+		const comments: any[] = [];
+		let nextUrl: string | undefined = `${GRAPH_API_BASE}/${encodeURIComponent(mediaId)}/comments?${new URLSearchParams({ fields: 'id,text,timestamp,username,like_count', limit: String(Math.min(100, Math.max(1, limit))), access_token: decryptedToken })}`;
+		while (nextUrl && comments.length < Math.min(100, Math.max(1, limit))) {
+			const response = await fetchWithRetry(nextUrl);
+			const data = await response.json();
+			if (!response.ok || !Array.isArray(data?.data)) {
+				const errorMessage = data?.error?.message || `Instagram API returned HTTP ${response.status} while loading comments.`;
+				if (data?.error?.code === 190) await markAccountForReauthorization(account.id, errorMessage);
+				return { success: false, comments: [], error: errorMessage };
 			}
+			comments.push(...data.data);
+			nextUrl = data.paging?.next;
 		}
-
-		if (comments === null) {
-			return { success: false, comments: [], error: lastError || 'Failed to fetch comments.' };
-		}
-
-		return { success: true, comments };
+		return { success: true, comments: comments.slice(0, Math.min(100, Math.max(1, limit))) };
 	} catch (error: any) {
 		return { success: false, comments: [], error: error.message };
 	}
+}
+
+async function markAccountForReauthorization(accountId: string, reason: string): Promise<void> {
+	const db = getDb();
+	if (!db) return;
+	await db.update(schema.instagramAccounts)
+		.set({ status: 'expired', lastError: `Instagram authorization is no longer valid: ${reason}. Reconnect the account.`, updatedAt: new Date() })
+		.where(eq(schema.instagramAccounts.id, accountId));
 }
 
 /**
@@ -501,16 +501,18 @@ export async function fetchInstagramConversations(
 			try {
 				const response = await fetchWithRetry(url);
 				const data = await response.json();
-				if (data && Array.isArray(data.data)) {
+				if (response.ok && data && Array.isArray(data.data)) {
 					convos = data.data;
 					break;
 				} else if (data && data.error) {
 					lastError = data.error.message;
+					if (data.error.code === 190) await markAccountForReauthorization(account.id, lastError || data.error.message);
 				}
 			} catch (e: any) {
 				lastError = e.message;
 			}
 		}
+		if (lastError) return { success: false, conversations: [], error: lastError };
 
 		const db = getDb();
 		// Cache conversations into local database
@@ -577,7 +579,11 @@ export async function fetchConversationMessages(
 		const decryptedToken = decryptToken(account.accessTokenEncrypted);
 		const response = await fetchWithRetry(`${GRAPH_API_BASE}/${conversationId}/messages?${new URLSearchParams({ fields: 'id,created_time,from,to,message', limit: String(Math.min(100, Math.max(1, limit))), access_token: decryptedToken })}`);
 		const data = await response.json();
-		if (!response.ok || !Array.isArray(data.data)) return { success: false, messages: [], error: data.error?.message || `Instagram API returned HTTP ${response.status}.` };
+		if (!response.ok || !Array.isArray(data.data)) {
+			const error = data.error?.message || `Instagram API returned HTTP ${response.status}.`;
+			if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
+			return { success: false, messages: [], error };
+		}
 		return { success: true, messages: data.data };
 	} catch (error: any) {
 		return { success: false, messages: [], error: error.message };
@@ -627,7 +633,9 @@ export async function sendInstagramMessage(
 		});
 		const data = await response.json();
 		if (response.ok && data.message_id) return { success: true, messageId: data.message_id };
-		return { success: false, error: data.error?.message || `Instagram Send API returned HTTP ${response.status}.` };
+		const error = data.error?.message || `Instagram Send API returned HTTP ${response.status}.`;
+		if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
+		return { success: false, error };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram DM' };
 	}
@@ -657,7 +665,9 @@ export async function sendInstagramPrivateReply(
 		});
 		const data = await response.json();
 		if (response.ok && data.message_id) return { success: true, messageId: data.message_id };
-		return { success: false, error: data.error?.message || `Instagram Private Reply returned HTTP ${response.status}.` };
+		const error = data.error?.message || `Instagram Private Reply returned HTTP ${response.status}.`;
+		if (data.error?.code === 190) await markAccountForReauthorization(account.id, error);
+		return { success: false, error };
 	} catch (error: any) {
 		return { success: false, error: error.message || 'Failed to send Instagram Private Reply' };
 	}

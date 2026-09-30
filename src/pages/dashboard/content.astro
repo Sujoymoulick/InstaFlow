@@ -354,7 +354,8 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 				<div class="p-6 space-y-4 max-h-96 overflow-y-auto" id="comments-container">
 					<div class="text-center py-6 text-xs text-gray-500">Loading comments...</div>
 				</div>
-				<div class="flex items-center justify-end p-4 border-t border-gray-200 rounded-b dark:border-gray-700">
+				<div class="flex items-center justify-between p-4 border-t border-gray-200 rounded-b dark:border-gray-700">
+					<button type="button" id="comments-configure-automation" class="text-xs font-medium text-primary-700 hover:underline dark:text-primary-400">Configure auto-DM for future comments</button>
 					<button
 						type="button"
 						id="dismiss-comments-modal"
@@ -552,16 +553,24 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 	const dismissCommentsModal = document.getElementById('dismiss-comments-modal');
 	const commentsContainer = document.getElementById('comments-container');
 	const commentsCaption = document.getElementById('modal-comments-caption');
+	const commentsConfigureAutomation = document.getElementById('comments-configure-automation');
+	let activeCommentsMediaId = '';
 
 	const hideComments = () => commentsModal?.classList.add('hidden');
 	closeCommentsModal?.addEventListener('click', hideComments);
 	dismissCommentsModal?.addEventListener('click', hideComments);
+	commentsConfigureAutomation?.addEventListener('click', () => {
+		hideComments();
+		const configButton = [...document.querySelectorAll<HTMLElement>('.config-automation-btn')].find((button) => button.dataset.mediaId === activeCommentsMediaId);
+		configButton?.click();
+	});
 
 	document.querySelectorAll('.view-comments-btn').forEach((btn) => {
 		btn.addEventListener('click', async (e) => {
 			const target = e.currentTarget as HTMLElement;
 			const mediaId = target.getAttribute('data-media-id');
 			const caption = target.getAttribute('data-caption');
+			activeCommentsMediaId = mediaId || '';
 
 			if (commentsCaption) commentsCaption.textContent = caption || 'Post ID: ' + mediaId;
 			if (commentsContainer) {
@@ -570,32 +579,53 @@ const activeTab = Astro.url.searchParams.get('tab') || 'posts';
 			commentsModal?.classList.remove('hidden');
 
 			try {
-				const res = await fetch(`/api/instagram/comments?mediaId=${mediaId}`);
+				const res = await fetch(`/api/instagram/comments?mediaId=${encodeURIComponent(mediaId || '')}&limit=100`);
 				const data = await res.json();
 
 				if (commentsContainer) {
-					if (data.success && Array.isArray(data.comments) && data.comments.length > 0) {
-						commentsContainer.innerHTML = data.comments
-							.map(
-								(c: any) => `
-							<div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
-								<div class="flex items-center justify-between">
-									<span class="font-bold text-gray-900 dark:text-white">@${c.username || c.from?.username || 'user'}</span>
-									<span class="text-gray-400 text-[11px]">${new Date(c.timestamp).toLocaleString()}</span>
-								</div>
-								<p class="text-gray-700 dark:text-gray-300">${c.text}</p>
-							</div>
-						`,
-							)
-							.join('');
+					commentsContainer.replaceChildren();
+					if (!res.ok || !data.success) {
+						const error = document.createElement('div');
+						error.className = 'text-center py-6 text-xs text-red-500';
+						error.textContent = data.error || `Instagram could not load comments (HTTP ${res.status}).`;
+						commentsContainer.append(error);
+						if (/190|access token|reconnect|authorization/i.test(error.textContent)) {
+							const link = document.createElement('a');
+							link.href = '/settings/instagram';
+							link.className = 'block mt-3 text-primary-600 underline';
+							link.textContent = 'Reconnect Instagram';
+							error.append(link);
+						}
+					} else if (Array.isArray(data.comments) && data.comments.length > 0) {
+						for (const comment of data.comments) {
+							const row = document.createElement('div');
+							row.className = 'p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1';
+							const header = document.createElement('div');
+							header.className = 'flex items-center justify-between';
+							const username = document.createElement('span');
+							username.className = 'font-bold text-gray-900 dark:text-white';
+							username.textContent = `@${comment.username || 'Instagram user'}`;
+							const timestamp = document.createElement('span');
+							timestamp.className = 'text-gray-400 text-[11px]';
+							const date = new Date(comment.timestamp);
+						timestamp.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+							header.append(username, timestamp);
+							const text = document.createElement('p');
+							text.className = 'text-gray-700 dark:text-gray-300 whitespace-pre-wrap';
+							text.textContent = comment.text || '';
+							row.append(header, text);
+							commentsContainer.append(row);
+						}
 					} else {
-						commentsContainer.innerHTML =
-							'<div class="text-center py-6 text-xs text-gray-400">No comments found on this post yet.</div>';
+						const empty = document.createElement('div');
+						empty.className = 'text-center py-6 text-xs text-gray-400';
+						empty.textContent = 'Instagram returned no comments for this post. New comments will be handled after you activate an automation.';
+						commentsContainer.append(empty);
 					}
 				}
 			} catch (err: any) {
 				if (commentsContainer) {
-					commentsContainer.innerHTML = `<div class="text-center py-6 text-xs text-red-500">Error loading comments: ${err.message}</div>`;
+					commentsContainer.textContent = `Error loading comments: ${err.message}`;
 				}
 			}
 		});
