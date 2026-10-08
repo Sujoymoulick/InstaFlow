@@ -241,3 +241,59 @@ export type NewProject = typeof projects.$inferInsert;
 export type ClerkApp = typeof clerkApps.$inferSelect;
 export type NewClerkApp = typeof clerkApps.$inferInsert;
 
+export const submissions = pgTable(
+	'submissions',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: text('user_id').notNull(),
+		userEmail: text('user_email'),
+		userName: text('user_name'),
+		userAvatarUrl: text('user_avatar_url'),
+		title: varchar('title', { length: 255 }).notNull(),
+		description: text('description'),
+		url: text('url').notNull(),
+		previewImageUrl: text('preview_image_url'),
+		category: varchar('category', { length: 100 }).notNull().default('General'),
+		tags: jsonb('tags').$type<string[]>().default([]),
+		status: varchar('status', { length: 50 }).notNull().default('Pending Review'),
+		rejectionReason: text('rejection_reason'),
+		reviewedBy: text('reviewed_by'),
+		reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+		publishedAt: timestamp('published_at', { withTimezone: true }),
+		metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => ({
+		userIdIdx: index('idx_submissions_user_id').on(table.userId),
+		statusIdx: index('idx_submissions_status').on(table.status),
+		categoryIdx: index('idx_submissions_category').on(table.category),
+		createdAtIdx: index('idx_submissions_created_at').on(table.createdAt),
+		updatedAtIdx: index('idx_submissions_updated_at').on(table.updatedAt),
+	}),
+);
+
+export const submissionAuditLogs = pgTable(
+	'submission_audit_logs',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		submissionId: uuid('submission_id'),
+		adminEmail: text('admin_email').notNull(),
+		action: text('action').notNull(),
+		previousStatus: text('previous_status'),
+		newStatus: text('new_status'),
+		details: text('details'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => ({
+		submissionIdIdx: index('idx_sub_audit_logs_submission_id').on(table.submissionId),
+		adminEmailIdx: index('idx_sub_audit_logs_admin_email').on(table.adminEmail),
+		createdAtIdx: index('idx_sub_audit_logs_created_at').on(table.createdAt),
+	}),
+);
+
+export type Submission = typeof submissions.$inferSelect;
+export type NewSubmission = typeof submissions.$inferInsert;
+export type SubmissionAuditLog = typeof submissionAuditLogs.$inferSelect;
+export type NewSubmissionAuditLog = typeof submissionAuditLogs.$inferInsert;
+

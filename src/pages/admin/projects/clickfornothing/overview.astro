@@ -1,0 +1,485 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSubmissionStats, listSubmissions } from '../../../../projects/clickfornothing/services/submissions.js';
+import { listAuditLogs } from '../../../../projects/clickfornothing/services/audit.js';
+import { probeAllCfnIntegrations } from '../../../../projects/clickfornothing/services/integrations.js';
+import { listClickForNothingUsers } from '../../../../projects/clickfornothing/services/users.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const [stats, recentResult, auditLogs, integrations, users] = await Promise.all([
+	getSubmissionStats(),
+	listSubmissions({ limit: 6, sort: 'newest' }),
+	listAuditLogs(6),
+	probeAllCfnIntegrations(),
+	listClickForNothingUsers(),
+]);
+
+const recentSubmissions = recentResult.submissions;
+const dbIntegration = integrations.find((i) => i.id === 'neon');
+const clerkIntegration = integrations.find((i) => i.id === 'clerk');
+const webIntegration = integrations.find((i) => i.id === 'website');
+const totalUsersCount = users.length;
+---
+
+<LayoutSidebar title="ClickForNothing Admin | Overview & Realtime Stats">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="overview"
+			title="Dashboard & Moderation Overview"
+			subtitle="Centralized management, moderation pipeline, and real-time statistics for user-submitted websites."
+		/>
+
+		<!-- Realtime Production Connection Banner -->
+		<div class="p-4 mb-6 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 rounded-xl text-white shadow-md border border-indigo-700/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+			<div class="flex items-center space-x-3">
+				<div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+					<span class="text-xl">⚡</span>
+					<span class="absolute -top-1 -right-1 flex h-3 w-3">
+						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+						<span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+					</span>
+				</div>
+				<div>
+					<div class="flex items-center space-x-2">
+						<h3 class="text-sm font-bold text-white tracking-wide">
+							Realtime Production Connection (.env)
+						</h3>
+						<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+							LIVE SYNC ACTIVE
+						</span>
+					</div>
+					<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-indigo-200">
+						<span class="flex items-center">
+							<span class="w-2 h-2 rounded-full mr-1.5 bg-emerald-400"></span>
+							Neon DB: <strong class="ml-1 text-white">{dbIntegration?.status === 'connected' ? `Connected (${dbIntegration.latencyMs}ms)` : 'Disconnected'}</strong>
+						</span>
+						<span class="flex items-center">
+							<span class="w-2 h-2 rounded-full mr-1.5 bg-emerald-400"></span>
+							Clerk Auth: <strong class="ml-1 text-white">{clerkIntegration?.status === 'connected' ? `Connected (${clerkIntegration.latencyMs}ms)` : 'Disconnected'}</strong>
+						</span>
+						<span class="flex items-center">
+							<span class="w-2 h-2 rounded-full mr-1.5 bg-emerald-400"></span>
+							Site: <strong class="ml-1 text-white">clickfornothing.com</strong>
+						</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="flex items-center space-x-3 text-xs">
+				<span class="text-indigo-200 text-[11px]" id="realtime-last-sync">
+					Synced: Just now
+				</span>
+				<button
+					type="button"
+					id="btn-sync-realtime"
+					onclick="refreshRealtimeData()"
+					class="inline-flex items-center px-3 py-1.5 font-semibold text-indigo-900 bg-white hover:bg-indigo-50 rounded-lg shadow-sm transition"
+				>
+					<svg id="sync-spinner" class="w-3.5 h-3.5 mr-1.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+					</svg>
+					Sync Now
+				</button>
+			</div>
+		</div>
+
+		<!-- 6 Overview Cards Grid -->
+		<div class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-3 lg:grid-cols-6">
+			<!-- Total Users -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Users</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1" id="stat-total-users">
+							{totalUsersCount}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg dark:bg-gray-700 dark:text-indigo-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-indigo-500"></span>
+					Clerk + Submitters
+				</div>
+			</div>
+
+			<!-- Total Submissions -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Submissions</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1" id="stat-total-submissions">
+							{stats.totalSubmissions}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg dark:bg-gray-700 dark:text-blue-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-blue-500"></span>
+					Neon DB Submissions
+				</div>
+			</div>
+
+			<!-- Pending Review -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-amber-600 uppercase dark:text-amber-400">Pending Review</span>
+						<h3 class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1" id="stat-pending-review">
+							{stats.pendingReview}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-amber-50 text-amber-600 rounded-lg dark:bg-gray-700 dark:text-amber-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-amber-500 animate-pulse"></span>
+					Awaiting Moderation
+				</div>
+			</div>
+
+			<!-- Approved -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-sky-600 uppercase dark:text-sky-400">Approved</span>
+						<h3 class="text-2xl font-bold text-sky-600 dark:text-sky-400 mt-1" id="stat-approved">
+							{stats.approved}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-sky-50 text-sky-600 rounded-lg dark:bg-gray-700 dark:text-sky-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-sky-500"></span>
+					Ready to Publish
+				</div>
+			</div>
+
+			<!-- Rejected -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-rose-600 uppercase dark:text-rose-400">Rejected</span>
+						<h3 class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1" id="stat-rejected">
+							{stats.rejected}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-rose-50 text-rose-600 rounded-lg dark:bg-gray-700 dark:text-rose-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-rose-500"></span>
+					Requires Revision
+				</div>
+			</div>
+
+			<!-- Published -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-emerald-600 uppercase dark:text-emerald-400">Published</span>
+						<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1" id="stat-published">
+							{stats.published}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg dark:bg-gray-700 dark:text-emerald-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-emerald-500"></span>
+					Live on Directory
+				</div>
+			</div>
+		</div>
+
+		<!-- Moderation Lifecycle Banner -->
+		<div class="p-4 mb-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-indigo-100 rounded-xl dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 dark:border-gray-700">
+			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<div>
+					<h4 class="text-sm font-bold text-indigo-950 dark:text-indigo-200 flex items-center">
+						<span class="mr-2">🔄</span> Moderation Pipeline Workflow
+					</h4>
+					<p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+						Strict server-side verification: <span class="font-semibold text-amber-700 dark:text-amber-300">Pending Review</span> → <span class="font-semibold text-sky-700 dark:text-sky-300">Approved</span> → <span class="font-semibold text-emerald-700 dark:text-emerald-300">Published</span> (or <span class="font-semibold text-rose-700 dark:text-rose-300">Rejected</span> with reason).
+					</p>
+				</div>
+				<div class="flex items-center space-x-2">
+					<a
+						href={url('admin/projects/clickfornothing/pending-review')}
+						class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition"
+					>
+						Review Queue ({stats.pendingReview})
+					</a>
+					<a
+						href={url('admin/projects/clickfornothing/submissions')}
+						class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-lg shadow-sm transition"
+					>
+						All Submissions →
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Middle Grid: Recent Submissions & Activity Log -->
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
+			<!-- Recent Submissions Table (2 Cols) -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 lg:col-span-2">
+				<div class="flex items-center justify-between mb-4">
+					<div>
+						<h3 class="text-base font-bold text-gray-900 dark:text-white">
+							Recent User Submissions
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							Live submissions queried directly from Neon PostgreSQL
+						</p>
+					</div>
+					<a
+						href={url('admin/projects/clickfornothing/submissions')}
+						class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 hover:underline"
+					>
+						Manage All ({stats.totalSubmissions}) →
+					</a>
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full text-xs text-left text-gray-500 dark:text-gray-400" id="submissions-table">
+						<thead class="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-gray-700/50 dark:text-gray-400">
+							<tr>
+								<th class="px-3 py-2.5">Title / Site</th>
+								<th class="px-3 py-2.5">Submitter</th>
+								<th class="px-3 py-2.5">Category</th>
+								<th class="px-3 py-2.5">Status</th>
+								<th class="px-3 py-2.5 text-right">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="submissions-tbody">
+							{
+								recentSubmissions.map((sub) => {
+									let badgeClass = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+									if (sub.status === 'Pending Review') badgeClass = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200';
+									else if (sub.status === 'Approved') badgeClass = 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200';
+									else if (sub.status === 'Published') badgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200';
+									else if (sub.status === 'Rejected') badgeClass = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200';
+
+									return (
+										<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition">
+											<td class="px-3 py-3">
+												<div class="font-semibold text-gray-900 dark:text-white line-clamp-1">
+													{sub.title}
+												</div>
+												<a
+													href={sub.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400 line-clamp-1 inline-flex items-center"
+												>
+													{sub.url}
+													<svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+													</svg>
+												</a>
+											</td>
+											<td class="px-3 py-3">
+												<div class="text-gray-900 dark:text-white font-medium">
+													{sub.userName || 'Anonymous'}
+												</div>
+												<div class="text-[11px] text-gray-400">
+													{sub.userEmail || sub.userId.substring(0, 14)}
+												</div>
+											</td>
+											<td class="px-3 py-3 text-gray-600 dark:text-gray-300">
+												<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+													{sub.category}
+												</span>
+											</td>
+											<td class="px-3 py-3">
+												<span class={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${badgeClass}`}>
+													{sub.status}
+												</span>
+											</td>
+											<td class="px-3 py-3 text-right">
+												<a
+													href={url(`admin/projects/clickfornothing/submissions/${sub.id}`)}
+													class="inline-flex items-center px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 rounded-lg transition"
+												>
+													Details
+												</a>
+											</td>
+										</tr>
+									);
+								})
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Admin Activity & Audit Log (1 Col) -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-base font-bold text-gray-900 dark:text-white">
+						Audit Activity Trail
+					</h3>
+					<span class="text-xs text-gray-400">Logged Actions</span>
+				</div>
+
+				<div class="space-y-3" id="audit-logs-container">
+					{
+						auditLogs.length === 0 ? (
+							<div class="text-center py-6 text-xs text-gray-400">
+								No admin actions recorded yet.
+							</div>
+						) : (
+							auditLogs.map((log) => (
+								<div class="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+									<div class="flex items-center justify-between mb-1">
+										<span class="text-xs font-semibold text-gray-900 dark:text-white">
+											{log.action}
+										</span>
+										<span class="text-[10px] text-gray-400">
+											{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+										</span>
+									</div>
+									<p class="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2">
+										{log.details || `Updated status by ${log.adminEmail}`}
+									</p>
+									<div class="mt-1 flex items-center justify-between text-[10px] text-gray-400">
+										<span>Admin: {log.adminEmail}</span>
+										{log.newStatus && (
+											<span class="font-semibold text-primary-600 dark:text-primary-400">
+												→ {log.newStatus}
+											</span>
+										)}
+									</div>
+								</div>
+							))
+						)
+					}
+				</div>
+
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-center">
+					<a
+						href={url('admin/projects/clickfornothing/submissions')}
+						class="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+					>
+						View Submissions Management →
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Quick Navigation Grid -->
+		<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+				ClickForNothing Direct Actions & Integrations
+			</h3>
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+				<a
+					href={url('admin/projects/clickfornothing/submissions')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">📂</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600">Submissions ({stats.totalSubmissions})</div>
+				</a>
+				<a
+					href={url('admin/projects/clickfornothing/pending-review')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-amber-500 hover:bg-amber-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">⏳</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-amber-600">Pending Review ({stats.pendingReview})</div>
+				</a>
+				<a
+					href={url('admin/projects/clickfornothing/published')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">🚀</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-emerald-600">Published ({stats.published})</div>
+				</a>
+				<a
+					href={url('admin/projects/clickfornothing/users')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">👥</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600">Users ({totalUsersCount})</div>
+				</a>
+				<a
+					href={url('admin/projects/clickfornothing/databases')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">🗄️</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600">Databases</div>
+				</a>
+				<a
+					href={url('admin/projects/clickfornothing/integrations')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-gray-700 transition group"
+				>
+					<div class="text-2xl mb-1">🔌</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600">Integrations (4)</div>
+				</a>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		async function refreshRealtimeData() {
+			const spinner = document.getElementById('sync-spinner');
+			const syncText = document.getElementById('realtime-last-sync');
+			if (spinner) spinner.classList.add('animate-spin');
+
+			try {
+				const res = await fetch('/api/admin/projects/clickfornothing/realtime');
+				if (res.ok) {
+					const data = await res.json();
+					if (data.success && data.stats) {
+						const elUsers = document.getElementById('stat-total-users');
+						const elSub = document.getElementById('stat-total-submissions');
+						const elPending = document.getElementById('stat-pending-review');
+						const elApproved = document.getElementById('stat-approved');
+						const elPublished = document.getElementById('stat-published');
+						const elRejected = document.getElementById('stat-rejected');
+
+						if (elUsers) elUsers.textContent = data.stats.totalUsers;
+						if (elSub) elSub.textContent = data.stats.totalSubmissions;
+						if (elPending) elPending.textContent = data.stats.pendingReview;
+						if (elApproved) elApproved.textContent = data.stats.approved;
+						if (elPublished) elPublished.textContent = data.stats.published;
+						if (elRejected) elRejected.textContent = data.stats.rejected;
+
+						if (syncText) syncText.textContent = `Synced: ${new Date().toLocaleTimeString()}`;
+					}
+				}
+			} catch (err) {
+				console.error('Realtime sync error:', err);
+			} finally {
+				if (spinner) spinner.classList.remove('animate-spin');
+			}
+		}
+
+		// Auto background sync every 15 seconds
+		setInterval(refreshRealtimeData, 15000);
+	</script>
+</LayoutSidebar>

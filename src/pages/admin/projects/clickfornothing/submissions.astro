@@ -1,0 +1,911 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { listSubmissions, getSubmissionStats } from '../../../../projects/clickfornothing/services/submissions.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+// Query params for server-side initial rendering
+const requestUrl = new URL(Astro.request.url);
+const search = requestUrl.searchParams.get('search') || undefined;
+const status = requestUrl.searchParams.get('status') || undefined;
+const category = requestUrl.searchParams.get('category') || undefined;
+const dateRange = (requestUrl.searchParams.get('dateRange') as any) || 'all';
+const sort = (requestUrl.searchParams.get('sort') as any) || 'newest';
+const page = parseInt(requestUrl.searchParams.get('page') || '1', 10);
+const limit = 15;
+
+const [submissionsData, stats] = await Promise.all([
+	listSubmissions({ search, status, category, dateRange, sort, page, limit }),
+	getSubmissionStats(),
+]);
+
+const { submissions, total, totalPages } = submissionsData;
+---
+
+<LayoutSidebar title="Submissions Management | ClickForNothing Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="submissions"
+			title="Submissions Management"
+			subtitle="Inspect, preview, approve, reject, and publish user-submitted websites."
+		/>
+
+		<!-- Quick Metric Badges Bar -->
+		<div class="flex flex-wrap items-center gap-2 mb-4">
+			<a
+				href={url('admin/projects/clickfornothing/submissions')}
+				class={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition ${
+					!status || status === 'all'
+						? 'bg-indigo-600 text-white shadow-sm'
+						: 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+				}`}
+			>
+				All Submissions <span class="ml-1.5 px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">{stats.totalSubmissions}</span>
+			</a>
+			<a
+				href={url('admin/projects/clickfornothing/submissions?status=Pending+Review')}
+				class={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition ${
+					status === 'Pending Review'
+						? 'bg-amber-500 text-white shadow-sm'
+						: 'bg-white text-amber-700 hover:bg-amber-50 border border-amber-200 dark:bg-gray-800 dark:text-amber-400 dark:border-gray-700'
+				}`}
+			>
+				Pending Review <span class="ml-1.5 px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full text-[10px]">{stats.pendingReview}</span>
+			</a>
+			<a
+				href={url('admin/projects/clickfornothing/submissions?status=Approved')}
+				class={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition ${
+					status === 'Approved'
+						? 'bg-sky-600 text-white shadow-sm'
+						: 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-200 dark:bg-gray-800 dark:text-sky-400 dark:border-gray-700'
+				}`}
+			>
+				Approved <span class="ml-1.5 px-1.5 py-0.2 bg-sky-100 text-sky-900 rounded-full text-[10px]">{stats.approved}</span>
+			</a>
+			<a
+				href={url('admin/projects/clickfornothing/submissions?status=Published')}
+				class={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition ${
+					status === 'Published'
+						? 'bg-emerald-600 text-white shadow-sm'
+						: 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200 dark:bg-gray-800 dark:text-emerald-400 dark:border-gray-700'
+				}`}
+			>
+				Published <span class="ml-1.5 px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded-full text-[10px]">{stats.published}</span>
+			</a>
+			<a
+				href={url('admin/projects/clickfornothing/submissions?status=Rejected')}
+				class={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center transition ${
+					status === 'Rejected'
+						? 'bg-rose-600 text-white shadow-sm'
+						: 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200 dark:bg-gray-800 dark:text-rose-400 dark:border-gray-700'
+				}`}
+			>
+				Rejected <span class="ml-1.5 px-1.5 py-0.2 bg-rose-100 text-rose-900 rounded-full text-[10px]">{stats.rejected}</span>
+			</a>
+		</div>
+
+		<!-- Search, Filters, and Bulk Controls Card -->
+		<div class="p-4 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<form id="filter-form" method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 items-center">
+				<!-- Search -->
+				<div class="lg:col-span-5 relative">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+						</svg>
+					</div>
+					<input
+						type="text"
+						name="search"
+						value={search || ''}
+						placeholder="Search by title, URL, description, or submitter email..."
+						class="w-full pl-9 pr-3 py-2 text-xs text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					/>
+				</div>
+
+				<!-- Status Filter -->
+				<div class="lg:col-span-2">
+					<select
+						name="status"
+						class="w-full py-2 px-2.5 text-xs text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					>
+						<option value="all" selected={!status || status === 'all'}>All Statuses</option>
+						<option value="Pending Review" selected={status === 'Pending Review'}>Pending Review</option>
+						<option value="Approved" selected={status === 'Approved'}>Approved</option>
+						<option value="Published" selected={status === 'Published'}>Published</option>
+						<option value="Rejected" selected={status === 'Rejected'}>Rejected</option>
+					</select>
+				</div>
+
+				<!-- Date Filter -->
+				<div class="lg:col-span-2">
+					<select
+						name="dateRange"
+						class="w-full py-2 px-2.5 text-xs text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					>
+						<option value="all" selected={dateRange === 'all'}>All Time</option>
+						<option value="today" selected={dateRange === 'today'}>Today</option>
+						<option value="7d" selected={dateRange === '7d'}>Past 7 Days</option>
+						<option value="30d" selected={dateRange === '30d'}>Past 30 Days</option>
+					</select>
+				</div>
+
+				<!-- Sort -->
+				<div class="lg:col-span-2">
+					<select
+						name="sort"
+						class="w-full py-2 px-2.5 text-xs text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					>
+						<option value="newest" selected={sort === 'newest'}>Newest First</option>
+						<option value="oldest" selected={sort === 'oldest'}>Oldest First</option>
+						<option value="title_asc" selected={sort === 'title_asc'}>Title (A - Z)</option>
+						<option value="title_desc" selected={sort === 'title_desc'}>Title (Z - A)</option>
+					</select>
+				</div>
+
+				<!-- Filter Submit & Reset -->
+				<div class="lg:col-span-1 flex items-center space-x-1">
+					<button
+						type="submit"
+						class="w-full py-2 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition"
+					>
+						Filter
+					</button>
+				</div>
+			</form>
+
+			<!-- Bulk Actions Bar -->
+			<div id="bulk-bar" class="hidden mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
+				<div class="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center">
+					<span id="bulk-selected-count" class="font-bold text-indigo-600 dark:text-indigo-400 mr-1.5">0</span> submissions selected
+				</div>
+				<div class="flex items-center space-x-2">
+					<button
+						type="button"
+						id="btn-bulk-approve"
+						class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
+					>
+						<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+						</svg>
+						Approve Selected
+					</button>
+					<button
+						type="button"
+						id="btn-bulk-reject"
+						class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition"
+					>
+						<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+						Reject Selected
+					</button>
+					<button
+						type="button"
+						id="btn-bulk-clear"
+						class="px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+					>
+						Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Submissions Data Table -->
+		<div class="bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+			<div class="overflow-x-auto">
+				<table class="w-full text-xs text-left text-gray-500 dark:text-gray-400">
+					<thead class="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-gray-700/50 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+						<tr>
+							<th class="p-3 w-4">
+								<input
+									type="checkbox"
+									id="select-all-checkbox"
+									class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+								/>
+							</th>
+							<th class="px-3 py-3 font-semibold">Submission ID</th>
+							<th class="px-3 py-3 font-semibold">User</th>
+							<th class="px-3 py-3 font-semibold">Username / Email</th>
+							<th class="px-3 py-3 font-semibold">Title / Name</th>
+							<th class="px-3 py-3 font-semibold">Status</th>
+							<th class="px-3 py-3 font-semibold">Submitted Date</th>
+							<th class="px-3 py-3 font-semibold">Last Updated</th>
+							<th class="px-3 py-3 font-semibold text-right">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						{
+							submissions.length === 0 ? (
+								<tr>
+									<td colspan="9" class="p-8 text-center text-gray-500 dark:text-gray-400">
+										<div class="text-3xl mb-2">🔍</div>
+										<div class="font-medium">No submissions matched the selected filters.</div>
+										<p class="text-xs text-gray-400 mt-1">Try broadening your search term or clearing the status filter.</p>
+										<a
+											href={url('admin/projects/clickfornothing/submissions')}
+											class="inline-block mt-3 px-3 py-1.5 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+										>
+											Clear All Filters
+										</a>
+									</td>
+								</tr>
+							) : (
+								submissions.map((sub) => {
+									let statusBadge = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+									if (sub.status === 'Pending Review') statusBadge = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300';
+									else if (sub.status === 'Approved') statusBadge = 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300';
+									else if (sub.status === 'Published') statusBadge = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300';
+									else if (sub.status === 'Rejected') statusBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300';
+
+									const shortId = sub.id.startsWith('cfn-') ? sub.id : sub.id.substring(0, 8) + '...';
+
+									return (
+										<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition group" data-id={sub.id}>
+											<td class="p-3 w-4">
+												<input
+													type="checkbox"
+													class="submission-checkbox w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+													value={sub.id}
+												/>
+											</td>
+											<td class="px-3 py-3 font-mono font-medium text-gray-900 dark:text-white">
+												{shortId}
+											</td>
+											<td class="px-3 py-3">
+												<div class="flex items-center space-x-2">
+													{sub.userAvatarUrl ? (
+														<img src={sub.userAvatarUrl} alt="" class="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+													) : (
+														<div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 dark:bg-gray-700 dark:text-indigo-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+															{(sub.userName || 'U')[0].toUpperCase()}
+														</div>
+													)}
+													<div class="font-medium text-gray-900 dark:text-white line-clamp-1">
+														{sub.userName || 'Anonymous'}
+													</div>
+												</div>
+											</td>
+											<td class="px-3 py-3 text-gray-600 dark:text-gray-300">
+												<div class="line-clamp-1">{sub.userEmail || sub.userId}</div>
+											</td>
+											<td class="px-3 py-3">
+												<div class="font-semibold text-gray-900 dark:text-white line-clamp-1">
+													{sub.title}
+												</div>
+												<a
+													href={sub.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-[11px] text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center line-clamp-1"
+												>
+													{sub.url.replace(/^https?:\/\//, '')}
+													<svg class="w-2.5 h-2.5 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+													</svg>
+												</a>
+											</td>
+											<td class="px-3 py-3">
+												<span class={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}`}>
+													{sub.status}
+												</span>
+											</td>
+											<td class="px-3 py-3 text-gray-500 whitespace-nowrap">
+												{new Date(sub.createdAt).toLocaleDateString()}
+											</td>
+											<td class="px-3 py-3 text-gray-500 whitespace-nowrap">
+												{new Date(sub.updatedAt).toLocaleDateString()}
+											</td>
+											<td class="px-3 py-3 text-right whitespace-nowrap">
+												<div class="inline-flex items-center space-x-1">
+													<!-- Inspect Drawer Button -->
+													<button
+														type="button"
+														class="btn-inspect px-2 py-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 rounded transition"
+														data-submission={JSON.stringify(sub)}
+													>
+														Inspect
+													</button>
+
+													<!-- Quick Approve (if Pending Review) -->
+													{sub.status === 'Pending Review' && (
+														<button
+															type="button"
+															class="btn-quick-approve px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 rounded transition"
+															data-id={sub.id}
+															title="Approve Submission"
+														>
+															Approve
+														</button>
+													)}
+
+													<!-- Quick Reject -->
+													{sub.status !== 'Rejected' && (
+														<button
+															type="button"
+															class="btn-quick-reject px-2 py-1 text-[11px] font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/40 dark:text-rose-300 rounded transition"
+															data-id={sub.id}
+															data-title={sub.title}
+															title="Reject Submission"
+														>
+															Reject
+														</button>
+													)}
+
+													<!-- Quick Publish (if Approved) -->
+													{sub.status === 'Approved' && (
+														<button
+															type="button"
+															class="btn-quick-publish px-2 py-1 text-[11px] font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 rounded transition"
+															data-id={sub.id}
+															title="Publish Live"
+														>
+															Publish
+														</button>
+													)}
+												</div>
+											</td>
+										</tr>
+									);
+								})
+							)
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- Pagination Footer -->
+			<div class="p-3 bg-gray-50 border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex items-center justify-between">
+				<div class="text-xs text-gray-500 dark:text-gray-400">
+					Showing <span class="font-semibold text-gray-900 dark:text-white">{submissions.length}</span> of <span class="font-semibold text-gray-900 dark:text-white">{total}</span> submissions
+				</div>
+				<div class="flex items-center space-x-2">
+					{page > 1 && (
+						<a
+							href={url(`admin/projects/clickfornothing/submissions?page=${page - 1}${status ? `&status=${status}` : ''}${search ? `&search=${search}` : ''}`)}
+							class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
+						>
+							← Previous
+						</a>
+					)}
+					<span class="text-xs text-gray-600 dark:text-gray-400">
+						Page {page} of {totalPages || 1}
+					</span>
+					{page < totalPages && (
+						<a
+							href={url(`admin/projects/clickfornothing/submissions?page=${page + 1}${status ? `&status=${status}` : ''}${search ? `&search=${search}` : ''}`)}
+							class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
+						>
+							Next →
+						</a>
+					)}
+				</div>
+			</div>
+		</div>
+
+		<!-- ========================================================================= -->
+		<!-- COMPLETE SUBMISSION DETAIL & PREVIEW DRAWER (SLIDE OVER) -->
+		<!-- ========================================================================= -->
+		<div id="detail-drawer" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+			<div class="absolute inset-0 bg-gray-900/60 backdrop-blur-xs transition-opacity" id="drawer-backdrop"></div>
+
+			<div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+				<div class="w-screen max-w-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
+					<!-- Drawer Header -->
+					<div class="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800/80">
+						<div>
+							<span id="drawer-status-badge" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
+								Pending Review
+							</span>
+							<h3 id="drawer-title" class="text-lg font-bold text-gray-900 dark:text-white mt-1">
+								Submission Title
+							</h3>
+						</div>
+						<button type="button" id="drawer-close-btn" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+							</svg>
+						</button>
+					</div>
+
+					<!-- Drawer Body (Scrollable) -->
+					<div class="flex-1 overflow-y-auto p-5 space-y-6">
+						<!-- 1. Interactive Preview Section (Requested in Section 3 & 11) -->
+						<div class="p-4 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700/40 dark:border-gray-700">
+							<div class="flex items-center justify-between mb-3">
+								<h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center">
+									<svg class="w-4 h-4 mr-1.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+									</svg>
+									Website Preview Card
+								</h4>
+								<span class="text-[11px] text-gray-400" id="drawer-category">General</span>
+							</div>
+
+							<!-- Preview Thumbnail / Iframe placeholder -->
+							<div class="relative aspect-video w-full rounded-lg bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 overflow-hidden flex items-center justify-center">
+								<img id="drawer-preview-img" src="" alt="Site preview" class="w-full h-full object-cover hidden" />
+								<div id="drawer-preview-placeholder" class="text-center p-4">
+									<div class="text-3xl mb-1">🖥️</div>
+									<div class="text-xs font-medium text-gray-600 dark:text-gray-300" id="drawer-preview-sitename">Submitted Site</div>
+									<div class="text-[10px] text-gray-400 mt-0.5">Secure external sandbox preview</div>
+								</div>
+							</div>
+
+							<!-- URL & Links -->
+							<div class="mt-3 flex items-center justify-between gap-2">
+								<div class="text-xs font-mono text-gray-600 dark:text-gray-300 truncate" id="drawer-url-display">
+									https://example.com
+								</div>
+								<a
+									id="drawer-open-site-btn"
+									href="#"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex-shrink-0"
+								>
+									Open Submitted Site ↗
+								</a>
+							</div>
+						</div>
+
+						<!-- 2. Description & Submitted Content -->
+						<div>
+							<h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+								Submitted Description
+							</h4>
+							<p id="drawer-description" class="text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/40 p-3 rounded-lg border border-gray-100 dark:border-gray-700 leading-relaxed">
+								No description provided.
+							</p>
+						</div>
+
+						<!-- 3. Submitter & Clerk Identity -->
+						<div class="p-4 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700/40 dark:border-gray-700 space-y-2">
+							<h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+								Authenticated Submitter Details
+							</h4>
+							<div class="grid grid-cols-2 gap-2 text-xs">
+								<div>
+									<span class="text-gray-400 block text-[10px]">User Name</span>
+									<span id="drawer-user-name" class="font-medium text-gray-900 dark:text-white">Alex Chen</span>
+								</div>
+								<div>
+									<span class="text-gray-400 block text-[10px]">Email Address</span>
+									<span id="drawer-user-email" class="font-medium text-gray-900 dark:text-white">alex@example.com</span>
+								</div>
+								<div class="col-span-2 pt-1 border-t border-gray-200 dark:border-gray-600">
+									<span class="text-gray-400 block text-[10px]">Authoritative Clerk User ID</span>
+									<span id="drawer-user-id" class="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">user_2bF8zX9kL3p0Qm1W</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- 4. Rejection Reason Banner (if rejected) -->
+						<div id="drawer-rejection-banner" class="hidden p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/50 dark:border-rose-900 dark:text-rose-200 text-xs">
+							<span class="font-bold block">Rejection Reason:</span>
+							<span id="drawer-rejection-text">Reason goes here.</span>
+						</div>
+
+						<!-- 5. Metadata & Timestamps -->
+						<div class="grid grid-cols-2 gap-3 text-xs">
+							<div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg">
+								<span class="text-gray-400 block text-[10px]">Submitted Date</span>
+								<span id="drawer-created-date" class="font-medium text-gray-800 dark:text-gray-200">-</span>
+							</div>
+							<div class="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg">
+								<span class="text-gray-400 block text-[10px]">Last Updated</span>
+								<span id="drawer-updated-date" class="font-medium text-gray-800 dark:text-gray-200">-</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Drawer Action Footer (Workflow) -->
+					<div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex items-center justify-between gap-3">
+						<div class="flex items-center space-x-2">
+							<button
+								type="button"
+								id="drawer-approve-btn"
+								class="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
+							>
+								✓ Approve
+							</button>
+							<button
+								type="button"
+								id="drawer-publish-btn"
+								class="px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm transition"
+							>
+								🚀 Publish
+							</button>
+							<button
+								type="button"
+								id="drawer-reject-btn"
+								class="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition"
+							>
+								✕ Reject
+							</button>
+						</div>
+						<a
+							id="drawer-permalink-btn"
+							href="#"
+							class="text-xs font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400"
+						>
+							Full Page View →
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ========================================================================= -->
+		<!-- REJECTION REASON MODAL DIALOG (Requested in Section 4) -->
+		<!-- ========================================================================= -->
+		<div id="reject-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-xs hidden">
+			<div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-5 shadow-2xl border border-gray-200 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-base font-bold text-gray-900 dark:text-white flex items-center">
+						<span class="mr-2 text-rose-600">✕</span> Reject Submission
+					</h3>
+					<button type="button" id="reject-modal-close" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+				<p class="text-xs text-gray-500 dark:text-gray-400 mb-3" id="reject-modal-sub-title">
+					Please specify why this submission is being rejected. This explanation will be saved in the database for the submitter.
+				</p>
+				<div class="mb-4">
+					<label for="rejection-reason-input" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+						Rejection reason:
+					</label>
+					<textarea
+						id="rejection-reason-input"
+						rows="3"
+						class="w-full p-2.5 text-xs text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+						placeholder="e.g. Website URL returns 404, does not meet content guidelines, or contains broken features..."
+					></textarea>
+				</div>
+				<div class="flex items-center justify-end space-x-2">
+					<button
+						type="button"
+						id="reject-modal-cancel"
+						class="px-3.5 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						id="reject-modal-confirm"
+						class="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition"
+					>
+						Reject Submission
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Toast Container -->
+		<div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-none">
+			<div class="px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-gray-900 text-white" id="toast-inner">
+				<span id="toast-icon">✓</span>
+				<span id="toast-msg">Action completed</span>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script>
+	let activeSubmissionId: string | null = null;
+	const selectedIds = new Set<string>();
+
+	// Toast helper
+	function showToast(msg: string, isError = false) {
+		const toast = document.getElementById('toast');
+		const toastInner = document.getElementById('toast-inner');
+		const toastMsg = document.getElementById('toast-msg');
+		const toastIcon = document.getElementById('toast-icon');
+		if (!toast || !toastInner || !toastMsg || !toastIcon) return;
+
+		toastMsg.innerText = msg;
+		toastIcon.innerText = isError ? '✕' : '✓';
+		toastInner.className = isError
+			? 'px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-rose-600 text-white'
+			: 'px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-gray-900 text-white';
+
+		toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+		setTimeout(() => {
+			toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+		}, 3000);
+	}
+
+	// Drawer elements
+	const drawer = document.getElementById('detail-drawer');
+	const drawerBackdrop = document.getElementById('drawer-backdrop');
+	const drawerCloseBtn = document.getElementById('drawer-close-btn');
+
+	function openDrawer(sub: any) {
+		activeSubmissionId = sub.id;
+		(document.getElementById('drawer-title') as HTMLElement).innerText = sub.title;
+		(document.getElementById('drawer-status-badge') as HTMLElement).innerText = sub.status;
+		(document.getElementById('drawer-category') as HTMLElement).innerText = sub.category || 'General';
+		(document.getElementById('drawer-description') as HTMLElement).innerText = sub.description || 'No description provided.';
+		(document.getElementById('drawer-user-name') as HTMLElement).innerText = sub.userName || 'Anonymous';
+		(document.getElementById('drawer-user-email') as HTMLElement).innerText = sub.userEmail || 'No email';
+		(document.getElementById('drawer-user-id') as HTMLElement).innerText = sub.userId;
+		(document.getElementById('drawer-created-date') as HTMLElement).innerText = new Date(sub.createdAt).toLocaleString();
+		(document.getElementById('drawer-updated-date') as HTMLElement).innerText = new Date(sub.updatedAt).toLocaleString();
+
+		// URL & Site preview
+		const urlDisplay = document.getElementById('drawer-url-display') as HTMLElement;
+		urlDisplay.innerText = sub.url;
+		const openBtn = document.getElementById('drawer-open-site-btn') as HTMLAnchorElement;
+		openBtn.href = sub.url;
+
+		const permalink = document.getElementById('drawer-permalink-btn') as HTMLAnchorElement;
+		permalink.href = `/admin/projects/clickfornothing/submissions/${sub.id}`;
+
+		const previewImg = document.getElementById('drawer-preview-img') as HTMLImageElement;
+		const previewPlaceholder = document.getElementById('drawer-preview-placeholder') as HTMLElement;
+		const sitename = document.getElementById('drawer-preview-sitename') as HTMLElement;
+		sitename.innerText = sub.title;
+
+		if (sub.previewImageUrl) {
+			previewImg.src = sub.previewImageUrl;
+			previewImg.classList.remove('hidden');
+			previewPlaceholder.classList.add('hidden');
+		} else {
+			previewImg.classList.add('hidden');
+			previewPlaceholder.classList.remove('hidden');
+		}
+
+		// Rejection banner
+		const rejBanner = document.getElementById('drawer-rejection-banner') as HTMLElement;
+		const rejText = document.getElementById('drawer-rejection-text') as HTMLElement;
+		if (sub.status === 'Rejected' && sub.rejectionReason) {
+			rejText.innerText = sub.rejectionReason;
+			rejBanner.classList.remove('hidden');
+		} else {
+			rejBanner.classList.add('hidden');
+		}
+
+		drawer?.classList.remove('hidden');
+	}
+
+	function closeDrawer() {
+		drawer?.classList.add('hidden');
+	}
+
+	drawerCloseBtn?.addEventListener('click', closeDrawer);
+	drawerBackdrop?.addEventListener('click', closeDrawer);
+
+	// Attach click listeners to Inspect buttons
+	document.querySelectorAll('.btn-inspect').forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const data = JSON.parse(target.getAttribute('data-submission') || '{}');
+			openDrawer(data);
+		});
+	});
+
+	// Actions: Approve
+	async function approveSubmission(id: string) {
+		try {
+			const res = await fetch(`/api/admin/submissions/${id}/approve`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			});
+			const data = await res.json();
+			if (res.ok && data.success) {
+				showToast('Submission approved successfully!');
+				setTimeout(() => window.location.reload(), 800);
+			} else {
+				showToast(data.error || 'Failed to approve', true);
+			}
+		} catch (err: any) {
+			showToast(err.message, true);
+		}
+	}
+
+	// Actions: Publish
+	async function publishSubmission(id: string) {
+		try {
+			const res = await fetch(`/api/admin/submissions/${id}/publish`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			});
+			const data = await res.json();
+			if (res.ok && data.success) {
+				showToast('Submission published live!');
+				setTimeout(() => window.location.reload(), 800);
+			} else {
+				showToast(data.error || 'Failed to publish', true);
+			}
+		} catch (err: any) {
+			showToast(err.message, true);
+		}
+	}
+
+	// Actions: Reject Modal
+	const rejectModal = document.getElementById('reject-modal');
+	const rejectModalClose = document.getElementById('reject-modal-close');
+	const rejectModalCancel = document.getElementById('reject-modal-cancel');
+	const rejectModalConfirm = document.getElementById('reject-modal-confirm');
+	const rejectionInput = document.getElementById('rejection-reason-input') as HTMLTextAreaElement;
+	let rejectingTargetId: string | null = null;
+
+	function openRejectModal(id: string, title?: string) {
+		rejectingTargetId = id;
+		const subTitleEl = document.getElementById('reject-modal-sub-title');
+		if (subTitleEl && title) {
+			subTitleEl.innerText = `Rejecting: "${title}". State reason below:`;
+		}
+		if (rejectionInput) rejectionInput.value = '';
+		rejectModal?.classList.remove('hidden');
+	}
+
+	function closeRejectModal() {
+		rejectModal?.classList.add('hidden');
+		rejectingTargetId = null;
+	}
+
+	rejectModalClose?.addEventListener('click', closeRejectModal);
+	rejectModalCancel?.addEventListener('click', closeRejectModal);
+
+	rejectModalConfirm?.addEventListener('click', async () => {
+		if (!rejectingTargetId) return;
+		const reason = rejectionInput?.value?.trim() || 'Submission does not meet directory quality standards.';
+		try {
+			const res = await fetch(`/api/admin/submissions/${rejectingTargetId}/reject`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ reason }),
+			});
+			const data = await res.json();
+			if (res.ok && data.success) {
+				showToast('Submission rejected.');
+				closeRejectModal();
+				setTimeout(() => window.location.reload(), 800);
+			} else {
+				showToast(data.error || 'Failed to reject', true);
+			}
+		} catch (err: any) {
+			showToast(err.message, true);
+		}
+	});
+
+	// Quick button bindings
+	document.querySelectorAll('.btn-quick-approve').forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+			if (id) approveSubmission(id);
+		});
+	});
+
+	document.querySelectorAll('.btn-quick-reject').forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			const title = target.getAttribute('data-title') || undefined;
+			if (id) openRejectModal(id, title);
+		});
+	});
+
+	document.querySelectorAll('.btn-quick-publish').forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+			if (id) publishSubmission(id);
+		});
+	});
+
+	// Drawer action bindings
+	document.getElementById('drawer-approve-btn')?.addEventListener('click', () => {
+		if (activeSubmissionId) approveSubmission(activeSubmissionId);
+	});
+	document.getElementById('drawer-publish-btn')?.addEventListener('click', () => {
+		if (activeSubmissionId) publishSubmission(activeSubmissionId);
+	});
+	document.getElementById('drawer-reject-btn')?.addEventListener('click', () => {
+		if (activeSubmissionId) {
+			closeDrawer();
+			openRejectModal(activeSubmissionId);
+		}
+	});
+
+	// Bulk Selection
+	const selectAll = document.getElementById('select-all-checkbox') as HTMLInputElement;
+	const bulkBar = document.getElementById('bulk-bar');
+	const bulkCount = document.getElementById('bulk-selected-count');
+
+	function updateBulkState() {
+		const count = selectedIds.size;
+		if (bulkCount) bulkCount.innerText = count.toString();
+		if (count > 0) {
+			bulkBar?.classList.remove('hidden');
+		} else {
+			bulkBar?.classList.add('hidden');
+		}
+	}
+
+	document.querySelectorAll('.submission-checkbox').forEach((cb) => {
+		cb.addEventListener('change', (e) => {
+			const box = e.target as HTMLInputElement;
+			if (box.checked) {
+				selectedIds.add(box.value);
+			} else {
+				selectedIds.delete(box.value);
+			}
+			updateBulkState();
+		});
+	});
+
+	selectAll?.addEventListener('change', () => {
+		document.querySelectorAll('.submission-checkbox').forEach((cb) => {
+			const box = cb as HTMLInputElement;
+			box.checked = selectAll.checked;
+			if (selectAll.checked) {
+				selectedIds.add(box.value);
+			} else {
+				selectedIds.delete(box.value);
+			}
+		});
+		updateBulkState();
+	});
+
+	document.getElementById('btn-bulk-clear')?.addEventListener('click', () => {
+		selectedIds.clear();
+		if (selectAll) selectAll.checked = false;
+		document.querySelectorAll('.submission-checkbox').forEach((cb) => {
+			(cb as HTMLInputElement).checked = false;
+		});
+		updateBulkState();
+	});
+
+	document.getElementById('btn-bulk-approve')?.addEventListener('click', async () => {
+		if (selectedIds.size === 0) return;
+		if (!confirm(`Are you sure you want to approve ${selectedIds.size} selected submissions?`)) return;
+
+		try {
+			const res = await fetch('/api/admin/submissions/bulk', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'approve', ids: Array.from(selectedIds) }),
+			});
+			const data = await res.json();
+			if (res.ok) {
+				showToast(`Bulk approved ${data.affectedCount} submissions!`);
+				setTimeout(() => window.location.reload(), 900);
+			} else {
+				showToast(data.error || 'Bulk approve failed', true);
+			}
+		} catch (err: any) {
+			showToast(err.message, true);
+		}
+	});
+
+	document.getElementById('btn-bulk-reject')?.addEventListener('click', async () => {
+		if (selectedIds.size === 0) return;
+		const reason = prompt(`Enter rejection reason for ${selectedIds.size} selected submissions:`, 'Does not meet directory quality guidelines.');
+		if (reason === null) return;
+
+		try {
+			const res = await fetch('/api/admin/submissions/bulk', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'reject', ids: Array.from(selectedIds), reason }),
+			});
+			const data = await res.json();
+			if (res.ok) {
+				showToast(`Bulk rejected ${data.affectedCount} submissions!`);
+				setTimeout(() => window.location.reload(), 900);
+			} else {
+				showToast(data.error || 'Bulk reject failed', true);
+			}
+		} catch (err: any) {
+			showToast(err.message, true);
+		}
+	});
+</script>

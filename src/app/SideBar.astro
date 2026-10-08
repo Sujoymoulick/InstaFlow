@@ -183,71 +183,6 @@ import { url } from '../lib/data.js';
 					</li>
 					<li>
 						<a
-							href={url('dashboard/projects')}
-							class="flex items-center p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 group dark:text-gray-200 dark:hover:bg-gray-700"
-						>
-							<svg
-								class="w-6 h-6 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-								xmlns="http://www.w3.org/2000/svg"
-								aria-hidden="true"
-							>
-								<path
-									d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
-								></path>
-							</svg>
-							<span class="ml-3" sidebar-toggle-item>Projects</span>
-						</a>
-					</li>
-					<li>
-						<button
-							type="button"
-							class="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-							aria-controls="dropdown-authentication"
-							data-collapse-toggle="dropdown-authentication"
-						>
-							<svg
-								class="flex-shrink-0 w-6 h-6 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-								xmlns="http://www.w3.org/2000/svg"
-								aria-hidden="true"
-							>
-								<path
-									fill-rule="evenodd"
-									d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 016 0v2a1 1 0 102 0V7a5 5 0 00-5-5z"
-									clip-rule="evenodd"
-								></path>
-							</svg>
-							<span
-								class="flex-1 ml-3 text-left whitespace-nowrap"
-								sidebar-toggle-item>Authentication</span
-							>
-							<svg
-								sidebar-toggle-item
-								class="w-6 h-6"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-								xmlns="http://www.w3.org/2000/svg"
-								><path
-									fill-rule="evenodd"
-									d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-									clip-rule="evenodd"></path></svg
-							>
-						</button>
-						<ul id="dropdown-authentication" class="hidden py-2 space-y-2">
-							<li>
-								<a
-									href={url('dashboard/authentication/clerk')}
-									class="flex items-center p-2 text-base text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-									>Clerk</a
-								>
-							</li>
-						</ul>
-					</li>
-					<li>
-						<a
 							href={url('activity')}
 							class="flex items-center p-2 text-base text-gray-900 rounded-lg hover:bg-gray-100 group dark:text-gray-200 dark:hover:bg-gray-700"
 						>
@@ -332,6 +267,334 @@ import { url } from '../lib/data.js';
 									class="flex items-center p-2 text-base text-gray-900 transition duration-75 rounded-lg pl-11 group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
 									>Instagram Connection</a
 								>
+							</li>
+						</ul>
+					</li>
+
+					<!-- ========================================================================= -->
+					<!-- CENTRAL ADMIN PANEL SECTION WITH NESTED PROJECTS & SENDVIRTUALGIFT -->
+					<!-- ========================================================================= -->
+					<li class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+						<button
+							type="button"
+							class="flex items-center w-full p-2 text-base font-semibold text-gray-900 transition duration-75 rounded-lg group hover:bg-primary-50 dark:text-gray-100 dark:hover:bg-gray-700"
+							aria-controls="dropdown-admin-panel"
+							data-collapse-toggle="dropdown-admin-panel"
+							id="btn-toggle-admin-panel"
+						>
+							<svg
+								class="flex-shrink-0 w-6 h-6 text-primary-600 transition duration-75 group-hover:text-primary-700 dark:text-primary-400 dark:group-hover:text-white"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+								xmlns="http://www.w3.org/2000/svg"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
+									clip-rule="evenodd"
+								></path>
+							</svg>
+							<span
+								class="flex-1 ml-3 text-left whitespace-nowrap"
+								sidebar-toggle-item>Admin Panel</span
+							>
+							<span class="inline-flex items-center px-1.5 py-0.5 mr-2 text-[10px] font-bold rounded bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-300">
+								Admin
+							</span>
+							<svg
+								sidebar-toggle-item
+								class="w-6 h-6"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+								xmlns="http://www.w3.org/2000/svg"
+								><path
+									fill-rule="evenodd"
+									d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+									clip-rule="evenodd"></path></svg
+							>
+						</button>
+
+						<ul id="dropdown-admin-panel" class="hidden py-2 space-y-1 pl-3">
+							<!-- 1. NESTED PROJECTS -->
+							<li>
+								<button
+									type="button"
+									class="flex items-center w-full p-2 text-sm text-gray-900 font-medium transition duration-75 rounded-lg group hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+									aria-controls="dropdown-admin-projects"
+									data-collapse-toggle="dropdown-admin-projects"
+									id="btn-toggle-admin-projects"
+								>
+									<svg
+										class="w-5 h-5 text-gray-500 mr-2 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path>
+									</svg>
+									<span class="flex-1 text-left whitespace-nowrap">Projects</span>
+									<svg
+										class="w-4 h-4"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+									</svg>
+								</button>
+
+								<!-- Projects list -->
+								<ul id="dropdown-admin-projects" class="hidden py-1 space-y-1 pl-3">
+									<li>
+										<a
+											href={url('admin/projects')}
+											class="flex items-center p-2 text-xs text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 font-medium"
+										>
+											<span class="w-1.5 h-1.5 rounded-full bg-primary-500 mr-2"></span>
+											All Projects Hub
+										</a>
+									</li>
+
+									<!-- SENDVIRTUALGIFT NESTED SUBSECTION -->
+									<li class="pt-1">
+										<button
+											type="button"
+											class="flex items-center w-full p-2 text-xs font-semibold text-rose-700 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-gray-700/60 dark:text-rose-300 dark:hover:bg-gray-700 transition duration-75"
+											aria-controls="dropdown-svg-project"
+											data-collapse-toggle="dropdown-svg-project"
+											id="btn-toggle-svg-project"
+										>
+											<span class="mr-1.5">🎁</span>
+											<span class="flex-1 text-left whitespace-nowrap">SendVirtualGift</span>
+											<svg class="w-3.5 h-3.5 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+											</svg>
+										</button>
+
+										<ul id="dropdown-svg-project" class="hidden py-1.5 space-y-1 pl-3 border-l-2 border-rose-200 dark:border-rose-900 my-1">
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/overview')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Overview
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/users')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Users
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/analytics')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Live Analytics
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/cards')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Gift Cards
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/backups')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Card Backup
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/payments')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Payments
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/transactions')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Transactions
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/invoices')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Invoices
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/databases')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Databases
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/rate-limits')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Rate Limiting
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/integrations')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Integrations
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/env')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Environment Status
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/health')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													System Health
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/sendvirtualgift/settings')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Settings
+												</a>
+											</li>
+										</ul>
+									</li>
+
+									<!-- CLICKFORNOTHING NESTED SUBSECTION -->
+									<li class="pt-1">
+										<button
+											type="button"
+											class="flex items-center w-full p-2 text-xs font-semibold text-indigo-700 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-gray-700/60 dark:text-indigo-300 dark:hover:bg-gray-700 transition duration-75"
+											aria-controls="dropdown-cfn-project"
+											data-collapse-toggle="dropdown-cfn-project"
+											id="btn-toggle-cfn-project"
+										>
+											<span class="mr-1.5">🌐</span>
+											<span class="flex-1 text-left whitespace-nowrap">ClickForNothing</span>
+											<span class="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-200 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200 mr-1.5">
+												Production
+											</span>
+											<svg class="w-3.5 h-3.5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+											</svg>
+										</button>
+
+										<ul id="dropdown-cfn-project" class="hidden py-1.5 space-y-1 pl-3 border-l-2 border-indigo-200 dark:border-indigo-900 my-1">
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/overview')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Overview
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/submissions')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Submissions
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/users')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Users
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/published')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Published
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/pending-review')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Pending Review
+												</a>
+											</li>
+											<li>
+												<a
+													href={url('admin/projects/clickfornothing/rejected')}
+													class="flex items-center p-1.5 text-xs text-gray-700 rounded-md hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+												>
+													Rejected
+												</a>
+											</li>
+										</ul>
+									</li>
+								</ul>
+							</li>
+
+							<!-- 2. EXISTING ADMIN FEATURES -->
+							<li>
+								<a
+									href={url('dashboard/projects')}
+									class="flex items-center p-2 text-xs text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+								>
+									<span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>
+									Personal Projects
+								</a>
+							</li>
+							<li>
+								<a
+									href={url('dashboard/authentication/clerk')}
+									class="flex items-center p-2 text-xs text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+								>
+									<span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>
+									Clerk Apps
+								</a>
+							</li>
+							<li>
+								<a
+									href={url('crud/users')}
+									class="flex items-center p-2 text-xs text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+								>
+									<span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>
+									Users (CRUD)
+								</a>
+							</li>
+							<li>
+								<a
+									href={url('crud/products')}
+									class="flex items-center p-2 text-xs text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+								>
+									<span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>
+									Products (CRUD)
+								</a>
 							</li>
 						</ul>
 					</li>
@@ -618,5 +881,33 @@ import { url } from '../lib/data.js';
 				toggleSidebarMobileClose,
 			);
 		});
+
+		// Auto-expand nested dropdowns and highlight active link based on current pathname
+		try {
+			const currentPath = window.location.pathname;
+
+			if (currentPath.startsWith('/admin/projects/sendvirtualgift') || currentPath.startsWith('/admin/projects')) {
+				const adminPanel = document.getElementById('dropdown-admin-panel');
+				const adminProjects = document.getElementById('dropdown-admin-projects');
+				const svgProject = document.getElementById('dropdown-svg-project');
+
+				if (adminPanel) adminPanel.classList.remove('hidden');
+				if (adminProjects) adminProjects.classList.remove('hidden');
+				if (svgProject && currentPath.startsWith('/admin/projects/sendvirtualgift')) {
+					svgProject.classList.remove('hidden');
+				}
+			}
+
+			// Highlight matching active anchor
+			const allLinks = sidebar.querySelectorAll('a[href]');
+			allLinks.forEach((link) => {
+				const href = link.getAttribute('href');
+				if (href && (href === currentPath || (href !== '/' && currentPath.startsWith(href)))) {
+					link.classList.add('bg-primary-50', 'text-primary-700', 'font-semibold', 'dark:bg-primary-900/30', 'dark:text-primary-300');
+				}
+			});
+		} catch (e) {
+			console.error('Sidebar auto-expand error:', e);
+		}
 	}
 </script>

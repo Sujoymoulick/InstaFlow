@@ -1,0 +1,129 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { probeAllSvgIntegrations } from '../../../../projects/sendvirtualgift/services/integrations.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const integrations = await probeAllSvgIntegrations();
+---
+
+<LayoutSidebar title="SendVirtualGift Integrations | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="integrations"
+			title="Third-Party Integrations & Cloud Services"
+			subtitle="Live connection diagnostic probes for Authentication, Databases, Payments, CDN, and Security providers."
+		/>
+
+		<!-- Header Toolbar -->
+		<div class="flex items-center justify-between p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div>
+				<span class="font-bold text-sm text-gray-900 dark:text-white">Active Service Probes</span>
+				<p class="text-xs text-gray-500 dark:text-gray-400">All external APIs checked securely from backend</p>
+			</div>
+			<button
+				type="button"
+				onclick="window.location.reload()"
+				class="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-primary-700 rounded-lg hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 shadow-sm"
+			>
+				<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+				</svg>
+				Run All Diagnostic Probes
+			</button>
+		</div>
+
+		<!-- Integrations Grid -->
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{
+				integrations.map((item) => {
+					const isConnected = item.status === 'connected';
+					const isDegraded = item.status === 'degraded';
+					const icon =
+						item.id === 'clerk'
+							? '🔐'
+							: item.id === 'insforge'
+							? '⚡'
+							: item.id === 'neon'
+							? '🐘'
+							: item.id === 'razorpay'
+							? '💳'
+							: item.id === 'cloudinary'
+							? '☁️'
+							: item.id === 'cloudflare'
+							? '🛡️'
+							: '🚀';
+
+					return (
+						<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+							<div>
+								<div class="flex items-center justify-between mb-4">
+									<div class="flex items-center space-x-3">
+										<div class="text-2xl p-2 bg-gray-50 dark:bg-gray-700 rounded-xl">
+											{icon}
+										</div>
+										<div>
+											<h3 class="text-base font-bold text-gray-900 dark:text-white">
+												{item.name}
+											</h3>
+											<div class="text-xs text-gray-500 dark:text-gray-400">
+												{item.service}
+											</div>
+										</div>
+									</div>
+
+									<span
+										class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+											isConnected
+												? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+												: isDegraded
+												? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300'
+												: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+										}`}
+									>
+										<span class={`w-1.5 h-1.5 rounded-full mr-1.5 ${isConnected ? 'bg-green-500' : isDegraded ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
+										{item.status.toUpperCase()}
+									</span>
+								</div>
+
+								<!-- Diagnostics Details -->
+								<div class="space-y-2 bg-gray-50 dark:bg-gray-700/40 p-3 rounded-lg text-xs mb-4">
+									<div class="flex justify-between">
+										<span class="text-gray-500">Latency:</span>
+										<span class="font-bold text-gray-900 dark:text-white">{item.latencyMs} ms</span>
+									</div>
+									<div class="flex justify-between">
+										<span class="text-gray-500">Env Reference:</span>
+										<span class="font-mono text-[10px] text-gray-700 dark:text-gray-300 truncate max-w-[160px]">{item.environmentRef}</span>
+									</div>
+									{
+										Object.entries(item.details).map(([key, val]) => (
+											<div class="flex justify-between">
+												<span class="text-gray-500 capitalize">{key}:</span>
+												<span class="font-medium text-gray-800 dark:text-gray-200">{String(val)}</span>
+											</div>
+										))
+									}
+									{
+										item.error && (
+											<div class="text-red-600 dark:text-red-400 font-medium pt-1 border-t border-red-100 dark:border-red-900/40">
+												Error: {item.error}
+											</div>
+										)
+									}
+								</div>
+							</div>
+
+							<div class="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-400">
+								<span>Verified via server ping</span>
+								<span>{new Date(item.lastChecked).toLocaleTimeString()}</span>
+							</div>
+						</div>
+					);
+				})
+			}
+		</div>
+	</div>
+</LayoutSidebar>

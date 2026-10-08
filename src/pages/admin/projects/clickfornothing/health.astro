@@ -1,0 +1,118 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getCfnSystemHealth } from '../../../../projects/clickfornothing/services/health.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const health = await getCfnSystemHealth();
+---
+
+<LayoutSidebar title="ClickForNothing System Health | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="health"
+			title="System Health & Subsystem Latency"
+			subtitle="Real-time uptime monitoring, round-trip latency, and subsystem health checks for ClickForNothing."
+		/>
+
+		<!-- Overall Status Banner -->
+		<div class={`p-5 mb-6 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+			health.status === 'healthy'
+				? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800'
+				: 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'
+		}`}>
+			<div class="flex items-center space-x-3">
+				<div class={`w-4 h-4 rounded-full ${health.status === 'healthy' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+				<div>
+					<h3 class={`text-lg font-bold ${health.status === 'healthy' ? 'text-emerald-900 dark:text-emerald-200' : 'text-amber-900 dark:text-amber-200'}`}>
+						{health.status === 'healthy' ? 'All Subsystems Operational' : 'Subsystems Degraded'}
+					</h3>
+					<p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+						Overall Latency: <span class="font-bold text-gray-900 dark:text-white">{health.overallLatencyMs} ms</span> | Estimated Uptime: <span class="font-bold text-gray-900 dark:text-white">{health.uptimePercent}%</span>
+					</p>
+				</div>
+			</div>
+			<button
+				type="button"
+				onclick="window.location.reload()"
+				class="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 transition"
+			>
+				🔄 Refresh Health
+			</button>
+		</div>
+
+		<!-- Subsystems Cards Grid -->
+		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+			<!-- Neon DB -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Database</span>
+					<span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+						health.subsystems.database.status === 'healthy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800'
+					}`}>
+						{health.subsystems.database.status}
+					</span>
+				</div>
+				<h4 class="text-base font-bold text-gray-900 dark:text-white">Neon PostgreSQL</h4>
+				<div class="mt-3 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
+					<span>Latency:</span>
+					<span class="font-bold text-indigo-600 dark:text-indigo-400">{health.subsystems.database.latencyMs ?? '—'} ms</span>
+				</div>
+			</div>
+
+			<!-- Clerk Auth -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Identity & Auth</span>
+					<span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+						health.subsystems.auth.status === 'healthy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800'
+					}`}>
+						{health.subsystems.auth.status}
+					</span>
+				</div>
+				<h4 class="text-base font-bold text-gray-900 dark:text-white">Clerk Identity</h4>
+				<div class="mt-3 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
+					<span>Latency:</span>
+					<span class="font-bold text-indigo-600 dark:text-indigo-400">{health.subsystems.auth.latencyMs ?? '—'} ms</span>
+				</div>
+			</div>
+
+			<!-- Cloudinary Storage -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Media CDN</span>
+					<span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+						health.subsystems.storage.status === 'healthy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800'
+					}`}>
+						{health.subsystems.storage.status}
+					</span>
+				</div>
+				<h4 class="text-base font-bold text-gray-900 dark:text-white">Cloudinary CDN</h4>
+				<div class="mt-3 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
+					<span>Latency:</span>
+					<span class="font-bold text-indigo-600 dark:text-indigo-400">{health.subsystems.storage.latencyMs ?? '—'} ms</span>
+				</div>
+			</div>
+
+			<!-- Live Website -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Public Domain</span>
+					<span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+						health.subsystems.website.status === 'healthy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800'
+					}`}>
+						{health.subsystems.website.status}
+					</span>
+				</div>
+				<h4 class="text-base font-bold text-gray-900 dark:text-white">clickfornothing.com</h4>
+				<div class="mt-3 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
+					<span>Latency:</span>
+					<span class="font-bold text-indigo-600 dark:text-indigo-400">{health.subsystems.website.latencyMs ?? '—'} ms</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

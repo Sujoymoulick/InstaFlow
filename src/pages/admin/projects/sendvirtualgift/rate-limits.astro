@@ -1,0 +1,114 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSvgRateLimits } from '../../../../projects/sendvirtualgift/services/rateLimits.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const limits = getSvgRateLimits();
+---
+
+<LayoutSidebar title="SendVirtualGift Rate Limiting | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="rate-limits"
+			title="Rate Limiting & Abuse Prevention"
+			subtitle="Security quotas, upload throttles, token generation limits, and bot mitigation policies."
+		/>
+
+		<!-- Master Switches -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Rate Limiter Status</span>
+				<div class="flex items-center space-x-2 mt-1">
+					<span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+					<h3 class="text-xl font-bold text-gray-900 dark:text-white">
+						{limits.enabled ? 'Active / Enforcing' : 'Disabled'}
+					</h3>
+				</div>
+				<p class="text-[11px] text-gray-400 mt-1">ENABLE_RATE_LIMITING</p>
+			</div>
+
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Security Audit Logging</span>
+				<div class="flex items-center space-x-2 mt-1">
+					<span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+					<h3 class="text-xl font-bold text-gray-900 dark:text-white">
+						{limits.securityLoggingEnabled ? 'Logging Enabled' : 'Disabled'}
+					</h3>
+				</div>
+				<p class="text-[11px] text-gray-400 mt-1">ENABLE_SECURITY_LOGGING</p>
+			</div>
+
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Max Cards / User</span>
+				<h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+					{limits.maxCardsPerUser}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">MAX_CARDS_PER_USER</p>
+			</div>
+
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Max Images / User</span>
+				<h3 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+					{limits.maxImagesPerUser}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">MAX_IMAGES_PER_USER</p>
+			</div>
+		</div>
+
+		<!-- Rate Limits Table -->
+		<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+			<div class="p-4 border-b border-gray-200 dark:border-gray-700">
+				<h3 class="text-base font-bold text-gray-900 dark:text-white">
+					Configured Rate Limit Rules
+				</h3>
+				<p class="text-xs text-gray-500 dark:text-gray-400">
+					Endpoint specific burst thresholds and sliding time windows
+				</p>
+			</div>
+
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+					<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+						<tr>
+							<th class="px-5 py-3.5">Rate Limit Name</th>
+							<th class="px-4 py-3.5">Threshold Limit</th>
+							<th class="px-4 py-3.5">Time Window</th>
+							<th class="px-4 py-3.5">Enforcement</th>
+							<th class="px-4 py-3.5">Description</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						{
+							limits.rules.map((rule) => (
+								<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<td class="px-5 py-4">
+										<div class="font-semibold text-gray-900 dark:text-white">{rule.name}</div>
+										<div class="font-mono text-xs text-gray-400">{rule.key}</div>
+									</td>
+									<td class="px-4 py-4 font-bold text-gray-900 dark:text-white">
+										{rule.limit} {rule.unit}
+									</td>
+									<td class="px-4 py-4 text-xs font-semibold text-primary-600 dark:text-primary-400">
+										{rule.windowSeconds} seconds
+									</td>
+									<td class="px-4 py-4">
+										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+											<span class="w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
+											Enforced
+										</span>
+									</td>
+									<td class="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">
+										{rule.description}
+									</td>
+								</tr>
+							))
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

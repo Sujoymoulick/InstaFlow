@@ -1,0 +1,225 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSvgAnalyticsSummary } from '../../../../projects/sendvirtualgift/services/analytics.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const rangeParam = (Astro.url.searchParams.get('range') as '7d' | '30d' | '90d') || '30d';
+const analytics = await getSvgAnalyticsSummary(rangeParam);
+
+const maxTimelineCreated = Math.max(...analytics.timeline.map((t) => Math.max(t.cardsCreated, t.cardsViewed, 1)), 5);
+---
+
+<LayoutSidebar title="SendVirtualGift Live Analytics | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="analytics"
+			title="Live Analytics & Event Stream"
+			subtitle="Real-time event stream analytics, card creation volume, template popularity, and paid conversion funnel."
+		/>
+
+		<!-- Controls Toolbar -->
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 gap-4">
+			<div class="flex items-center space-x-2">
+				<span class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Date Range:</span>
+				<div class="inline-flex rounded-lg shadow-sm" role="group">
+					<a
+						href={url('admin/projects/sendvirtualgift/analytics?range=7d')}
+						class={`px-3 py-1.5 text-xs font-medium rounded-l-lg border ${
+							rangeParam === '7d'
+								? 'bg-primary-700 text-white border-primary-700'
+								: 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600'
+						}`}
+					>
+						7 Days
+					</a>
+					<a
+						href={url('admin/projects/sendvirtualgift/analytics?range=30d')}
+						class={`px-3 py-1.5 text-xs font-medium border-t border-b ${
+							rangeParam === '30d'
+								? 'bg-primary-700 text-white border-primary-700'
+								: 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600'
+						}`}
+					>
+						30 Days
+					</a>
+					<a
+						href={url('admin/projects/sendvirtualgift/analytics?range=90d')}
+						class={`px-3 py-1.5 text-xs font-medium rounded-r-lg border ${
+							rangeParam === '90d'
+								? 'bg-primary-700 text-white border-primary-700'
+								: 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600'
+						}`}
+					>
+						90 Days
+					</a>
+				</div>
+			</div>
+
+			<div class="flex items-center space-x-3 text-xs text-gray-500">
+				<span>Last updated: {new Date(analytics.lastUpdated).toLocaleTimeString()}</span>
+				<button
+					type="button"
+					onclick="window.location.reload()"
+					class="px-3 py-1.5 font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+				>
+					🔄 Refresh Now
+				</button>
+			</div>
+		</div>
+
+		<!-- 4 Summary KPI Cards -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Logged Events</span>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+					{analytics.totalEvents}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">From InsForge analytics stream</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Paid Conversion Rate</span>
+				<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+					{analytics.conversionRatePercent}%
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Paid template orders / total creations</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Avg Revenue / Buyer</span>
+				<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+					₹{analytics.avgRevenuePerUserRupees}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Authoritative ₹99 standard unit pricing</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Active Templates</span>
+				<h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+					{analytics.templateUsage.length}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">3D interactive templates configured</p>
+			</div>
+		</div>
+
+		<!-- Activity Timeline Chart Grid -->
+		<div class="p-6 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div class="flex items-center justify-between mb-4">
+				<div>
+					<h3 class="text-base font-bold text-gray-900 dark:text-white">
+						Daily Platform Activity Timeline ({rangeParam})
+					</h3>
+					<p class="text-xs text-gray-500 dark:text-gray-400">
+						Tracking card creations, views, shares, and purchases
+					</p>
+				</div>
+				<div class="flex items-center space-x-3 text-xs">
+					<span class="flex items-center"><span class="w-3 h-3 rounded mr-1 bg-rose-500"></span> Creations</span>
+					<span class="flex items-center"><span class="w-3 h-3 rounded mr-1 bg-cyan-500"></span> Views</span>
+					<span class="flex items-center"><span class="w-3 h-3 rounded mr-1 bg-emerald-500"></span> Orders</span>
+				</div>
+			</div>
+
+			<!-- Visual Bar Chart -->
+			<div class="h-64 flex items-end space-x-2 pt-6 pb-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto">
+				{
+					analytics.timeline.map((point) => {
+						const createHeight = Math.min(100, Math.round((point.cardsCreated / maxTimelineCreated) * 100));
+						const viewHeight = Math.min(100, Math.round((point.cardsViewed / maxTimelineCreated) * 100));
+						const orderHeight = Math.min(100, Math.round((point.ordersCount / maxTimelineCreated) * 100));
+
+						return (
+							<div class="flex-1 min-w-[24px] flex flex-col items-center justify-end h-full group relative">
+								<!-- Tooltip on hover -->
+								<div class="absolute -top-12 z-20 hidden group-hover:flex flex-col items-center bg-gray-900 text-white text-[10px] py-1 px-2 rounded shadow whitespace-nowrap">
+									<span>{point.date}</span>
+									<span>Created: {point.cardsCreated} | Viewed: {point.cardsViewed} | Orders: {point.ordersCount}</span>
+								</div>
+
+								<div class="w-full flex items-end justify-center space-x-0.5 h-full">
+									<div
+										style={`height: ${Math.max(createHeight, 4)}%`}
+										class="w-2 rounded-t bg-rose-500 hover:bg-rose-600 transition-all"
+										title={`Created: ${point.cardsCreated}`}
+									></div>
+									<div
+										style={`height: ${Math.max(viewHeight, 4)}%`}
+										class="w-2 rounded-t bg-cyan-500 hover:bg-cyan-600 transition-all"
+										title={`Viewed: ${point.cardsViewed}`}
+									></div>
+									<div
+										style={`height: ${Math.max(orderHeight, 4)}%`}
+										class="w-2 rounded-t bg-emerald-500 hover:bg-emerald-600 transition-all"
+										title={`Orders: ${point.ordersCount}`}
+									></div>
+								</div>
+								<span class="text-[9px] text-gray-400 mt-2 truncate w-full text-center">
+									{point.label.split(' ')[0]}
+								</span>
+							</div>
+						);
+					})
+				}
+			</div>
+		</div>
+
+		<!-- Bottom Two Columns: Template Popularity & Event Breakdown -->
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			<!-- Template Popularity -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+					Template Popularity & Revenue
+				</h3>
+				<div class="space-y-4">
+					{
+						analytics.templateUsage.map((tpl) => (
+							<div>
+								<div class="flex items-center justify-between text-xs mb-1">
+									<span class="font-semibold text-gray-900 dark:text-white flex items-center">
+										{tpl.name}
+										{tpl.isPaid && (
+											<span class="ml-2 px-1.5 py-0.2 rounded text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold">
+												PAID (₹99)
+											</span>
+										)}
+									</span>
+									<span class="text-gray-500">
+										{tpl.count} uses ({tpl.percentage}%) • ₹{tpl.revenueRupees}
+									</span>
+								</div>
+								<div class="w-full bg-gray-100 rounded-full h-2.5 dark:bg-gray-700">
+									<div
+										class={`h-2.5 rounded-full ${tpl.isPaid ? 'bg-rose-600' : 'bg-primary-600'}`}
+										style={`width: ${Math.max(tpl.percentage, 5)}%`}
+									></div>
+								</div>
+							</div>
+						))
+					}
+				</div>
+			</div>
+
+			<!-- Event Stream Breakdown -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+					Event Type Distribution
+				</h3>
+				<div class="space-y-3">
+					{
+						analytics.eventsBreakdown.map((ev) => (
+							<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+								<div class="font-mono text-xs text-gray-900 dark:text-white">
+									{ev.name}
+								</div>
+								<div class="flex items-center space-x-2">
+									<span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{ev.count}</span>
+									<span class="text-[11px] text-gray-400">({ev.percentage}%)</span>
+								</div>
+							</div>
+						))
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

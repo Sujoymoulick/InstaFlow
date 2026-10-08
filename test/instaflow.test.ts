@@ -387,4 +387,132 @@ if (db) {
 	console.log('  - Database URL not provided in environment, skipping live DB query');
 }
 
-console.log('\n🎉 ALL INSTAFLOW AUTOMATION & API TESTS PASSED SUCCESSFULLY! ✅\n');
+// 14. ClickForNothing Project Panel, Moderation Workflow & API Security Tests
+console.log('\n14. Testing ClickForNothing Admin Project Panel & Workflow:');
+const { getProjectById } = await import('../src/projects/registry.js');
+const cfnProject = getProjectById('clickfornothing');
+assert.ok(cfnProject, 'ClickForNothing must be registered in PROJECT_REGISTRY');
+assert.strictEqual(cfnProject.name, 'ClickForNothing');
+assert.strictEqual(cfnProject.routePrefix, '/admin/projects/clickfornothing');
+
+const navIds = cfnProject.navigation.map((n) => n.id);
+assert.ok(navIds.includes('overview'), 'Must have overview navigation');
+assert.ok(navIds.includes('submissions'), 'Must have submissions navigation');
+assert.ok(navIds.includes('users'), 'Must have users navigation');
+assert.ok(navIds.includes('published'), 'Must have published navigation');
+assert.ok(navIds.includes('pending-review'), 'Must have pending-review navigation');
+assert.ok(navIds.includes('rejected'), 'Must have rejected navigation');
+console.log('  ✓ ClickForNothing registry and navigation items verified');
+
+// Test A: Database Services & Real Statistics
+const {
+	getSubmissionStats,
+	listSubmissions,
+	createSubmission,
+	getSubmissionById,
+	approveSubmission,
+	publishSubmission,
+	rejectSubmission,
+	bulkApproveSubmissions,
+	bulkRejectSubmissions,
+} = await import('../src/projects/clickfornothing/services/submissions.js');
+
+const initialStats = await getSubmissionStats();
+assert.ok(typeof initialStats.totalUsers === 'number');
+assert.ok(typeof initialStats.totalSubmissions === 'number');
+assert.ok(typeof initialStats.pendingReview === 'number');
+assert.ok(typeof initialStats.approved === 'number');
+assert.ok(typeof initialStats.rejected === 'number');
+assert.ok(typeof initialStats.published === 'number');
+console.log('  ✓ getSubmissionStats returns real numerical counters');
+
+// Test B: Creation & User-specific Clerk Data Association
+const testSub = await createSubmission({
+	userId: 'user_clerk_automated_test_999',
+	userEmail: 'creator.test@example.com',
+	userName: 'Test Creator',
+	title: 'Automated Test Site Project',
+	description: 'A responsive web application for testing submission flow',
+	url: 'https://automated-test-site.io',
+	category: 'Developer Tools',
+	tags: ['test', 'automation'],
+});
+assert.strictEqual(testSub.userId, 'user_clerk_automated_test_999');
+assert.strictEqual(testSub.status, 'Pending Review');
+assert.strictEqual(testSub.title, 'Automated Test Site Project');
+assert.strictEqual(testSub.url, 'https://automated-test-site.io');
+console.log('  ✓ User submission created and linked to Clerk user with status Pending Review');
+
+// Test C: Moderation Workflow: Pending Review -> Approved -> Published
+const approvedSub = await approveSubmission(testSub.id, 'lifeunderzero777@gmail.com');
+assert.strictEqual(approvedSub.status, 'Approved');
+assert.strictEqual(approvedSub.reviewedBy, 'lifeunderzero777@gmail.com');
+assert.ok(approvedSub.reviewedAt !== null);
+
+const publishedSub = await publishSubmission(testSub.id, 'lifeunderzero777@gmail.com');
+assert.strictEqual(publishedSub.status, 'Published');
+assert.ok(publishedSub.publishedAt !== null);
+console.log('  ✓ Moderation lifecycle (Pending Review -> Approved -> Published) succeeds');
+
+// Test D: Rejection Workflow with Stored Rejection Reason
+const rejectedSub = await rejectSubmission(testSub.id, 'lifeunderzero777@gmail.com', 'Violates directory guidelines: broken link');
+assert.strictEqual(rejectedSub.status, 'Rejected');
+assert.strictEqual(rejectedSub.rejectionReason, 'Violates directory guidelines: broken link');
+assert.strictEqual(rejectedSub.reviewedBy, 'lifeunderzero777@gmail.com');
+console.log('  ✓ Rejection workflow persists custom rejection reason');
+
+// Test E: Audit Log Verification
+const { listAuditLogs } = await import('../src/projects/clickfornothing/services/audit.js');
+const recentAudit = await listAuditLogs(10);
+assert.ok(Array.isArray(recentAudit));
+assert.ok(recentAudit.length > 0);
+assert.ok(recentAudit.some((a) => a.submissionId === testSub.id));
+console.log('  ✓ Administrative audit logging tracks review actions without exposing secrets');
+
+// Test F: Server-side API Authorization Guards
+const { GET: getAdminSubmissionsApi } = await import('../src/pages/api/admin/submissions/index.js');
+const unauthGetReq = new Request('http://localhost:2121/api/admin/submissions');
+const unauthGetRes = await getAdminSubmissionsApi({ request: unauthGetReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(unauthGetRes.status, 401, 'Unauthenticated request to /api/admin/submissions must return 401');
+
+const authGetReq = new Request('http://localhost:2121/api/admin/submissions', {
+	headers: { cookie: `instaflow_admin_token=${token}` },
+});
+const authGetRes = await getAdminSubmissionsApi({ request: authGetReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(authGetRes.status, 200, 'Authenticated admin request to /api/admin/submissions must return 200');
+
+// Test G: Approve & Reject API Endpoints
+const { POST: approveApi } = await import('../src/pages/api/admin/submissions/[id]/approve.js');
+const unauthApproveReq = new Request(`http://localhost:2121/api/admin/submissions/${testSub.id}/approve`, { method: 'POST' });
+const unauthApproveRes = await approveApi({ params: { id: testSub.id }, request: unauthApproveReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(unauthApproveRes.status, 401, 'Unauthenticated approve must return 401');
+
+const authApproveReq = new Request(`http://localhost:2121/api/admin/submissions/${testSub.id}/approve`, {
+	method: 'POST',
+	headers: { cookie: `instaflow_admin_token=${token}` },
+});
+const authApproveRes = await approveApi({ params: { id: testSub.id }, request: authApproveReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(authApproveRes.status, 200, 'Authenticated approve must return 200');
+
+const { POST: rejectApi } = await import('../src/pages/api/admin/submissions/[id]/reject.js');
+const authRejectReq = new Request(`http://localhost:2121/api/admin/submissions/${testSub.id}/reject`, {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json', cookie: `instaflow_admin_token=${token}` },
+	body: JSON.stringify({ reason: 'API test rejection reason' }),
+});
+const authRejectRes = await rejectApi({ params: { id: testSub.id }, request: authRejectReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(authRejectRes.status, 200, 'Authenticated reject must return 200');
+
+// Test H: Stats API Endpoint
+const { GET: statsApi } = await import('../src/pages/api/admin/submissions/stats.js');
+const authStatsReq = new Request('http://localhost:2121/api/admin/submissions/stats', {
+	headers: { cookie: `instaflow_admin_token=${token}` },
+});
+const authStatsRes = await statsApi({ request: authStatsReq, cookies: {} as any } as any) as Response;
+assert.strictEqual(authStatsRes.status, 200);
+const statsJson = await authStatsRes.json();
+assert.ok(statsJson.success);
+assert.ok(typeof statsJson.stats.totalSubmissions === 'number');
+console.log('  ✓ Secure admin API endpoints strictly enforce authentication and authorization');
+
+console.log('\n🎉 ALL INSTAFLOW & CLICKFORNOTHING ADMIN TESTS PASSED SUCCESSFULLY! ✅\n');

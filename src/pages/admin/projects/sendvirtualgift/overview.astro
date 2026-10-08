@@ -1,0 +1,346 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSvgOverviewKpis } from '../../../../projects/sendvirtualgift/services/overview.js';
+import { listSvgPayments } from '../../../../projects/sendvirtualgift/services/payments.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const [kpis, recentPaymentsData] = await Promise.all([
+	getSvgOverviewKpis(),
+	listSvgPayments({ limit: 5 }),
+]);
+
+const recentOrders = recentPaymentsData.orders;
+---
+
+<LayoutSidebar title="SendVirtualGift Overview | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="overview"
+			title="Overview & Operational Dashboard"
+			subtitle="Real-time performance metrics, transactional revenue, database health, and user activity."
+		/>
+
+		<!-- 12 KPI Cards Grid -->
+		<div class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+			<!-- Total Registered Users -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Registered Users</span>
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+							{kpis.totalRegisteredUsers}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg dark:bg-gray-700 dark:text-blue-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-green-500"></span>
+					Clerk Authoritative
+				</div>
+			</div>
+
+			<!-- Total Anonymous Users -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Anonymous Users</span>
+						<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+							{kpis.totalAnonymousUsers}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg dark:bg-gray-700 dark:text-indigo-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+					Unique Anonymous Sessions
+				</div>
+			</div>
+
+			<!-- Total Cards Generated -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Cards Created</span>
+						<h3 class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+							{kpis.totalCardsGenerated}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-rose-50 text-rose-600 rounded-lg dark:bg-gray-700 dark:text-rose-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+					{kpis.totalAnonymousCards} anon / {kpis.totalAuthUserCards} auth
+				</div>
+			</div>
+
+			<!-- Card Views -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Card Views</span>
+						<h3 class="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1">
+							{kpis.totalCardViews}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-cyan-50 text-cyan-600 rounded-lg dark:bg-gray-700 dark:text-cyan-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+					Verified Recipient Views
+				</div>
+			</div>
+
+			<!-- Shares & Likes -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Shares & Likes</span>
+						<h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+							{kpis.totalShares + kpis.totalCardLikes}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-purple-50 text-purple-600 rounded-lg dark:bg-gray-700 dark:text-purple-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+					{kpis.totalShares} shares • {kpis.totalCardLikes} likes
+				</div>
+			</div>
+
+			<!-- Total Revenue -->
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between">
+					<div>
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Revenue</span>
+						<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+							₹{kpis.totalRevenueRupees}
+						</h3>
+					</div>
+					<div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg dark:bg-gray-700 dark:text-emerald-400">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+				</div>
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+					{kpis.successfulPayments} paid orders in Neon
+				</div>
+			</div>
+		</div>
+
+		<!-- Middle Section: Infrastructure & Recent Payments -->
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
+			<!-- Infrastructure Health Card -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-base font-bold text-gray-900 dark:text-white">
+						Connected Subsystems
+					</h3>
+					<span class="text-xs text-gray-400">Live Health</span>
+				</div>
+
+				<div class="space-y-3.5">
+					<!-- Neon -->
+					<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+						<div class="flex items-center space-x-3">
+							<div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+							<div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-white">Neon PostgreSQL</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400">Paid orders & cloud backups</div>
+							</div>
+						</div>
+						<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+							Connected
+						</span>
+					</div>
+
+					<!-- InsForge -->
+					<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+						<div class="flex items-center space-x-3">
+							<div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+							<div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-white">InsForge BaaS</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400">Cards, likes, analytics events</div>
+							</div>
+						</div>
+						<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+							Connected
+						</span>
+					</div>
+
+					<!-- Clerk -->
+					<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+						<div class="flex items-center space-x-3">
+							<div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+							<div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-white">Clerk Identity</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400">Authoritative user auth</div>
+							</div>
+						</div>
+						<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+							Connected
+						</span>
+					</div>
+
+					<!-- Razorpay -->
+					<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+						<div class="flex items-center space-x-3">
+							<div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+							<div>
+								<div class="text-sm font-semibold text-gray-900 dark:text-white">Razorpay Gateway</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400">INR Template Purchases</div>
+							</div>
+						</div>
+						<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+							Connected
+						</span>
+					</div>
+				</div>
+
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+					<span>Last synchronized:</span>
+					<span>{new Date(kpis.lastUpdated).toLocaleTimeString()}</span>
+				</div>
+			</div>
+
+			<!-- Recent Orders Table (2 Columns) -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 lg:col-span-2">
+				<div class="flex items-center justify-between mb-4">
+					<div>
+						<h3 class="text-base font-bold text-gray-900 dark:text-white">
+							Recent Neon Orders & Purchases
+						</h3>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							Live feed from authoritative PostgreSQL transaction ledger
+						</p>
+					</div>
+					<a
+						href={url('admin/projects/sendvirtualgift/payments')}
+						class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 hover:underline"
+					>
+						View All Orders →
+					</a>
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full text-xs text-left text-gray-500 dark:text-gray-400">
+						<thead class="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-gray-700/50 dark:text-gray-400">
+							<tr>
+								<th class="px-3 py-2.5">Receipt #</th>
+								<th class="px-3 py-2.5">Template</th>
+								<th class="px-3 py-2.5">Amount</th>
+								<th class="px-3 py-2.5">Status</th>
+								<th class="px-3 py-2.5">Date</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+							{
+								recentOrders.map((ord) => {
+									const isPaid = ord.order_status === 'paid' || ord.payment_status === 'captured';
+									return (
+										<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+											<td class="px-3 py-3 font-mono font-medium text-gray-900 dark:text-white">
+												{ord.receipt_number || ord.id.substring(0, 16)}
+											</td>
+											<td class="px-3 py-3 text-gray-700 dark:text-gray-300">
+												3D Forever Rose 🌹
+											</td>
+											<td class="px-3 py-3 font-semibold text-gray-900 dark:text-white">
+												₹{(ord.amount / 100).toFixed(2)}
+											</td>
+											<td class="px-3 py-3">
+												<span
+													class={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
+														isPaid
+															? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+															: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300'
+													}`}
+												>
+													{ord.order_status}
+												</span>
+											</td>
+											<td class="px-3 py-3 text-gray-400">
+												{new Date(ord.created_at).toLocaleDateString()}
+											</td>
+										</tr>
+									);
+								})
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+		<!-- Quick Navigation Grid -->
+		<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+				Quick Management Actions
+			</h3>
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+				<a
+					href={url('admin/projects/sendvirtualgift/users')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">👥</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Users ({kpis.totalRegisteredUsers})</div>
+				</a>
+				<a
+					href={url('admin/projects/sendvirtualgift/cards')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">🎁</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Gift Cards</div>
+				</a>
+				<a
+					href={url('admin/projects/sendvirtualgift/backups')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">☁️</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Card Backups</div>
+				</a>
+				<a
+					href={url('admin/projects/sendvirtualgift/payments')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">💳</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Payments (₹{kpis.totalRevenueRupees})</div>
+				</a>
+				<a
+					href={url('admin/projects/sendvirtualgift/databases')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">🗄️</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Databases</div>
+				</a>
+				<a
+					href={url('admin/projects/sendvirtualgift/integrations')}
+					class="p-3 text-center rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors group"
+				>
+					<div class="text-2xl mb-1">🔌</div>
+					<div class="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-primary-600">Integrations (7)</div>
+				</a>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

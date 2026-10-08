@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '../db/index.js';
 import { decryptToken, encryptToken } from '../lib/crypto.js';
+import { getEnv } from '../lib/env.js';
 import type { ClerkApp, NewClerkApp } from '../db/schema.js';
 
 export interface ClerkUser {
@@ -113,24 +114,33 @@ export async function getClerkApps(): Promise<
 		updatedAt: Date;
 	}> = [];
 
-	// Check if local .env has a direct CLERK_SECRET_KEY (filter out template placeholders)
-	const envSecret = process.env.CLERK_SECRET_KEY?.trim();
-	if (
-		envSecret &&
-		envSecret.startsWith('sk_') &&
-		!envSecret.includes('your_') &&
-		!envSecret.includes('placeholder')
-	) {
-		const isLive = envSecret.startsWith('sk_live_');
-		const defaultName = isLive ? 'SEND VIRTUAL GIFT (Production)' : 'Primary Clerk Project';
-		apps.unshift({
-			id: 'clerk-env-main',
-			name: process.env.CLERK_PROJECT_NAME || defaultName,
-			publishableKey: process.env.PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '',
-			instanceUrl: process.env.CLERK_INSTANCE_URL || null,
-			projectSlug: 'primary-production',
+	// 1. SendVirtualGift Clerk App from .env
+	const svgSecret = (getEnv('SENDVIRTUALGIFT_CLERK_SECRET_KEY') || getEnv('CLERK_SECRET_KEY')).trim();
+	if (svgSecret && svgSecret.startsWith('sk_') && !svgSecret.includes('your_') && !svgSecret.includes('placeholder')) {
+		apps.push({
+			id: 'clerk-sendvirtualgift',
+			name: 'SendVirtualGift (Production)',
+			publishableKey: getEnv('PUBLIC_SENDVIRTUALGIFT_CLERK_PUBLISHABLE_KEY') || getEnv('SENDVIRTUALGIFT_CLERK_PUBLISHABLE_KEY') || getEnv('PUBLIC_CLERK_PUBLISHABLE_KEY') || '',
+			instanceUrl: getEnv('SENDVIRTUALGIFT_CLERK_INSTANCE_URL') || null,
+			projectSlug: 'sendvirtualgift',
 			isDefault: true,
-			secretKey: envSecret,
+			secretKey: svgSecret,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
+
+	// 2. ClickForNothing Clerk App from .env
+	const cfnSecret = getEnv('CLICKFORNOTHING_CLERK_SECRET_KEY').trim();
+	if (cfnSecret && cfnSecret.startsWith('sk_') && !cfnSecret.includes('your_') && !cfnSecret.includes('placeholder')) {
+		apps.push({
+			id: 'clerk-clickfornothing',
+			name: 'ClickForNothing (Production)',
+			publishableKey: getEnv('PUBLIC_CLICKFORNOTHING_CLERK_PUBLISHABLE_KEY') || getEnv('CLICKFORNOTHING_CLERK_PUBLISHABLE_KEY') || '',
+			instanceUrl: getEnv('CLICKFORNOTHING_CLERK_INSTANCE_URL') || null,
+			projectSlug: 'clickfornothing',
+			isDefault: apps.length === 0,
+			secretKey: cfnSecret,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		});

@@ -24,3 +24,5 @@ pnpm-debug.log*
 Thumbs.db
 .vercel
 .env*
+VERCEL_ENVIRONMENT_VARIABLES.md
+

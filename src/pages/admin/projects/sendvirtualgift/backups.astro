@@ -1,0 +1,157 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { listSvgCardBackups } from '../../../../projects/sendvirtualgift/services/backups.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const search = Astro.url.searchParams.get('q') || '';
+const page = Number(Astro.url.searchParams.get('page')) || 1;
+
+const result = await listSvgCardBackups({
+	page,
+	limit: 20,
+	search,
+});
+---
+
+<LayoutSidebar title="SendVirtualGift Card Backups | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="backups"
+			title="Paid Card Cloud Backups"
+			subtitle="Neon PostgreSQL authoritative store for paid template cards and durable buyer backups."
+		/>
+
+		<!-- 3 Cloud Backup Metrics -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Cloud Backups</span>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+					{result.total}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Neon rose_card_backups table</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Active Backups</span>
+				<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+					{result.activeBackupsCount}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Directly accessible by recipients</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Storage Engine</span>
+				<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+					Neon Serverless
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">PostgreSQL with ACID recovery</p>
+			</div>
+		</div>
+
+		<!-- Search -->
+		<div class="p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<form method="GET" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div class="relative w-full sm:w-80">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+						<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+						</svg>
+					</div>
+					<input
+						type="text"
+						name="q"
+						value={search}
+						placeholder="Search by card ID, user ID, or receipt #..."
+						class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-9 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					/>
+				</div>
+
+				<div class="flex items-center space-x-3">
+					<button
+						type="submit"
+						class="px-4 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800"
+					>
+						Search Backups
+					</button>
+
+					{
+						search && (
+							<a
+								href={url('admin/projects/sendvirtualgift/backups')}
+								class="px-3 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300"
+							>
+								Clear
+							</a>
+						)
+					}
+				</div>
+			</form>
+		</div>
+
+		<!-- Backups Table -->
+		<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+					<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+						<tr>
+							<th class="px-5 py-3.5">Backup ID</th>
+							<th class="px-4 py-3.5">Card ID</th>
+							<th class="px-4 py-3.5">User ID</th>
+							<th class="px-4 py-3.5">Receipt #</th>
+							<th class="px-4 py-3.5">Status</th>
+							<th class="px-4 py-3.5">Backed Up At</th>
+							<th class="px-4 py-3.5 text-right">Action</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						{
+							result.backups.length === 0 ? (
+								<tr>
+									<td colspan="7" class="px-6 py-12 text-center text-gray-500">
+										No paid card cloud backups found in Neon PostgreSQL.
+									</td>
+								</tr>
+							) : (
+								result.backups.map((bkp) => (
+									<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+										<td class="px-5 py-4 font-mono text-xs font-semibold text-gray-900 dark:text-white">
+											{bkp.id}
+										</td>
+										<td class="px-4 py-4 font-mono text-xs text-rose-600 dark:text-rose-400 font-medium">
+											{bkp.card_id}
+										</td>
+										<td class="px-4 py-4 font-mono text-xs text-gray-500">
+											{bkp.user_id}
+										</td>
+										<td class="px-4 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
+											{bkp.receipt_number || '—'}
+										</td>
+										<td class="px-4 py-4">
+											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+												<span class="w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
+												{bkp.backup_status}
+											</span>
+										</td>
+										<td class="px-4 py-4 text-xs text-gray-400">
+											{new Date(bkp.created_at).toLocaleDateString()} {new Date(bkp.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+										</td>
+										<td class="px-4 py-4 text-right">
+											<button
+												type="button"
+												class="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 hover:underline"
+												onclick={`alert('Cloud Backup Details:\\nID: ${bkp.id}\\nCard: ${bkp.card_id}\\nUser: ${bkp.user_id}\\nReceipt: ${bkp.receipt_number}\\nURL: ${bkp.card_url}')`}
+											>
+												Inspect
+											</button>
+										</td>
+									</tr>
+								))
+							)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

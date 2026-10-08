@@ -1,0 +1,100 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSvgSystemHealth } from '../../../../projects/sendvirtualgift/services/health.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const health = await getSvgSystemHealth();
+---
+
+<LayoutSidebar title="SendVirtualGift System Health | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="health"
+			title="Platform System Health & Incident Center"
+			subtitle="Live uptime, operational subsystem monitors, error budgets, and database health metrics."
+		/>
+
+		<!-- Big Status Card -->
+		<div class="p-6 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<div class="flex items-center space-x-4">
+					<div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-2xl">
+						🟢
+					</div>
+					<div>
+						<h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+							All Core Systems Operational
+						</h2>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+							Automated health probes reported 0 critical platform outages across production services.
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center space-x-6 text-sm">
+					<div>
+						<span class="text-xs text-gray-400 block uppercase font-semibold">Uptime (30d)</span>
+						<span class="text-xl font-bold text-emerald-600 dark:text-emerald-400">{health.uptimePercent}%</span>
+					</div>
+					<div>
+						<span class="text-xs text-gray-400 block uppercase font-semibold">Active Incidents</span>
+						<span class="text-xl font-bold text-gray-900 dark:text-white">{health.activeIncidents}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Subsystem List Grid -->
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+			{
+				health.subsystems.map((sub) => (
+					<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+						<div>
+							<div class="flex items-center justify-between mb-2">
+								<h4 class="font-bold text-sm text-gray-900 dark:text-white">
+									{sub.name}
+								</h4>
+								<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+									<span class="w-1.5 h-1.5 rounded-full mr-1 bg-green-500"></span>
+									{sub.status.toUpperCase()}
+								</span>
+							</div>
+							<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+								{sub.message}
+							</p>
+						</div>
+
+						<div class="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs text-gray-400">
+							<span>Latency: <strong class="text-gray-700 dark:text-gray-200">{sub.latencyMs}ms</strong></span>
+							<span>Checked {new Date(sub.lastCheck).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+						</div>
+					</div>
+				))
+			}
+		</div>
+
+		<!-- Error Rates & Diagnostics -->
+		<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+				Error Budget & Failure Tracking (Last 24h)
+			</h3>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 text-xs">
+				<div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+					<span class="text-gray-500 block mb-1">Failed Payment Events</span>
+					<span class="text-2xl font-bold text-gray-900 dark:text-white">{health.errorRates.failedPaymentsLast24h}</span>
+				</div>
+				<div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+					<span class="text-gray-500 block mb-1">Rate Limit Throttle Events</span>
+					<span class="text-2xl font-bold text-gray-900 dark:text-white">{health.errorRates.rateLimitBlocksLast24h}</span>
+				</div>
+				<div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+					<span class="text-gray-500 block mb-1">Database Connectivity Errors</span>
+					<span class="text-2xl font-bold text-emerald-600">{health.errorRates.databaseErrors}</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

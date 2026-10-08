@@ -1,0 +1,116 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { probeCfnDatabases } from '../../../../projects/clickfornothing/services/databases.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const databases = await probeCfnDatabases();
+---
+
+<LayoutSidebar title="ClickForNothing Databases | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="databases"
+			title="Neon PostgreSQL Databases & Tables"
+			subtitle="Real-time connection verification, serverless latency metrics, and table schema inspection for ClickForNothing."
+		/>
+
+		<!-- Quick Toolbar -->
+		<div class="flex items-center justify-between p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div class="flex items-center space-x-2">
+				<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+					<span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+					Live Neon PostgreSQL Instance
+				</span>
+			</div>
+			<div class="flex items-center space-x-3 text-xs">
+				<button
+					type="button"
+					onclick="window.location.reload()"
+					class="inline-flex items-center px-3 py-1.5 font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 transition"
+				>
+					🔄 Ping Connection
+				</button>
+			</div>
+		</div>
+
+		<!-- Database Cards -->
+		<div class="space-y-6">
+			{
+				databases.map((db) => (
+					<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+						<div class="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-4 border-b border-gray-100 dark:border-gray-700 gap-4">
+							<div>
+								<div class="flex items-center space-x-3">
+									<h3 class="text-lg font-bold text-gray-900 dark:text-white">
+										{db.name}
+									</h3>
+									<span
+										class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+											db.status === 'connected'
+												? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+												: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+										}`}
+									>
+										{db.status === 'connected' ? '● Connected' : '✕ Disconnected'}
+									</span>
+								</div>
+								<p class="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">
+									Endpoint: {db.endpoint}
+								</p>
+							</div>
+
+							<div class="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-300">
+								{db.latencyMs !== null && (
+									<div class="text-right">
+										<div class="text-[10px] text-gray-400 uppercase font-semibold">Latency</div>
+										<div class="font-bold text-indigo-600 dark:text-indigo-400">{db.latencyMs} ms</div>
+									</div>
+								)}
+								{db.systemInfo && (
+									<div class="text-right">
+										<div class="text-[10px] text-gray-400 uppercase font-semibold">Database</div>
+										<div class="font-bold">{db.systemInfo.database} ({db.systemInfo.branch})</div>
+									</div>
+								)}
+							</div>
+						</div>
+
+						{db.errorMessage && (
+							<div class="p-3 mb-4 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg dark:bg-rose-950 dark:text-rose-300">
+								<span class="font-bold">Error:</span> {db.errorMessage}
+							</div>
+						)}
+
+						<!-- Tables Grid -->
+						<div>
+							<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 dark:text-gray-400">
+								Public Tables in Database ({db.tableStats.length})
+							</h4>
+							<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+								{db.tableStats.map((tbl) => (
+									<div class="p-3 bg-gray-50 border border-gray-200 rounded-lg dark:bg-gray-700/50 dark:border-gray-600">
+										<div class="flex items-center justify-between">
+											<span class="font-mono text-xs font-semibold text-gray-900 dark:text-white">
+												{tbl.tableName}
+											</span>
+											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">
+												{tbl.rowCount} rows
+											</span>
+										</div>
+										<div class="text-[11px] text-gray-400 mt-1">
+											Authoritative Table
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				))
+			}
+		</div>
+	</div>
+</LayoutSidebar>

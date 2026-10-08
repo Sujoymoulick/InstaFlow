@@ -1,0 +1,195 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { listSvgCards } from '../../../../projects/sendvirtualgift/services/cards.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const search = Astro.url.searchParams.get('q') || '';
+const template = Astro.url.searchParams.get('template') || 'all';
+const page = Number(Astro.url.searchParams.get('page')) || 1;
+
+const result = await listSvgCards({
+	page,
+	limit: 20,
+	search,
+	template,
+});
+---
+
+<LayoutSidebar title="SendVirtualGift Cards | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="cards"
+			title="Operational Gift Cards Management"
+			subtitle="Aggregated card generation monitoring across anonymous and authenticated sessions."
+		/>
+
+		<!-- Privacy Notice Banner -->
+		<div class="p-4 mb-6 text-sm text-blue-800 rounded-xl bg-blue-50 dark:bg-gray-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center">
+			<svg class="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+				<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+			</svg>
+			<div>
+				<span class="font-semibold">Privacy Protected:</span>
+				In accordance with user privacy rules, private personal messages and recipient secrets are masked from this central administrative view.
+			</div>
+		</div>
+
+		<!-- 4 Operational Metrics -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Cards Tracked</span>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+					{result.metrics.totalGenerated}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Operational aggregate records</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Anonymous Cards</span>
+				<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+					{result.metrics.anonymousCards}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">No-signup instant creations</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Registered User Cards</span>
+				<h3 class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+					{result.metrics.registeredCards}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Authenticated user creations</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Card Likes</span>
+				<h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+					{result.metrics.totalLikes}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">From InsForge card_likes table</p>
+			</div>
+		</div>
+
+		<!-- Toolbar -->
+		<div class="p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<form method="GET" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div class="relative w-full sm:w-80">
+					<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+						<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+						</svg>
+					</div>
+					<input
+						type="text"
+						name="q"
+						value={search}
+						placeholder="Search by card ID or title..."
+						class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-9 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					/>
+				</div>
+
+				<div class="flex items-center space-x-3">
+					<select
+						name="template"
+						class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+					>
+						<option value="all" selected={template === 'all'}>All Templates</option>
+						<option value="forever-rose" selected={template === 'forever-rose'}>3D Forever Rose</option>
+						<option value="birthday" selected={template === 'birthday'}>Birthday 3D</option>
+						<option value="rakhi" selected={template === 'rakhi'}>Virtual Rakhi</option>
+					</select>
+
+					<button
+						type="submit"
+						class="px-4 py-2.5 text-sm font-medium text-white bg-primary-700 rounded-lg hover:bg-primary-800"
+					>
+						Filter
+					</button>
+
+					{
+						(search || template !== 'all') && (
+							<a
+								href={url('admin/projects/sendvirtualgift/cards')}
+								class="px-3 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300"
+							>
+								Clear
+							</a>
+						)
+					}
+				</div>
+			</form>
+		</div>
+
+		<!-- Cards Table -->
+		<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+					<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+						<tr>
+							<th class="px-5 py-3.5">Card ID</th>
+							<th class="px-4 py-3.5">Title</th>
+							<th class="px-4 py-3.5">Template</th>
+							<th class="px-4 py-3.5">Type</th>
+							<th class="px-4 py-3.5">Views</th>
+							<th class="px-4 py-3.5">Likes</th>
+							<th class="px-4 py-3.5">Created</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						{
+							result.cards.length === 0 ? (
+								<tr>
+									<td colspan="7" class="px-6 py-12 text-center text-gray-500">
+										No cards match your filter criteria.
+									</td>
+								</tr>
+							) : (
+								result.cards.map((card) => (
+									<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+										<td class="px-5 py-4 font-mono text-xs font-semibold text-gray-900 dark:text-white">
+											{card.cardId}
+										</td>
+										<td class="px-4 py-4 text-gray-800 dark:text-gray-200 font-medium">
+											{card.cardTitle}
+										</td>
+										<td class="px-4 py-4 text-xs">
+											<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-gray-700 dark:text-rose-300 font-medium">
+												{card.templateName}
+											</span>
+										</td>
+										<td class="px-4 py-4">
+											<span
+												class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+													card.isAnonymous
+														? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+														: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+												}`}
+											>
+												{card.isAnonymous ? 'Anonymous' : 'Authenticated'}
+											</span>
+										</td>
+										<td class="px-4 py-4 font-semibold text-gray-900 dark:text-white">
+											{card.viewsCount}
+										</td>
+										<td class="px-4 py-4 font-semibold text-purple-600 dark:text-purple-400">
+											{card.likesCount}
+										</td>
+										<td class="px-4 py-4 text-xs text-gray-400">
+											{new Date(card.createdAt).toLocaleDateString()}
+										</td>
+									</tr>
+								))
+							)
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<div class="px-5 py-4 bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500">
+				<div>
+					Showing <span class="font-bold text-gray-900 dark:text-white">{result.cards.length}</span> of{' '}
+					<span class="font-bold text-gray-900 dark:text-white">{result.total}</span> total operational cards
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

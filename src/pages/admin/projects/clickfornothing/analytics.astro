@@ -1,0 +1,104 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getCfnAnalyticsSummary } from '../../../../projects/clickfornothing/services/analytics.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const analytics = await getCfnAnalyticsSummary();
+---
+
+<LayoutSidebar title="ClickForNothing Live Analytics | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="analytics"
+			title="Live Directory Analytics & Submissions Stream"
+			subtitle="Real-time submission velocity, category popularity breakdown, and moderation throughput."
+		/>
+
+		<!-- Summary KPI Cards -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Submissions</span>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+					{analytics.totalSubmissions}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Neon website_submissions table</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Approval Rate</span>
+				<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+					{analytics.approvalRatePercent}%
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Approved & Published vs Reviewed</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Creators</span>
+				<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+					{analytics.totalCreators}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Clerk authenticated submitters</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Pending Review</span>
+				<h3 class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+					{analytics.pendingReview}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Awaiting moderation action</p>
+			</div>
+		</div>
+
+		<!-- Velocity and Categories Grid -->
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
+			<!-- Submission Status Breakdown -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+					Moderation Status Breakdown
+				</h3>
+				<div class="space-y-4">
+					{analytics.statusBreakdown.map((item) => {
+						const pct = analytics.totalSubmissions > 0 ? Math.round((item.count / analytics.totalSubmissions) * 100) : 0;
+						return (
+							<div>
+								<div class="flex justify-between items-center text-xs mb-1">
+									<span class="font-medium text-gray-700 dark:text-gray-300">{item.status}</span>
+									<span class="font-bold text-gray-900 dark:text-white">{item.count} ({pct}%)</span>
+								</div>
+								<div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden dark:bg-gray-700">
+									<div
+										class="h-full rounded-full transition-all duration-500"
+										style={`width: ${Math.max(pct, item.count > 0 ? 5 : 0)}%; background-color: ${item.color}`}
+									></div>
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+
+			<!-- Categories Distribution -->
+			<div class="p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">
+					Submissions by Category
+				</h3>
+				<div class="space-y-3">
+					{analytics.categoryBreakdown.length === 0 ? (
+						<div class="text-xs text-gray-400 py-6 text-center">No categories recorded yet.</div>
+					) : (
+						analytics.categoryBreakdown.map((cat) => (
+							<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg dark:bg-gray-700/50">
+								<span class="font-medium text-xs text-gray-900 dark:text-white">{cat.category}</span>
+								<div class="flex items-center space-x-2">
+									<span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">{cat.count} sites</span>
+									<span class="text-[10px] text-gray-400">({cat.percentage}%)</span>
+								</div>
+							</div>
+						))
+					)}
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

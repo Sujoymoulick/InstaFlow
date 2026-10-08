@@ -1,0 +1,219 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { listSvgInvoices } from '../../../../projects/sendvirtualgift/services/invoices.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const search = Astro.url.searchParams.get('q') || '';
+const page = Number(Astro.url.searchParams.get('page')) || 1;
+
+const result = await listSvgInvoices({
+	page,
+	limit: 20,
+	search,
+});
+---
+
+<LayoutSidebar title="SendVirtualGift Invoices | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="invoices"
+			title="Tax Invoices & Buyer Receipts"
+			subtitle="Verified purchase receipts, tax calculations (18% GST), and printable invoices generated from Neon orders."
+		/>
+
+		<!-- Quick Invoices Summary -->
+		<div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Generated Invoices</span>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+					{result.total}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">From successful Neon orders</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Invoiced Amount</span>
+				<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+					₹{result.totalInvoicedRupees}
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Includes 18% GST itemization</p>
+			</div>
+			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+				<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Merchant Entity</span>
+				<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+					SendVirtualGift.com
+				</h3>
+				<p class="text-[11px] text-gray-400 mt-1">Digital Goods & Services</p>
+			</div>
+		</div>
+
+		<!-- Invoices Table -->
+		<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+					<thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+						<tr>
+							<th class="px-5 py-3.5">Invoice #</th>
+							<th class="px-4 py-3.5">Customer</th>
+							<th class="px-4 py-3.5">Item Description</th>
+							<th class="px-4 py-3.5">Subtotal</th>
+							<th class="px-4 py-3.5">Tax (GST 18%)</th>
+							<th class="px-4 py-3.5">Total</th>
+							<th class="px-4 py-3.5">Paid Date</th>
+							<th class="px-4 py-3.5 text-right">Invoice View</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						{
+							result.invoices.length === 0 ? (
+								<tr>
+									<td colspan="8" class="px-6 py-12 text-center text-gray-500">
+										No paid invoices found in the system yet.
+									</td>
+								</tr>
+							) : (
+								result.invoices.map((inv) => (
+									<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+										<td class="px-5 py-4 font-mono text-xs font-bold text-primary-600 dark:text-primary-400">
+											{inv.receiptNumber}
+										</td>
+										<td class="px-4 py-4">
+											<div class="font-medium text-gray-900 dark:text-white text-xs">{inv.customerName}</div>
+											<div class="text-[11px] text-gray-400">{inv.customerEmail}</div>
+										</td>
+										<td class="px-4 py-4 text-xs font-medium text-gray-800 dark:text-gray-200">
+											{inv.productName}
+										</td>
+										<td class="px-4 py-4 text-xs font-mono text-gray-600 dark:text-gray-300">
+											₹{inv.subtotal.toFixed(2)}
+										</td>
+										<td class="px-4 py-4 text-xs font-mono text-gray-600 dark:text-gray-300">
+											₹{inv.tax.toFixed(2)}
+										</td>
+										<td class="px-4 py-4 font-bold text-gray-900 dark:text-white">
+											₹{inv.total.toFixed(2)}
+										</td>
+										<td class="px-4 py-4 text-xs text-gray-400">
+											{new Date(inv.paidAt).toLocaleDateString()}
+										</td>
+										<td class="px-4 py-4 text-right">
+											<button
+												type="button"
+												class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-300"
+												onclick={`openInvoiceModal(${JSON.stringify(inv)})`}
+											>
+												<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+												</svg>
+												Preview Receipt
+											</button>
+										</td>
+									</tr>
+								))
+							)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Invoice Modal Dialog -->
+		<div id="invoice-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-lg p-6">
+				<div class="flex items-center justify-between border-b pb-4 mb-4 dark:border-gray-700">
+					<div class="flex items-center space-x-2">
+						<span class="text-2xl">🎁</span>
+						<span class="font-bold text-lg text-gray-900 dark:text-white">SendVirtualGift Receipt</span>
+					</div>
+					<button type="button" onclick="closeInvoiceModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">
+						&times;
+					</button>
+				</div>
+
+				<div id="invoice-content" class="space-y-4 text-xs">
+					<!-- Dynamically injected via JS -->
+				</div>
+
+				<div class="flex items-center justify-end space-x-3 pt-4 border-t mt-6 dark:border-gray-700">
+					<button
+						type="button"
+						onclick="window.print()"
+						class="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+					>
+						🖨️ Print Receipt
+					</button>
+					<button
+						type="button"
+						onclick="closeInvoiceModal()"
+						class="px-4 py-2 text-xs font-semibold text-white bg-primary-700 rounded-lg hover:bg-primary-800"
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>
+
+<script is:inline>
+	function openInvoiceModal(inv) {
+		const modal = document.getElementById('invoice-modal');
+		const content = document.getElementById('invoice-content');
+		if (!modal || !content) return;
+
+		content.innerHTML = `
+			<div class="bg-gray-50 dark:bg-gray-700/40 p-4 rounded-xl space-y-2">
+				<div class="flex justify-between">
+					<span class="text-gray-500">Receipt / Invoice Number:</span>
+					<span class="font-mono font-bold text-gray-900 dark:text-white">${inv.receiptNumber}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-gray-500">Order ID:</span>
+					<span class="font-mono text-gray-700 dark:text-gray-300">${inv.orderId}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-gray-500">Payment Gateway ID:</span>
+					<span class="font-mono text-gray-700 dark:text-gray-300">${inv.paymentId}</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-gray-500">Payment Status:</span>
+					<span class="font-bold text-emerald-600">PAID (Captured)</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-gray-500">Date & Time:</span>
+					<span class="text-gray-700 dark:text-gray-300">${new Date(inv.paidAt).toLocaleString()}</span>
+				</div>
+			</div>
+
+			<div class="border rounded-xl p-4 dark:border-gray-700">
+				<div class="font-semibold text-sm text-gray-900 dark:text-white mb-2">${inv.productName}</div>
+				<div class="flex justify-between py-1 text-gray-600 dark:text-gray-400">
+					<span>Base Subtotal:</span>
+					<span>₹${inv.subtotal.toFixed(2)}</span>
+				</div>
+				<div class="flex justify-between py-1 text-gray-600 dark:text-gray-400">
+					<span>Integrated GST (18%):</span>
+					<span>₹${inv.tax.toFixed(2)}</span>
+				</div>
+				<div class="flex justify-between py-2 text-sm font-bold text-gray-900 dark:text-white border-t mt-2 dark:border-gray-700">
+					<span>Total Amount Paid:</span>
+					<span>₹${inv.total.toFixed(2)} INR</span>
+				</div>
+			</div>
+
+			<div class="text-[11px] text-gray-400 text-center">
+				Issued by SendVirtualGift Platform • Verified Transaction Record
+			</div>
+		`;
+
+		modal.classList.remove('hidden');
+	}
+
+	function closeInvoiceModal() {
+		const modal = document.getElementById('invoice-modal');
+		if (modal) modal.classList.add('hidden');
+	}
+</script>
