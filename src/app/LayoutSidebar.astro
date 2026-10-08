@@ -1,5 +1,4 @@
 ---
-import FooterSidebar from './FooterSidebar.astro';
 import LayoutCommon from './LayoutCommon.astro';
 import NavBarSidebar from './NavBarSidebar.astro';
 import SideBar from './SideBar.astro';
@@ -26,8 +25,6 @@ const session = verifyAdminSession(Astro.cookies, Astro.request);
 			class="relative w-full h-full overflow-y-auto bg-gray-50 lg:ml-64 dark:bg-gray-900 min-h-screen"
 		>
 			<slot />
-
-			<FooterSidebar />
 		</div>
 	</div>
 </LayoutCommon>
