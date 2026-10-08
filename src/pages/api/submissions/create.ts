@@ -3,7 +3,7 @@ import { createSubmission } from '../../../projects/clickfornothing/services/sub
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const post: APIRoute = async ({ request }) => {
 	try {
 		const authHeader = request.headers.get('authorization') || '';
 		let userId = request.headers.get('x-user-id');

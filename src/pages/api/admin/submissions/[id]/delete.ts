@@ -43,5 +43,5 @@ const handleDelete: APIRoute = async ({ params, request, cookies }) => {
 	}
 };
 
-export const POST = handleDelete;
-export const DELETE = handleDelete;
+export const post = handleDelete;
+export const del = handleDelete;

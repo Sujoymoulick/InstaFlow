@@ -4,7 +4,7 @@ import { deleteSubmission } from '../../../../projects/clickfornothing/services/
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, cookies, url }) => {
+export const post: APIRoute = async ({ request, cookies, url }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized || !session.email) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {
@@ -48,4 +48,4 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
 	}
 };
 
-export const DELETE = POST;
+export const del = post;

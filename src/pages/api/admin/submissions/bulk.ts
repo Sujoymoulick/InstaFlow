@@ -9,7 +9,7 @@ import {
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const post: APIRoute = async ({ request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized || !session.email) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {

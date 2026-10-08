@@ -3,7 +3,7 @@ import { listSubmissions } from '../../../projects/clickfornothing/services/subm
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request }) => {
+export const get: APIRoute = async ({ request }) => {
 	try {
 		const url = new URL(request.url);
 		let userId = request.headers.get('x-user-id') || url.searchParams.get('userId');

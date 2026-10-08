@@ -4,7 +4,7 @@ import { verifyAdminSession } from '../../../../../lib/auth.js';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request, cookies }) => {
+export const get: APIRoute = async ({ request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized) {
 		return new Response(JSON.stringify({ error: 'Unauthorized' }), {

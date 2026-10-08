@@ -10,7 +10,7 @@ import {
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params, request, cookies }) => {
+export const get: APIRoute = async ({ params, request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {
@@ -49,7 +49,7 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ params, request, cookies }) => {
+export const post: APIRoute = async ({ params, request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized || !session.email) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {
@@ -114,10 +114,10 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
 	}
 };
 
-export const PUT = POST;
-export const PATCH = POST;
+export const put = post;
+export const patch = post;
 
-export const DELETE: APIRoute = async ({ params, request, cookies }) => {
+export const del: APIRoute = async ({ params, request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized || !session.email) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {

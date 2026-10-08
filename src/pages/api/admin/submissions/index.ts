@@ -4,7 +4,7 @@ import { listSubmissions, createSubmission } from '../../../../projects/clickfor
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request, cookies }) => {
+export const get: APIRoute = async ({ request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {
@@ -49,7 +49,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const post: APIRoute = async ({ request, cookies }) => {
 	const session = verifyAdminSession(cookies, request);
 	if (!session.authorized) {
 		return new Response(JSON.stringify({ error: 'Unauthorized: Admin authentication required.' }), {
