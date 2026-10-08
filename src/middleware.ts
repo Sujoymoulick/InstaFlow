@@ -1,6 +1,6 @@
 import { verifyAdminSession } from './lib/auth.js';
 
-export async function onRequest(context: any, next: () => Promise<Response>): Promise<Response | void> {
+export async function onRequest(context: any, next: () => Promise<Response>): Promise<Response> {
 	const url = new URL(context.request.url);
 	const pathname = url.pathname;
 
@@ -15,6 +15,7 @@ export async function onRequest(context: any, next: () => Promise<Response>): Pr
 		pathname === '/favicon.svg';
 
 	if (!isPublic) {
+
 		const session = verifyAdminSession(context.cookies, context.request);
 		if (!session.authorized) {
 			return new Response(null, {
@@ -26,5 +27,7 @@ export async function onRequest(context: any, next: () => Promise<Response>): Pr
 		}
 	}
 
-	await next();
+
+	return next();
 }
+

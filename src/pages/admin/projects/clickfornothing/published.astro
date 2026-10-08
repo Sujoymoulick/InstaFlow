@@ -184,6 +184,22 @@ const { submissions, total, totalPages } = submissionsData;
 		}, 3000);
 	}
 
+	// Safe response parser
+	async function parseJsonSafely(res: Response) {
+		const contentType = res.headers.get('content-type') || '';
+		if (!contentType.includes('application/json')) {
+			if (res.status === 401 || res.redirected || res.url.includes('sign-in')) {
+				return { success: false, error: 'Admin session required. Please sign in.' };
+			}
+			return { success: false, error: `Server returned status ${res.status}` };
+		}
+		try {
+			return await res.json();
+		} catch (e: any) {
+			return { success: false, error: e?.message || 'Invalid server response.' };
+		}
+	}
+
 	document.querySelectorAll('.btn-reject').forEach((btn) => {
 		btn.addEventListener('click', async (e) => {
 			const target = e.currentTarget as HTMLElement;
@@ -200,7 +216,7 @@ const { submissions, total, totalPages } = submissionsData;
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ reason }),
 				});
-				const data = await res.json();
+				const data = await parseJsonSafely(res);
 				if (res.ok && data.success) {
 					showToast('Submission unpublished & rejected.');
 					setTimeout(() => window.location.reload(), 700);
@@ -227,7 +243,7 @@ const { submissions, total, totalPages } = submissionsData;
 					method: 'DELETE',
 					headers: { 'Content-Type': 'application/json' },
 				});
-				const data = await res.json();
+				const data = await parseJsonSafely(res);
 				if (res.ok && data.success) {
 					showToast('Submission deleted successfully!');
 					setTimeout(() => window.location.reload(), 700);
@@ -240,4 +256,5 @@ const { submissions, total, totalPages } = submissionsData;
 		});
 	});
 </script>
+
 

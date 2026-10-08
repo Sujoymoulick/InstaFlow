@@ -730,6 +730,22 @@ const { submissions, total, totalPages } = submissionsData;
 		});
 	});
 
+	// Safe response parser that prevents Safari / WebKit pattern syntax errors on HTML/redirects
+	async function parseJsonSafely(res: Response) {
+		const contentType = res.headers.get('content-type') || '';
+		if (!contentType.includes('application/json')) {
+			if (res.status === 401 || res.redirected || res.url.includes('sign-in')) {
+				return { success: false, error: 'Admin session required. Please sign in.' };
+			}
+			return { success: false, error: `Server returned status ${res.status}` };
+		}
+		try {
+			return await res.json();
+		} catch (e: any) {
+			return { success: false, error: e?.message || 'Invalid server response.' };
+		}
+	}
+
 	// Actions: Approve
 	async function approveSubmission(id: string) {
 		try {
@@ -737,7 +753,7 @@ const { submissions, total, totalPages } = submissionsData;
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission approved successfully!');
 				setTimeout(() => window.location.reload(), 800);
@@ -756,7 +772,7 @@ const { submissions, total, totalPages } = submissionsData;
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission published live!');
 				setTimeout(() => window.location.reload(), 800);
@@ -776,7 +792,7 @@ const { submissions, total, totalPages } = submissionsData;
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission deleted successfully!');
 				closeDrawer();
@@ -826,7 +842,7 @@ const { submissions, total, totalPages } = submissionsData;
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ reason }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission rejected.');
 				closeRejectModal();
@@ -946,7 +962,7 @@ const { submissions, total, totalPages } = submissionsData;
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'approve', ids: Array.from(selectedIds) }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast(`Bulk approved ${data.affectedCount} submissions!`);
 				setTimeout(() => window.location.reload(), 900);
@@ -968,7 +984,7 @@ const { submissions, total, totalPages } = submissionsData;
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'publish', ids: Array.from(selectedIds) }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast(`Bulk published ${data.affectedCount} submissions!`);
 				setTimeout(() => window.location.reload(), 900);
@@ -991,7 +1007,7 @@ const { submissions, total, totalPages } = submissionsData;
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'reject', ids: Array.from(selectedIds), reason }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast(`Bulk rejected ${data.affectedCount} submissions!`);
 				setTimeout(() => window.location.reload(), 900);
@@ -1013,7 +1029,7 @@ const { submissions, total, totalPages } = submissionsData;
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action: 'delete', ids: Array.from(selectedIds) }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast(`Bulk deleted ${data.affectedCount} submissions!`);
 				setTimeout(() => window.location.reload(), 900);
@@ -1024,5 +1040,6 @@ const { submissions, total, totalPages } = submissionsData;
 			showToast(err.message, true);
 		}
 	});
+
 </script>
 

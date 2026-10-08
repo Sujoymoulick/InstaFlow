@@ -342,6 +342,22 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 		}, 3000);
 	}
 
+	// Safe response parser
+	async function parseJsonSafely(res) {
+		const contentType = res.headers.get('content-type') || '';
+		if (!contentType.includes('application/json')) {
+			if (res.status === 401 || res.redirected || res.url.includes('sign-in')) {
+				return { success: false, error: 'Admin session required. Please sign in.' };
+			}
+			return { success: false, error: `Server returned status ${res.status}` };
+		}
+		try {
+			return await res.json();
+		} catch (e) {
+			return { success: false, error: e?.message || 'Invalid server response.' };
+		}
+	}
+
 	// Approve
 	document.getElementById('btn-action-approve')?.addEventListener('click', async () => {
 		try {
@@ -349,7 +365,7 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission approved!');
 				setTimeout(() => window.location.reload(), 800);
@@ -368,7 +384,7 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission published live!');
 				setTimeout(() => window.location.reload(), 800);
@@ -388,7 +404,7 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission deleted successfully!');
 				setTimeout(() => {
@@ -425,7 +441,7 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ reason }),
 			});
-			const data = await res.json();
+			const data = await parseJsonSafely(res);
 			if (res.ok && data.success) {
 				showToast('Submission rejected.');
 				rejectModal?.classList.add('hidden');
@@ -438,4 +454,5 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 		}
 	});
 </script>
+
 
