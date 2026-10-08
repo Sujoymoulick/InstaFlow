@@ -1,6 +1,11 @@
 import type { APIRoute } from 'astro';
 import { verifyAdminSession } from '../../../../lib/auth.js';
-import { bulkApproveSubmissions, bulkRejectSubmissions } from '../../../../projects/clickfornothing/services/submissions.js';
+import {
+	bulkApproveSubmissions,
+	bulkRejectSubmissions,
+	bulkPublishSubmissions,
+	bulkDeleteSubmissions,
+} from '../../../../projects/clickfornothing/services/submissions.js';
 
 export const prerender = false;
 
@@ -44,11 +49,34 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 				}),
 				{ status: 200, headers: { 'Content-Type': 'application/json' } },
 			);
+		} else if (action === 'publish') {
+			const res = await bulkPublishSubmissions(ids, session.email);
+			return new Response(
+				JSON.stringify({
+					success: true,
+					message: `Successfully published ${res.affectedCount} submission(s).`,
+					affectedCount: res.affectedCount,
+				}),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } },
+			);
+		} else if (action === 'delete') {
+			const res = await bulkDeleteSubmissions(ids, session.email);
+			return new Response(
+				JSON.stringify({
+					success: true,
+					message: `Successfully deleted ${res.affectedCount} submission(s).`,
+					affectedCount: res.affectedCount,
+				}),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } },
+			);
 		} else {
-			return new Response(JSON.stringify({ error: 'Invalid action. Must be "approve" or "reject".' }), {
-				status: 400,
-				headers: { 'Content-Type': 'application/json' },
-			});
+			return new Response(
+				JSON.stringify({ error: 'Invalid action. Must be "approve", "reject", "publish", or "delete".' }),
+				{
+					status: 400,
+					headers: { 'Content-Type': 'application/json' },
+				},
+			);
 		}
 	} catch (error: any) {
 		console.error('[API /admin/submissions/bulk] Error:', error);
@@ -58,3 +86,4 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 		});
 	}
 };
+

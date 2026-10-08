@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
 		let reason = 'Submission does not meet directory guidelines.';
 		try {
 			const body = await request.json();
-			if (body.reason && typeof body.reason === 'string') {
+			if (body && typeof body.reason === 'string' && body.reason.trim()) {
 				reason = body.reason.trim();
 			}
 		} catch {}
@@ -50,3 +50,6 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
 		});
 	}
 };
+
+export const PUT = POST;
+

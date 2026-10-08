@@ -125,6 +125,24 @@ const { submissions, total, totalPages } = submissionsData;
 												>
 													Details
 												</a>
+												<button
+													type="button"
+													class="btn-reject px-2.5 py-1 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition"
+													data-id={sub.id}
+													data-title={sub.title}
+													title="Unpublish and reject site"
+												>
+													Reject
+												</button>
+												<button
+													type="button"
+													class="btn-delete px-2.5 py-1 text-xs font-semibold text-white bg-red-700 hover:bg-red-800 rounded-lg shadow-sm transition"
+													data-id={sub.id}
+													data-title={sub.title}
+													title="Delete permanently"
+												>
+													🗑
+												</button>
 											</div>
 										</td>
 									</tr>
@@ -135,5 +153,91 @@ const { submissions, total, totalPages } = submissionsData;
 				</table>
 			</div>
 		</div>
+
+		<!-- Toast Container -->
+		<div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-none">
+			<div class="px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-gray-900 text-white" id="toast-inner">
+				<span id="toast-icon">✓</span>
+				<span id="toast-msg">Action completed</span>
+			</div>
+		</div>
 	</div>
 </LayoutSidebar>
+
+<script>
+	function showToast(msg: string, isError = false) {
+		const toast = document.getElementById('toast');
+		const toastInner = document.getElementById('toast-inner');
+		const toastMsg = document.getElementById('toast-msg');
+		const toastIcon = document.getElementById('toast-icon');
+		if (!toast || !toastInner || !toastMsg || !toastIcon) return;
+
+		toastMsg.innerText = msg;
+		toastIcon.innerText = isError ? '✕' : '✓';
+		toastInner.className = isError
+			? 'px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-rose-600 text-white'
+			: 'px-4 py-3 rounded-lg shadow-lg text-xs font-semibold flex items-center space-x-2 bg-gray-900 text-white';
+
+		toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+		setTimeout(() => {
+			toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+		}, 3000);
+	}
+
+	document.querySelectorAll('.btn-reject').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			const title = target.getAttribute('data-title') || 'site';
+			if (!id) return;
+
+			const reason = prompt(`Reason for unpublishing/rejecting "${title}":`, 'Removed from directory.');
+			if (reason === null) return;
+
+			try {
+				const res = await fetch(`/api/admin/submissions/${id}/reject`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ reason }),
+				});
+				const data = await res.json();
+				if (res.ok && data.success) {
+					showToast('Submission unpublished & rejected.');
+					setTimeout(() => window.location.reload(), 700);
+				} else {
+					showToast(data.error || 'Failed to reject', true);
+				}
+			} catch (err: any) {
+				showToast(err.message, true);
+			}
+		});
+	});
+
+	document.querySelectorAll('.btn-delete').forEach((btn) => {
+		btn.addEventListener('click', async (e) => {
+			const target = e.currentTarget as HTMLElement;
+			const id = target.getAttribute('data-id');
+			const title = target.getAttribute('data-title') || 'this website';
+			if (!id) return;
+
+			if (!confirm(`Are you sure you want to permanently delete "${title}" from Neon DB?`)) return;
+
+			try {
+				const res = await fetch(`/api/admin/submissions/${id}`, {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' },
+				});
+				const data = await res.json();
+				if (res.ok && data.success) {
+					showToast('Submission deleted successfully!');
+					setTimeout(() => window.location.reload(), 700);
+				} else {
+					showToast(data.error || 'Failed to delete submission', true);
+				}
+			} catch (err: any) {
+				showToast(err.message, true);
+			}
+		});
+	});
+</script>
+

@@ -561,6 +561,56 @@ export async function publishSubmission(id: string, adminEmail: string): Promise
 }
 
 /**
+ * Delete a submission permanently from Neon DB and record audit log
+ */
+export async function deleteSubmission(
+	id: string,
+	adminEmail: string,
+): Promise<{ success: boolean; id: string }> {
+	const current = await getSubmissionById(id);
+	const numericId = parseInt(id, 10);
+
+	if (isCfnDatabaseConfigured()) {
+		try {
+			const sql = getCfnSql();
+			if (isNaN(numericId)) {
+				await sql`
+					DELETE FROM website_submissions
+					WHERE id::text = ${id};
+				`;
+			} else {
+				await sql`
+					DELETE FROM website_submissions
+					WHERE id = ${numericId};
+				`;
+			}
+
+			await recordAuditLog({
+				submissionId: id,
+				adminEmail,
+				action: 'Deleted Submission',
+				previousStatus: current ? current.status : 'Unknown',
+				newStatus: 'Deleted',
+				details: current
+					? `Permanently deleted submission "${current.title}" (${current.url})`
+					: `Permanently deleted submission ID #${id}`,
+			});
+
+			return { success: true, id };
+		} catch (err) {
+			console.warn('[ClickForNothing Submissions] DB delete error:', err);
+		}
+	}
+
+	const idx = fallbackSubmissions.findIndex((s) => s.id === id);
+	if (idx >= 0) {
+		fallbackSubmissions.splice(idx, 1);
+	}
+
+	return { success: true, id };
+}
+
+/**
  * Bulk approve multiple submissions
  */
 export async function bulkApproveSubmissions(
@@ -589,6 +639,40 @@ export async function bulkRejectSubmissions(
 	for (const id of ids) {
 		try {
 			await rejectSubmission(id, adminEmail, reason);
+			count++;
+		} catch {}
+	}
+	return { success: true, affectedCount: count };
+}
+
+/**
+ * Bulk publish multiple submissions
+ */
+export async function bulkPublishSubmissions(
+	ids: string[],
+	adminEmail: string,
+): Promise<{ success: boolean; affectedCount: number }> {
+	let count = 0;
+	for (const id of ids) {
+		try {
+			await publishSubmission(id, adminEmail);
+			count++;
+		} catch {}
+	}
+	return { success: true, affectedCount: count };
+}
+
+/**
+ * Bulk delete multiple submissions
+ */
+export async function bulkDeleteSubmissions(
+	ids: string[],
+	adminEmail: string,
+): Promise<{ success: boolean; affectedCount: number }> {
+	let count = 0;
+	for (const id of ids) {
+		try {
+			await deleteSubmission(id, adminEmail);
 			count++;
 		} catch {}
 	}
