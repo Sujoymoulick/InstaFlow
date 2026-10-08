@@ -192,24 +192,66 @@ const { submissions, total, totalPages } = submissionsData;
 		}
 	}
 
+	// Multi-route fallback dispatcher
+	async function sendSubmissionAction(id: string, action: 'approve' | 'publish' | 'reject' | 'delete', reason?: string) {
+		try {
+			// Primary 1: Universal action endpoint
+			let res = await fetch('/api/admin/submissions/action', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id, action, reason }),
+			});
+
+			// Primary 2: Flat action endpoint
+			if (res.status === 404) {
+				res = await fetch(`/api/admin/submissions/${action}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id, reason }),
+				});
+			}
+
+			// Fallback 1: Dynamic subroute
+			if (res.status === 404) {
+				if (action === 'delete') {
+					res = await fetch(`/api/admin/submissions/${id}`, {
+						method: 'DELETE',
+						headers: { 'Content-Type': 'application/json' },
+					});
+				} else {
+					res = await fetch(`/api/admin/submissions/${id}/${action}`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ reason }),
+					});
+				}
+			}
+
+			// Fallback 2: Index route
+			if (res.status === 404) {
+				res = await fetch(`/api/admin/submissions/${id}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, reason }),
+				});
+			}
+
+			return await parseJsonSafely(res);
+		} catch (err: any) {
+			return { success: false, error: err?.message || 'Network request failed.' };
+		}
+	}
+
 	document.querySelectorAll('.btn-approve').forEach((btn) => {
 		btn.addEventListener('click', async (e) => {
 			const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
 			if (!id) return;
-			try {
-				const res = await fetch(`/api/admin/submissions/${id}/approve`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-				});
-				const data = await parseJsonSafely(res);
-				if (res.ok && data.success) {
-					showToast('Submission approved!');
-					setTimeout(() => window.location.reload(), 700);
-				} else {
-					showToast(data.error || 'Failed to approve', true);
-				}
-			} catch (err: any) {
-				showToast(err.message, true);
+			const data = await sendSubmissionAction(id, 'approve');
+			if (data && data.success) {
+				showToast('Submission approved!');
+				setTimeout(() => window.location.reload(), 700);
+			} else {
+				showToast(data.error || 'Failed to approve', true);
 			}
 		});
 	});
@@ -224,21 +266,12 @@ const { submissions, total, totalPages } = submissionsData;
 			const reason = prompt(`Reason for rejecting "${title}":`, 'Submission does not meet quality requirements.');
 			if (reason === null) return;
 
-			try {
-				const res = await fetch(`/api/admin/submissions/${id}/reject`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ reason }),
-				});
-				const data = await parseJsonSafely(res);
-				if (res.ok && data.success) {
-					showToast('Submission rejected.');
-					setTimeout(() => window.location.reload(), 700);
-				} else {
-					showToast(data.error || 'Failed to reject', true);
-				}
-			} catch (err: any) {
-				showToast(err.message, true);
+			const data = await sendSubmissionAction(id, 'reject', reason);
+			if (data && data.success) {
+				showToast('Submission rejected.');
+				setTimeout(() => window.location.reload(), 700);
+			} else {
+				showToast(data.error || 'Failed to reject', true);
 			}
 		});
 	});
@@ -252,20 +285,12 @@ const { submissions, total, totalPages } = submissionsData;
 
 			if (!confirm(`Are you sure you want to permanently delete "${title}" from Neon DB?`)) return;
 
-			try {
-				const res = await fetch(`/api/admin/submissions/${id}`, {
-					method: 'DELETE',
-					headers: { 'Content-Type': 'application/json' },
-				});
-				const data = await parseJsonSafely(res);
-				if (res.ok && data.success) {
-					showToast('Submission deleted successfully!');
-					setTimeout(() => window.location.reload(), 700);
-				} else {
-					showToast(data.error || 'Failed to delete submission', true);
-				}
-			} catch (err: any) {
-				showToast(err.message, true);
+			const data = await sendSubmissionAction(id, 'delete');
+			if (data && data.success) {
+				showToast('Submission deleted successfully!');
+				setTimeout(() => window.location.reload(), 700);
+			} else {
+				showToast(data.error || 'Failed to delete submission', true);
 			}
 		});
 	});

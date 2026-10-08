@@ -6,32 +6,7 @@ import type {
 	SubmissionStats,
 	SubmissionStatus,
 } from '../types.js';
-import { recordAuditLog } from './audit.js';
-
-let tableAuditInitialized = false;
-
-async function ensureAuditTable() {
-	if (tableAuditInitialized || !isCfnDatabaseConfigured()) return;
-	try {
-		const sql = getCfnSql();
-		await sql`
-			CREATE TABLE IF NOT EXISTS "submission_audit_logs" (
-				"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-				"submission_id" text,
-				"admin_email" text NOT NULL,
-				"action" text NOT NULL,
-				"previous_status" text,
-				"new_status" text,
-				"details" text,
-				"created_at" timestamp with time zone DEFAULT now() NOT NULL
-			);
-			CREATE INDEX IF NOT EXISTS "idx_sub_audit_logs_submission_id" ON "submission_audit_logs" ("submission_id");
-		`;
-		tableAuditInitialized = true;
-	} catch (e) {
-		tableAuditInitialized = true;
-	}
-}
+import { recordAuditLog, ensureAuditTable } from './audit.js';
 
 /**
  * Normalizes raw row from `website_submissions` into ClickForNothingSubmission

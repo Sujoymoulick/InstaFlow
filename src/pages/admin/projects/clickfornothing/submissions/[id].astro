@@ -358,63 +358,89 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 		}
 	}
 
-	// Approve
-	document.getElementById('btn-action-approve')?.addEventListener('click', async () => {
+	// Multi-route fallback dispatcher
+	async function sendSubmissionAction(id, action, reason) {
 		try {
-			const res = await fetch(`/api/admin/submissions/${subId}/approve`, {
+			// Primary 1: Universal action endpoint
+			let res = await fetch('/api/admin/submissions/action', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id, action, reason }),
 			});
-			const data = await parseJsonSafely(res);
-			if (res.ok && data.success) {
-				showToast('Submission approved!');
-				setTimeout(() => window.location.reload(), 800);
-			} else {
-				showToast(data.error || 'Failed to approve', true);
+
+			// Primary 2: Flat action endpoint
+			if (res.status === 404) {
+				res = await fetch(`/api/admin/submissions/${action}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id, reason }),
+				});
 			}
+
+			// Fallback 1: Dynamic subroute
+			if (res.status === 404) {
+				if (action === 'delete') {
+					res = await fetch(`/api/admin/submissions/${id}`, {
+						method: 'DELETE',
+						headers: { 'Content-Type': 'application/json' },
+					});
+				} else {
+					res = await fetch(`/api/admin/submissions/${id}/${action}`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ reason }),
+					});
+				}
+			}
+
+			// Fallback 2: Index route
+			if (res.status === 404) {
+				res = await fetch(`/api/admin/submissions/${id}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, reason }),
+				});
+			}
+
+			return await parseJsonSafely(res);
 		} catch (err) {
-			showToast(err.message, true);
+			return { success: false, error: err?.message || 'Network request failed.' };
+		}
+	}
+
+	// Approve
+	document.getElementById('btn-action-approve')?.addEventListener('click', async () => {
+		const data = await sendSubmissionAction(subId, 'approve');
+		if (data && data.success) {
+			showToast('Submission approved!');
+			setTimeout(() => window.location.reload(), 800);
+		} else {
+			showToast(data.error || 'Failed to approve', true);
 		}
 	});
 
 	// Publish
 	document.getElementById('btn-action-publish')?.addEventListener('click', async () => {
-		try {
-			const res = await fetch(`/api/admin/submissions/${subId}/publish`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-			});
-			const data = await parseJsonSafely(res);
-			if (res.ok && data.success) {
-				showToast('Submission published live!');
-				setTimeout(() => window.location.reload(), 800);
-			} else {
-				showToast(data.error || 'Failed to publish', true);
-			}
-		} catch (err) {
-			showToast(err.message, true);
+		const data = await sendSubmissionAction(subId, 'publish');
+		if (data && data.success) {
+			showToast('Submission published live!');
+			setTimeout(() => window.location.reload(), 800);
+		} else {
+			showToast(data.error || 'Failed to publish', true);
 		}
 	});
 
 	// Delete
 	document.getElementById('btn-action-delete')?.addEventListener('click', async () => {
 		if (!confirm('Are you sure you want to permanently delete this submission from Neon DB? This cannot be undone.')) return;
-		try {
-			const res = await fetch(`/api/admin/submissions/${subId}`, {
-				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-			});
-			const data = await parseJsonSafely(res);
-			if (res.ok && data.success) {
-				showToast('Submission deleted successfully!');
-				setTimeout(() => {
-					window.location.href = '/admin/projects/clickfornothing/submissions';
-				}, 900);
-			} else {
-				showToast(data.error || 'Failed to delete submission', true);
-			}
-		} catch (err) {
-			showToast(err.message, true);
+		const data = await sendSubmissionAction(subId, 'delete');
+		if (data && data.success) {
+			showToast('Submission deleted successfully!');
+			setTimeout(() => {
+				window.location.href = '/admin/projects/clickfornothing/submissions';
+			}, 900);
+		} else {
+			showToast(data.error || 'Failed to delete submission', true);
 		}
 	});
 
@@ -435,22 +461,13 @@ else if (submission.status === 'Rejected') statusBadgeClass = 'bg-rose-100 text-
 
 	rejectModalConfirm?.addEventListener('click', async () => {
 		const reason = rejectionInput?.value?.trim() || 'Submission does not meet quality requirements.';
-		try {
-			const res = await fetch(`/api/admin/submissions/${subId}/reject`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ reason }),
-			});
-			const data = await parseJsonSafely(res);
-			if (res.ok && data.success) {
-				showToast('Submission rejected.');
-				rejectModal?.classList.add('hidden');
-				setTimeout(() => window.location.reload(), 800);
-			} else {
-				showToast(data.error || 'Failed to reject', true);
-			}
-		} catch (err) {
-			showToast(err.message, true);
+		const data = await sendSubmissionAction(subId, 'reject', reason);
+		if (data && data.success) {
+			showToast('Submission rejected.');
+			rejectModal?.classList.add('hidden');
+			setTimeout(() => window.location.reload(), 800);
+		} else {
+			showToast(data.error || 'Failed to reject', true);
 		}
 	});
 </script>
