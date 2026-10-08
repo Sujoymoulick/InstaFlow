@@ -52,4 +52,6 @@ export const post: APIRoute = async ({ params, request, cookies }) => {
 };
 
 export const put = post;
+export const POST = post;
+export const PUT = put;
 

@@ -102,3 +102,7 @@ export const post: APIRoute = async ({ request, cookies }) => {
 		});
 	}
 };
+
+export const GET = get;
+export const POST = post;
+

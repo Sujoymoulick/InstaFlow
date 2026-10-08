@@ -358,7 +358,7 @@ export async function createSubmission(data: {
 }
 
 /**
- * Approve a submission (pending_review -> approved)
+ * Approve a submission (pending_review -> approved and automatically published)
  */
 export async function approveSubmission(id: string, adminEmail: string): Promise<ClickForNothingSubmission> {
 	const current = await getSubmissionById(id);
@@ -376,7 +376,10 @@ export async function approveSubmission(id: string, adminEmail: string): Promise
 				? await sql`
 					UPDATE website_submissions
 					SET status = 'approved',
+						reviewed_by = ${adminEmail},
 						reviewed_at = NOW(),
+						published_at = COALESCE(published_at, NOW()),
+						rejection_reason = NULL,
 						updated_at = NOW()
 					WHERE id::text = ${id}
 					RETURNING *;
@@ -384,22 +387,24 @@ export async function approveSubmission(id: string, adminEmail: string): Promise
 				: await sql`
 					UPDATE website_submissions
 					SET status = 'approved',
+						reviewed_by = ${adminEmail},
 						reviewed_at = NOW(),
+						published_at = COALESCE(published_at, NOW()),
+						rejection_reason = NULL,
 						updated_at = NOW()
 					WHERE id = ${numericId}
 					RETURNING *;
 				  `;
 
-			await recordAuditLog({
-				submissionId: id,
-				adminEmail,
-				action: 'Approved Submission',
-				previousStatus: prevStatus,
-				newStatus: 'Approved',
-				details: `Approved site submission "${current.title}" (${current.url})`,
-			});
-
 			if (rows.length > 0) {
+				await recordAuditLog({
+					submissionId: id,
+					adminEmail,
+					action: 'Approved Submission',
+					previousStatus: prevStatus,
+					newStatus: 'Approved',
+					details: `Approved site submission "${current.title}" (${current.url})`,
+				});
 				return mapWebsiteSubmissionRow(rows[0]);
 			}
 		} catch (err) {
@@ -407,8 +412,20 @@ export async function approveSubmission(id: string, adminEmail: string): Promise
 		}
 	}
 
+	await recordAuditLog({
+		submissionId: id,
+		adminEmail,
+		action: 'Approved Submission',
+		previousStatus: prevStatus,
+		newStatus: 'Approved',
+		details: `Approved site submission "${current.title}" (${current.url})`,
+	});
+
 	current.status = 'Approved';
+	current.reviewedBy = adminEmail;
 	current.reviewedAt = new Date().toISOString();
+	current.publishedAt = current.publishedAt || new Date().toISOString();
+	current.rejectionReason = null;
 	current.updatedAt = new Date().toISOString();
 	return current;
 }
@@ -438,6 +455,7 @@ export async function rejectSubmission(
 					UPDATE website_submissions
 					SET status = 'rejected',
 						rejection_reason = ${cleanReason},
+						reviewed_by = ${adminEmail},
 						reviewed_at = NOW(),
 						updated_at = NOW()
 					WHERE id::text = ${id}
@@ -447,22 +465,22 @@ export async function rejectSubmission(
 					UPDATE website_submissions
 					SET status = 'rejected',
 						rejection_reason = ${cleanReason},
+						reviewed_by = ${adminEmail},
 						reviewed_at = NOW(),
 						updated_at = NOW()
 					WHERE id = ${numericId}
 					RETURNING *;
 				  `;
 
-			await recordAuditLog({
-				submissionId: id,
-				adminEmail,
-				action: 'Rejected Submission',
-				previousStatus: prevStatus,
-				newStatus: 'Rejected',
-				details: `Rejected submission "${current.title}". Reason: ${cleanReason}`,
-			});
-
 			if (rows.length > 0) {
+				await recordAuditLog({
+					submissionId: id,
+					adminEmail,
+					action: 'Rejected Submission',
+					previousStatus: prevStatus,
+					newStatus: 'Rejected',
+					details: `Rejected submission "${current.title}". Reason: ${cleanReason}`,
+				});
 				return mapWebsiteSubmissionRow(rows[0]);
 			}
 		} catch (err) {
@@ -470,8 +488,18 @@ export async function rejectSubmission(
 		}
 	}
 
+	await recordAuditLog({
+		submissionId: id,
+		adminEmail,
+		action: 'Rejected Submission',
+		previousStatus: prevStatus,
+		newStatus: 'Rejected',
+		details: `Rejected submission "${current.title}". Reason: ${cleanReason}`,
+	});
+
 	current.status = 'Rejected';
 	current.rejectionReason = cleanReason;
+	current.reviewedBy = adminEmail;
 	current.reviewedAt = new Date().toISOString();
 	current.updatedAt = new Date().toISOString();
 	return current;
@@ -496,8 +524,10 @@ export async function publishSubmission(id: string, adminEmail: string): Promise
 				? await sql`
 					UPDATE website_submissions
 					SET status = 'published',
+						reviewed_by = ${adminEmail},
 						published_at = NOW(),
-						reviewed_at = NOW(),
+						reviewed_at = COALESCE(reviewed_at, NOW()),
+						rejection_reason = NULL,
 						updated_at = NOW()
 					WHERE id::text = ${id}
 					RETURNING *;
@@ -505,23 +535,24 @@ export async function publishSubmission(id: string, adminEmail: string): Promise
 				: await sql`
 					UPDATE website_submissions
 					SET status = 'published',
+						reviewed_by = ${adminEmail},
 						published_at = NOW(),
-						reviewed_at = NOW(),
+						reviewed_at = COALESCE(reviewed_at, NOW()),
+						rejection_reason = NULL,
 						updated_at = NOW()
 					WHERE id = ${numericId}
 					RETURNING *;
 				  `;
 
-			await recordAuditLog({
-				submissionId: id,
-				adminEmail,
-				action: 'Published Submission',
-				previousStatus: prevStatus,
-				newStatus: 'Published',
-				details: `Published submission "${current.title}" (${current.url}) live to directory`,
-			});
-
 			if (rows.length > 0) {
+				await recordAuditLog({
+					submissionId: id,
+					adminEmail,
+					action: 'Published Submission',
+					previousStatus: prevStatus,
+					newStatus: 'Published',
+					details: `Published submission "${current.title}" (${current.url}) live to directory`,
+				});
 				return mapWebsiteSubmissionRow(rows[0]);
 			}
 		} catch (err) {
@@ -529,8 +560,20 @@ export async function publishSubmission(id: string, adminEmail: string): Promise
 		}
 	}
 
+	await recordAuditLog({
+		submissionId: id,
+		adminEmail,
+		action: 'Published Submission',
+		previousStatus: prevStatus,
+		newStatus: 'Published',
+		details: `Published submission "${current.title}" (${current.url}) live to directory`,
+	});
+
 	current.status = 'Published';
+	current.reviewedBy = adminEmail;
 	current.publishedAt = new Date().toISOString();
+	current.reviewedAt = current.reviewedAt || new Date().toISOString();
+	current.rejectionReason = null;
 	current.updatedAt = new Date().toISOString();
 	return current;
 }
