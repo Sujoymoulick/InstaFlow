@@ -126,6 +126,13 @@ export interface SvgOverviewKpis {
 	pendingPayments: number;
 	totalRevenueRupees: number;
 	activeRateLimitEvents: number;
+	noSignupCounters?: {
+		no_signup_cards: number;
+		gift_views: number;
+		initial_cards_offset: number;
+		initial_views_offset: number;
+		updated_at?: string;
+	};
 	neonStatus: 'connected' | 'degraded' | 'disconnected';
 	insforgeStatus: 'connected' | 'degraded' | 'disconnected';
 	clerkStatus: 'connected' | 'degraded' | 'disconnected';

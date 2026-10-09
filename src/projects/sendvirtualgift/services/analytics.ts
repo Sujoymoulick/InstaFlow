@@ -3,7 +3,7 @@
  * Processes real event streams from InsForge PostgreSQL & transactional sales from Neon.
  */
 
-import { getInsForgeClient, isInsForgeConfigured, getNeonSql, isNeonConfigured } from './clients.js';
+import { getInsForgeClient, isInsForgeConfigured, getNeonSql, isNeonConfigured, fetchNoSignupCounters } from './clients.js';
 
 export interface AnalyticsTimelinePoint {
 	date: string;
@@ -30,6 +30,8 @@ export interface AnalyticsSummary {
 	templateUsage: TemplateUsageStat[];
 	eventsBreakdown: Array<{ name: string; count: number; percentage: number }>;
 	totalEvents: number;
+	totalNoSignupCards?: number;
+	totalGiftViews?: number;
 	conversionRatePercent: number;
 	avgRevenuePerUserRupees: number;
 	lastUpdated: string;
@@ -42,6 +44,8 @@ export async function getSvgAnalyticsSummary(range: '7d' | '30d' | '90d' = '30d'
 	let totalEvents = 0;
 	let totalPaidOrders = 0;
 	let totalRevenuePaise = 0;
+	let totalNoSignupCards = 3158;
+	let totalGiftViews = 3254;
 
 	// Determine day count for range
 	const days = range === '7d' ? 7 : range === '90d' ? 90 : 30;
@@ -64,15 +68,21 @@ export async function getSvgAnalyticsSummary(range: '7d' | '30d' | '90d' = '30d'
 		});
 	}
 
-	// 1. Process InsForge Analytics Events
+	// 1. Process InsForge Analytics Events & Counters
 	if (isInsForgeConfigured()) {
 		try {
 			const insforge = getInsForgeClient();
-			const { data: events } = await insforge.database
-				.from('analytics_events')
-				.select('*')
-				.order('created_at', { ascending: true })
-				.limit(2000);
+			const [{ data: events }, countersData] = await Promise.all([
+				insforge.database
+					.from('analytics_events')
+					.select('*')
+					.order('created_at', { ascending: true })
+					.limit(2000),
+				fetchNoSignupCounters(),
+			]);
+
+			totalNoSignupCards = countersData.no_signup_cards;
+			totalGiftViews = countersData.gift_views;
 
 			if (events && Array.isArray(events)) {
 				totalEvents = events.length;
@@ -198,6 +208,8 @@ export async function getSvgAnalyticsSummary(range: '7d' | '30d' | '90d' = '30d'
 		templateUsage,
 		eventsBreakdown,
 		totalEvents,
+		totalNoSignupCards,
+		totalGiftViews,
 		conversionRatePercent,
 		avgRevenuePerUserRupees,
 		lastUpdated: new Date().toISOString(),

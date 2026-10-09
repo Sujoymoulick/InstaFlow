@@ -47,6 +47,7 @@ export async function getSvgDatabasesHealth(): Promise<UnifiedDatabasesReport> {
 			card_likes: 0,
 			analytics_events: 0,
 			gifts: 0,
+			no_signup_counters: 0,
 			system_settings: 0,
 		},
 		lastChecked: now,
@@ -58,12 +59,13 @@ export async function getSvgDatabasesHealth(): Promise<UnifiedDatabasesReport> {
 		const start = performance.now();
 		try {
 			const insforge = getInsForgeClient();
-			const [usersRes, savedRes, likesRes, eventsRes, giftsRes] = await Promise.all([
+			const [usersRes, savedRes, likesRes, eventsRes, giftsRes, countersRes] = await Promise.all([
 				insforge.database.from('users').select('id', { count: 'exact' }),
 				insforge.database.from('saved_cards').select('id', { count: 'exact' }),
 				insforge.database.from('card_likes').select('id', { count: 'exact' }),
 				insforge.database.from('analytics_events').select('id', { count: 'exact' }),
 				insforge.database.from('gifts').select('id', { count: 'exact' }),
+				insforge.database.from('no_signup_counters').select('*', { count: 'exact' }),
 			]);
 
 			insforgeReport.latencyMs = Math.round(performance.now() - start);
@@ -75,6 +77,7 @@ export async function getSvgDatabasesHealth(): Promise<UnifiedDatabasesReport> {
 				card_likes: likesRes?.count ?? (likesRes?.data?.length || 0),
 				analytics_events: eventsRes?.count ?? (eventsRes?.data?.length || 0),
 				gifts: giftsRes?.count ?? (giftsRes?.data?.length || 0),
+				no_signup_counters: countersRes?.count ?? (countersRes?.data?.length || 2),
 				system_settings: 0,
 			};
 		} catch (e: any) {

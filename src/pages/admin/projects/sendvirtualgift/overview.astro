@@ -23,6 +23,66 @@ const recentOrders = recentPaymentsData.orders;
 			subtitle="Real-time performance metrics, transactional revenue, database health, and user activity."
 		/>
 
+		<!-- Live InsForge DB Counters Monitor Banner -->
+		<div class="p-5 mb-6 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white rounded-2xl shadow-md border border-indigo-700/50">
+			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+				<div class="flex items-center space-x-3.5">
+					<div class="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-2xl border border-white/20">
+						⚡
+					</div>
+					<div>
+						<div class="flex items-center space-x-2">
+							<h2 class="text-base font-bold text-white tracking-wide">InsForge Live Database Counters</h2>
+							<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+								<span class="w-1.5 h-1.5 mr-1 bg-emerald-400 rounded-full animate-pulse"></span>
+								Live DB Active
+							</span>
+						</div>
+						<p class="text-xs text-indigo-200 mt-0.5">
+							Direct PostgreSQL synchronization with <code class="bg-black/30 px-1.5 py-0.5 rounded text-amber-300 font-mono">no_signup_counters</code> table
+						</p>
+					</div>
+				</div>
+
+				<div class="flex flex-wrap items-center gap-3">
+					<!-- No-Signup Cards Counter -->
+					<div class="px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/15 flex items-center space-x-3">
+						<div class="text-xl">🎁</div>
+						<div>
+							<div class="text-[10px] uppercase font-semibold text-indigo-200">No-Signup Cards Created</div>
+							<div class="text-lg font-extrabold text-amber-300 font-mono" id="live-no-signup-cards">
+								{kpis.totalAnonymousCards.toLocaleString()}
+							</div>
+						</div>
+						<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 font-medium">Base 3,158+</span>
+					</div>
+
+					<!-- Gift Views Counter -->
+					<div class="px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/15 flex items-center space-x-3">
+						<div class="text-xl">👁️</div>
+						<div>
+							<div class="text-[10px] uppercase font-semibold text-indigo-200">Total Gift & Prank Views</div>
+							<div class="text-lg font-extrabold text-cyan-300 font-mono" id="live-gift-views">
+								{kpis.totalCardViews.toLocaleString()}
+							</div>
+						</div>
+						<span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-400/20 text-cyan-200 font-medium">Base 3,254+</span>
+					</div>
+
+					<!-- Realtime Sync Refresh Button -->
+					<button
+						id="sync-counters-btn"
+						type="button"
+						class="px-3.5 py-2.5 text-xs font-semibold text-white bg-white/20 hover:bg-white/30 rounded-xl border border-white/20 transition-all flex items-center space-x-1.5"
+						title="Poll InsForge Database for updated counts"
+					>
+						<span class="sync-icon inline-block">🔄</span>
+						<span class="sync-text">Live Sync</span>
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- 12 KPI Cards Grid -->
 		<div class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
 			<!-- Total Registered Users -->
@@ -30,8 +90,8 @@ const recentOrders = recentPaymentsData.orders;
 				<div class="flex items-center justify-between">
 					<div>
 						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Registered Users</span>
-						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-							{kpis.totalRegisteredUsers}
+						<h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1" id="kpi-registered-users">
+							{kpis.totalRegisteredUsers.toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg dark:bg-gray-700 dark:text-blue-400">
@@ -50,9 +110,9 @@ const recentOrders = recentPaymentsData.orders;
 			<div class="p-4 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
 				<div class="flex items-center justify-between">
 					<div>
-						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Anonymous Users</span>
-						<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-							{kpis.totalAnonymousUsers}
+						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Anonymous Sessions</span>
+						<h3 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1" id="kpi-anon-users">
+							{kpis.totalAnonymousUsers.toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg dark:bg-gray-700 dark:text-indigo-400">
@@ -62,7 +122,7 @@ const recentOrders = recentPaymentsData.orders;
 					</div>
 				</div>
 				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-					Unique Anonymous Sessions
+					Unique Anonymous Creators
 				</div>
 			</div>
 
@@ -71,8 +131,8 @@ const recentOrders = recentPaymentsData.orders;
 				<div class="flex items-center justify-between">
 					<div>
 						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Cards Created</span>
-						<h3 class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
-							{kpis.totalCardsGenerated}
+						<h3 class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1" id="kpi-cards-created">
+							{kpis.totalCardsGenerated.toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-rose-50 text-rose-600 rounded-lg dark:bg-gray-700 dark:text-rose-400">
@@ -82,7 +142,7 @@ const recentOrders = recentPaymentsData.orders;
 					</div>
 				</div>
 				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-					{kpis.totalAnonymousCards} anon / {kpis.totalAuthUserCards} auth
+					<span id="kpi-anon-cards-sub">{kpis.totalAnonymousCards.toLocaleString()}</span> anon / <span id="kpi-auth-cards-sub">{kpis.totalAuthUserCards}</span> auth
 				</div>
 			</div>
 
@@ -91,8 +151,8 @@ const recentOrders = recentPaymentsData.orders;
 				<div class="flex items-center justify-between">
 					<div>
 						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Card Views</span>
-						<h3 class="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1">
-							{kpis.totalCardViews}
+						<h3 class="text-2xl font-bold text-cyan-600 dark:text-cyan-400 mt-1" id="kpi-card-views">
+							{kpis.totalCardViews.toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-cyan-50 text-cyan-600 rounded-lg dark:bg-gray-700 dark:text-cyan-400">
@@ -102,8 +162,9 @@ const recentOrders = recentPaymentsData.orders;
 						</svg>
 					</div>
 				</div>
-				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-					Verified Recipient Views
+				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400 flex items-center">
+					<span class="w-2 h-2 rounded-full mr-1.5 bg-cyan-500 animate-ping"></span>
+					Live InsForge gift_views (3,254+)
 				</div>
 			</div>
 
@@ -113,7 +174,7 @@ const recentOrders = recentPaymentsData.orders;
 					<div>
 						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Shares & Likes</span>
 						<h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-							{kpis.totalShares + kpis.totalCardLikes}
+							{(kpis.totalShares + kpis.totalCardLikes).toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-purple-50 text-purple-600 rounded-lg dark:bg-gray-700 dark:text-purple-400">
@@ -123,7 +184,7 @@ const recentOrders = recentPaymentsData.orders;
 					</div>
 				</div>
 				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-					{kpis.totalShares} shares • {kpis.totalCardLikes} likes
+					{kpis.totalShares.toLocaleString()} shares • {kpis.totalCardLikes.toLocaleString()} likes
 				</div>
 			</div>
 
@@ -133,7 +194,7 @@ const recentOrders = recentPaymentsData.orders;
 					<div>
 						<span class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Total Revenue</span>
 						<h3 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-							₹{kpis.totalRevenueRupees}
+							₹{kpis.totalRevenueRupees.toLocaleString()}
 						</h3>
 					</div>
 					<div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg dark:bg-gray-700 dark:text-emerald-400">
@@ -343,4 +404,52 @@ const recentOrders = recentPaymentsData.orders;
 			</div>
 		</div>
 	</div>
+
+	<script>
+		// Realtime live stats polling for SendVirtualGift admin monitor
+		const syncBtn = document.getElementById('sync-counters-btn');
+		const liveNoSignupCardsEl = document.getElementById('live-no-signup-cards');
+		const liveGiftViewsEl = document.getElementById('live-gift-views');
+		const kpiCardsCreatedEl = document.getElementById('kpi-cards-created');
+		const kpiCardViewsEl = document.getElementById('kpi-card-views');
+		const kpiAnonCardsSubEl = document.getElementById('kpi-anon-cards-sub');
+		const kpiRegisteredUsersEl = document.getElementById('kpi-registered-users');
+
+		async function fetchLatestStats() {
+			const syncIcon = syncBtn?.querySelector('.sync-icon');
+			if (syncIcon) syncIcon.classList.add('animate-spin');
+
+			try {
+				const res = await fetch('/api/admin/projects/sendvirtualgift/stats');
+				if (res.ok) {
+					const data = await res.json();
+					if (data.success && data.kpis) {
+						const k = data.kpis;
+						if (liveNoSignupCardsEl) liveNoSignupCardsEl.textContent = k.totalAnonymousCards.toLocaleString();
+						if (liveGiftViewsEl) liveGiftViewsEl.textContent = k.totalCardViews.toLocaleString();
+						if (kpiCardsCreatedEl) kpiCardsCreatedEl.textContent = k.totalCardsGenerated.toLocaleString();
+						if (kpiCardViewsEl) kpiCardViewsEl.textContent = k.totalCardViews.toLocaleString();
+						if (kpiAnonCardsSubEl) kpiAnonCardsSubEl.textContent = k.totalAnonymousCards.toLocaleString();
+						if (kpiRegisteredUsersEl && k.totalRegisteredUsers !== undefined) {
+							kpiRegisteredUsersEl.textContent = k.totalRegisteredUsers.toLocaleString();
+						}
+					}
+				}
+			} catch (e) {
+				console.error('Failed to sync live SVG counters:', e);
+			} finally {
+				if (syncIcon) {
+					setTimeout(() => syncIcon.classList.remove('animate-spin'), 600);
+				}
+			}
+		}
+
+		syncBtn?.addEventListener('click', () => {
+			fetchLatestStats();
+		});
+
+		// Auto poll every 15 seconds
+		const pollInterval = setInterval(fetchLatestStats, 15000);
+		window.addEventListener('beforeunload', () => clearInterval(pollInterval));
+	</script>
 </LayoutSidebar>

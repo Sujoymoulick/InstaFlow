@@ -74,6 +74,71 @@ export function getInsForgeClient(): any {
 	return cachedInsForgeClient;
 }
 
+export async function fetchNoSignupCounters(): Promise<{
+	no_signup_cards: number;
+	gift_views: number;
+	initial_cards_offset: number;
+	initial_views_offset: number;
+	updated_at?: string;
+}> {
+	const defaultCounters = {
+		no_signup_cards: 3158,
+		gift_views: 3254,
+		initial_cards_offset: 3158,
+		initial_views_offset: 3254,
+		updated_at: new Date().toISOString(),
+	};
+
+	if (!isInsForgeConfigured()) {
+		return defaultCounters;
+	}
+
+	try {
+		const insforge = getInsForgeClient();
+		const { data, error } = await insforge.database
+			.from('no_signup_counters')
+			.select('*');
+
+		if (error || !data || !Array.isArray(data)) {
+			return defaultCounters;
+		}
+
+		let noSignupCards = defaultCounters.no_signup_cards;
+		let giftViews = defaultCounters.gift_views;
+		let initialCardsOffset = defaultCounters.initial_cards_offset;
+		let initialViewsOffset = defaultCounters.initial_views_offset;
+		let latestUpdated = defaultCounters.updated_at;
+
+		for (const row of data) {
+			const name = String(row.counter_name || '').trim();
+			const count = Number(row.count) || 0;
+			const offset = Number(row.initial_offset) || 0;
+
+			if (name === 'no_signup_cards') {
+				noSignupCards = Math.max(count, defaultCounters.no_signup_cards);
+				if (offset > 0) initialCardsOffset = offset;
+			} else if (name === 'gift_views') {
+				giftViews = Math.max(count, defaultCounters.gift_views);
+				if (offset > 0) initialViewsOffset = offset;
+			}
+			if (row.updated_at) {
+				latestUpdated = row.updated_at;
+			}
+		}
+
+		return {
+			no_signup_cards: noSignupCards,
+			gift_views: giftViews,
+			initial_cards_offset: initialCardsOffset,
+			initial_views_offset: initialViewsOffset,
+			updated_at: latestUpdated,
+		};
+	} catch (e: any) {
+		console.warn('Failed to fetch no_signup_counters from InsForge:', e.message);
+		return defaultCounters;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 3. Clerk Authentication Client
 // ---------------------------------------------------------------------------

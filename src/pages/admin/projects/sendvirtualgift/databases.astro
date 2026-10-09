@@ -2,11 +2,15 @@
 import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
 import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
 import { getSvgDatabasesHealth } from '../../../../projects/sendvirtualgift/services/databases.js';
+import { fetchNoSignupCounters } from '../../../../projects/sendvirtualgift/services/clients.js';
 import { url } from '../../../../lib/data.js';
 
 export const prerender = false;
 
-const report = await getSvgDatabasesHealth();
+const [report, counters] = await Promise.all([
+	getSvgDatabasesHealth(),
+	fetchNoSignupCounters(),
+]);
 ---
 
 <LayoutSidebar title="SendVirtualGift Databases | InstaFlow Admin">
@@ -16,6 +20,58 @@ const report = await getSvgDatabasesHealth();
 			title="Databases & Multi-Cloud Infrastructure"
 			subtitle="Unified diagnostic monitor for InsForge Application BaaS and Neon Transactional PostgreSQL."
 		/>
+
+		<!-- InsForge Counting Table Status Banner -->
+		<div class="p-5 mb-6 bg-white dark:bg-gray-800 rounded-xl border border-indigo-200 dark:border-indigo-900/50 shadow-sm">
+			<div class="flex items-center justify-between mb-3">
+				<div class="flex items-center space-x-2.5">
+					<span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+					<h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+						InsForge Counting Table (<code class="text-primary-600 dark:text-primary-400 font-mono">no_signup_counters</code>)
+					</h3>
+				</div>
+				<span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-medium">
+					Atomic Increments Active
+				</span>
+			</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+				<div class="p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-lg flex items-center justify-between">
+					<div>
+						<div class="font-semibold text-gray-900 dark:text-white flex items-center">
+							<span class="mr-1.5 text-base">🎁</span>
+							<span>no_signup_cards</span>
+						</div>
+						<div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+							Initial offset: <strong>3,158</strong> • Atomic increment on every no-signup card creation
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-lg font-bold text-rose-600 dark:text-rose-400 font-mono">
+							{counters.no_signup_cards.toLocaleString()}
+						</div>
+						<div class="text-[10px] text-gray-400">Current DB Count</div>
+					</div>
+				</div>
+
+				<div class="p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-lg flex items-center justify-between">
+					<div>
+						<div class="font-semibold text-gray-900 dark:text-white flex items-center">
+							<span class="mr-1.5 text-base">👁️</span>
+							<span>gift_views</span>
+						</div>
+						<div class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+							Initial offset: <strong>3,254</strong> • Incremented on every gift/prank card recipient view
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-lg font-bold text-cyan-600 dark:text-cyan-400 font-mono">
+							{counters.gift_views.toLocaleString()}
+						</div>
+						<div class="text-[10px] text-gray-400">Current DB Count</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
 		<!-- Security Notice -->
 		<div class="p-4 mb-6 text-xs text-gray-700 rounded-xl bg-gray-100 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 flex items-center">

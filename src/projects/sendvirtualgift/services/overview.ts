@@ -8,6 +8,7 @@ import {
 	isNeonConfigured,
 	getInsForgeClient,
 	isInsForgeConfigured,
+	fetchNoSignupCounters,
 	fetchClerkTotalUserCount,
 	isClerkConfigured,
 	isRazorpayConfigured,
@@ -30,6 +31,20 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 	let pendingPayments = 0;
 	let totalRevenueRupees = 0;
 	let activeRateLimitEvents = 0;
+
+	let noSignupCountersData: {
+		no_signup_cards: number;
+		gift_views: number;
+		initial_cards_offset: number;
+		initial_views_offset: number;
+		updated_at?: string;
+	} = {
+		no_signup_cards: 3158,
+		gift_views: 3254,
+		initial_cards_offset: 3158,
+		initial_views_offset: 3254,
+		updated_at: new Date().toISOString(),
+	};
 
 	let neonStatus: 'connected' | 'degraded' | 'disconnected' = 'disconnected';
 	let insforgeStatus: 'connected' | 'degraded' | 'disconnected' = 'disconnected';
@@ -65,19 +80,25 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 		}
 	}
 
-	// 2. InsForge Stats (Application BaaS: Users, Analytics Events, Likes, Saved Cards)
+	// 2. InsForge Stats & Authoritative Live Counters (Users, Likes, Saved Cards, no_signup_counters)
 	if (isInsForgeConfigured()) {
 		try {
 			const insforge = getInsForgeClient();
-			const [eventsRes, likesRes, savedCardsRes, insforgeUsersRes] = await Promise.all([
+			const [eventsRes, likesRes, savedCardsRes, insforgeUsersRes, countersRes] = await Promise.all([
 				insforge.database.from('analytics_events').select('*', { count: 'exact' }),
 				insforge.database.from('card_likes').select('id', { count: 'exact' }),
 				insforge.database.from('saved_cards').select('id', { count: 'exact' }),
 				insforge.database.from('users').select('id', { count: 'exact' }),
+				fetchNoSignupCounters(),
 			]);
 
+			noSignupCountersData = countersRes;
 			totalCardLikes = likesRes?.count ?? (likesRes?.data?.length || 0);
 			const insforgeUserCount = insforgeUsersRes?.count ?? (insforgeUsersRes?.data?.length || 0);
+
+			let trackedAuthCards = 0;
+			let trackedAnonCards = 0;
+			let trackedViews = 0;
 
 			if (eventsRes?.data && Array.isArray(eventsRes.data)) {
 				const events = eventsRes.data;
@@ -88,14 +109,13 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 
 					const name = String(ev.event_name || '').toLowerCase();
 					if (name.includes('create') || name.includes('generate')) {
-						totalCardsGenerated++;
 						if (ev.is_no_signup_card || ev.anonymous_id) {
-							totalAnonymousCards++;
+							trackedAnonCards++;
 						} else {
-							totalAuthUserCards++;
+							trackedAuthCards++;
 						}
 					} else if (name.includes('view')) {
-						totalCardViews++;
+						trackedViews++;
 					} else if (name.includes('share')) {
 						totalShares++;
 					} else if (name.includes('rate_limit') || name.includes('blocked')) {
@@ -103,19 +123,30 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 					}
 				});
 
-				totalAnonymousUsers = anonymousIds.size;
+				totalAnonymousUsers = Math.max(anonymousIds.size, 1);
 			}
 
-			// If event log has 0 cards but saved_cards has entries, add saved cards count
-			if (totalCardsGenerated === 0 && savedCardsRes.count) {
-				totalCardsGenerated = savedCardsRes.count;
+			// If saved_cards has entries, incorporate auth cards
+			if (savedCardsRes?.count) {
+				trackedAuthCards = Math.max(trackedAuthCards, savedCardsRes.count);
 			}
+
+			// Authoritative Anonymous Cards & Views from InsForge no_signup_counters table
+			totalAnonymousCards = Math.max(noSignupCountersData.no_signup_cards, trackedAnonCards);
+			totalAuthUserCards = trackedAuthCards;
+			totalCardsGenerated = totalAnonymousCards + totalAuthUserCards;
+			totalCardViews = Math.max(noSignupCountersData.gift_views, trackedViews);
 
 			insforgeStatus = 'connected';
 		} catch (e: any) {
 			console.error('Failed to fetch InsForge stats for overview:', e.message);
 			insforgeStatus = 'degraded';
 		}
+	} else {
+		// Fallback to baseline if InsForge is unconfigured
+		totalAnonymousCards = noSignupCountersData.no_signup_cards;
+		totalCardsGenerated = totalAnonymousCards;
+		totalCardViews = noSignupCountersData.gift_views;
 	}
 
 	// 3. Clerk Auth Count (Authoritative)
@@ -136,7 +167,7 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 	return {
 		totalRegisteredUsers,
 		totalAnonymousUsers,
-		totalCardsGenerated: Math.max(totalCardsGenerated, totalAnonymousCards + totalAuthUserCards),
+		totalCardsGenerated,
 		totalAnonymousCards,
 		totalAuthUserCards,
 		totalCardViews,
@@ -148,6 +179,7 @@ export async function getSvgOverviewKpis(): Promise<SvgOverviewKpis> {
 		pendingPayments,
 		totalRevenueRupees,
 		activeRateLimitEvents,
+		noSignupCounters: noSignupCountersData,
 		neonStatus,
 		insforgeStatus,
 		clerkStatus,

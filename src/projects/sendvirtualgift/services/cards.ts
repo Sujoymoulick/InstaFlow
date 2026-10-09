@@ -4,7 +4,7 @@
  * PRIVACY GUARANTEE: Does NOT expose private greeting messages or recipient secrets.
  */
 
-import { getInsForgeClient, isInsForgeConfigured } from './clients.js';
+import { getInsForgeClient, isInsForgeConfigured, fetchNoSignupCounters } from './clients.js';
 
 export interface SvgOperationalCardItem {
 	id: string;
@@ -44,18 +44,21 @@ export async function listSvgCards(params: { page?: number; limit?: number; sear
 	let anonymousCount = 0;
 	let registeredCount = 0;
 	let totalLikes = 0;
+	let liveNoSignupCards = 3158;
 
 	if (isInsForgeConfigured()) {
 		try {
 			const insforge = getInsForgeClient();
 
-			// 1. Fetch saved_cards records
-			const [savedRes, likesRes, eventsRes] = await Promise.all([
+			// 1. Fetch saved_cards records & no_signup_counters
+			const [savedRes, likesRes, eventsRes, countersData] = await Promise.all([
 				insforge.database.from('saved_cards').select('*').limit(200),
 				insforge.database.from('card_likes').select('id, card_id').limit(500),
 				insforge.database.from('analytics_events').select('*').limit(500),
+				fetchNoSignupCounters(),
 			]);
 
+			liveNoSignupCards = countersData.no_signup_cards;
 			totalLikes = likesRes.data?.length || 0;
 
 			// Map likes per card
@@ -156,6 +159,9 @@ export async function listSvgCards(params: { page?: number; limit?: number; sear
 	const offset = (page - 1) * limit;
 	const paginated = filtered.slice(offset, offset + limit);
 
+	const effectiveAnonymousCards = Math.max(liveNoSignupCards, anonymousCount);
+	const effectiveTotalGenerated = effectiveAnonymousCards + registeredCount;
+
 	return {
 		cards: paginated,
 		total,
@@ -163,8 +169,8 @@ export async function listSvgCards(params: { page?: number; limit?: number; sear
 		limit,
 		totalPages,
 		metrics: {
-			totalGenerated: cards.length,
-			anonymousCards: anonymousCount,
+			totalGenerated: effectiveTotalGenerated,
+			anonymousCards: effectiveAnonymousCards,
 			registeredCards: registeredCount,
 			totalLikes,
 		},
