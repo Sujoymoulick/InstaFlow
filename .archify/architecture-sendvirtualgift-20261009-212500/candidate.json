@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SendVirtualGift — Production System Architecture & Live Data Flow",
+    "subtitle": "Interactive 3D Virtual Gifts, Multi-Cloud Dual PostgreSQL (InsForge BaaS + Neon Lakebase), Clerk Identity & Razorpay",
+    "output": "sendvirtualgift.html",
+    "quality_profile": "showcase",
+    "animation": "trace"
+  },
+  "components": [
+    {
+      "id": "visitors",
+      "type": "external",
+      "label": "Visitors & Recipients",
+      "sublabel": "Mobile / Web (20+ Locales)",
+      "pos": [40, 250],
+      "size": [150, 60],
+      "tag": "No-Signup & Auth Users"
+    },
+    {
+      "id": "clerk_auth",
+      "type": "security",
+      "label": "Clerk Identity",
+      "sublabel": "Google, GitHub, Email OTP",
+      "pos": [40, 90],
+      "size": [150, 60],
+      "tag": "JWT & Session Tokens"
+    },
+    {
+      "id": "edge_cdn",
+      "type": "cloud",
+      "label": "Cloudflare / Vercel Edge",
+      "sublabel": "Global CDN & SSL",
+      "pos": [310, 250],
+      "size": [160, 60],
+      "tag": "Static Cache & Edge Compute"
+    },
+    {
+      "id": "astro_app",
+      "type": "frontend",
+      "label": "Astro SSR App",
+      "sublabel": "Hybrid Rendering Engine",
+      "pos": [590, 250],
+      "size": [160, 60],
+      "tag": "Three.js 3D & Web Audio"
+    },
+    {
+      "id": "insforge_db",
+      "type": "database",
+      "label": "InsForge PostgreSQL (BaaS)",
+      "sublabel": "Cards, Likes, Analytics & Counters",
+      "pos": [870, 130],
+      "size": [180, 60],
+      "tag": "no_signup_counters (3,158+)"
+    },
+    {
+      "id": "neon_db",
+      "type": "database",
+      "label": "Neon PostgreSQL (Lakebase)",
+      "sublabel": "Orders, Entitlements & Backups",
+      "pos": [870, 370],
+      "size": [180, 60],
+      "tag": "Authoritative Transaction Ledger"
+    },
+    {
+      "id": "razorpay_gw",
+      "type": "external",
+      "label": "Razorpay Payments",
+      "sublabel": "INR 99 Purchases (Rose 3D)",
+      "pos": [590, 420],
+      "size": [160, 60],
+      "tag": "HMAC SHA256 Webhooks"
+    },
+    {
+      "id": "cloudinary_cdn",
+      "type": "cloud",
+      "label": "Cloudinary Media",
+      "sublabel": "Image Transforms & Uploads",
+      "pos": [310, 420],
+      "size": [160, 60],
+      "tag": "Optimized Thumbnails"
+    },
+    {
+      "id": "admin_panel",
+      "type": "backend",
+      "label": "InstaFlow Admin Panel",
+      "sublabel": "Central Multi-Project Dashboard",
+      "pos": [1150, 250],
+      "size": [170, 60],
+      "tag": "Live Diagnostics & Rate Limits"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "SendVirtualGift Production Infrastructure (sendvirtualgift.com)",
+      "wraps": ["edge_cdn", "astro_app", "insforge_db", "neon_db", "cloudinary_cdn", "admin_panel"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Multi-Database Cloud Layer",
+      "wraps": ["insforge_db", "neon_db", "admin_panel"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "visitors-to-edge",
+      "from": "visitors",
+      "to": "edge_cdn",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "auth-verify",
+      "from": "clerk_auth",
+      "to": "astro_app",
+      "label": "verify JWT",
+      "variant": "security"
+    },
+    {
+      "id": "edge-to-astro",
+      "from": "edge_cdn",
+      "to": "astro_app",
+      "label": "SSR Route"
+    },
+    {
+      "id": "astro-to-insforge",
+      "from": "astro_app",
+      "to": "insforge_db",
+      "label": "Atomic Counters & Saved Cards",
+      "variant": "emphasis"
+    },
+    {
+      "id": "astro-to-razorpay",
+      "from": "astro_app",
+      "to": "razorpay_gw",
+      "label": "Create Order",
+      "variant": "default"
+    },
+    {
+      "id": "razorpay-to-neon",
+      "from": "razorpay_gw",
+      "to": "neon_db",
+      "label": "Order Entitlement",
+      "variant": "emphasis"
+    },
+    {
+      "id": "edge-to-cloudinary",
+      "from": "edge_cdn",
+      "to": "cloudinary_cdn",
+      "label": "Cached Media",
+      "variant": "dashed"
+    },
+    {
+      "id": "admin-to-insforge",
+      "from": "admin_panel",
+      "to": "insforge_db",
+      "label": "Live Counter Poll",
+      "variant": "default"
+    },
+    {
+      "id": "admin-to-neon",
+      "from": "admin_panel",
+      "to": "neon_db",
+      "label": "Revenue & Backup Ledger",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Front-End & 3D Interactive Layer",
+      "items": [
+        "Astro Hybrid SSR with multi-language i18n support across 20+ locales",
+        "Interactive Three.js 3D models (Forever Rose, Birthday Cake, Rakhi, Anniversary)",
+        "Zero-signup instant gift card creation with client-side URL token encoding"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Dual-PostgreSQL Storage Strategy",
+      "items": [
+        "InsForge BaaS: Real-time user profiles, saved cards, likes, and no_signup_counters (3,158+ cards / 3,254+ views)",
+        "Neon Lakebase: Authoritative financial ledger for ₹99 rose orders, entitlements, and cloud backups",
+        "Zero data collisions: Transactional revenue is strictly partitioned from anonymous BaaS streams"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Authentication & Payment Security",
+      "items": [
+        "Clerk Auth handles identity with Google/GitHub SSO and Email OTP without database exposure",
+        "Razorpay payment webhooks validated with HMAC SHA256 cryptographic signatures",
+        "Privacy-First Architecture: Personal greetings and recipient secrets remain client-masked"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "InstaFlow Central Administration",
+      "items": [
+        "Real-time live counter synchronization for cards generated and views",
+        "Unified multi-database health diagnostics and latency monitoring",
+        "Rate limit rule inspection and automatic tax invoice generation"
+      ]
+    }
+  ]
+}

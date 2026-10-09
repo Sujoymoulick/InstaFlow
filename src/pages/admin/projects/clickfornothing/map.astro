@@ -1,0 +1,176 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSubmissionStats } from '../../../../projects/clickfornothing/services/submissions.js';
+import { probeCfnDatabases } from '../../../../projects/clickfornothing/services/databases.js';
+import { probeAllCfnIntegrations } from '../../../../projects/clickfornothing/services/integrations.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const [stats, dbProbes, integrations] = await Promise.all([
+	getSubmissionStats(),
+	probeCfnDatabases(),
+	probeAllCfnIntegrations(),
+]);
+
+const neonDb = dbProbes.find((d) => d.id === 'neon-pooled') || dbProbes[0];
+---
+
+<LayoutSidebar title="ClickForNothing Architecture Map | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			projectId="clickfornothing"
+			activeTab="map"
+			title="Architecture & Submission Pipeline Map"
+			subtitle="Interactive system architecture and submission state machine map generated with Archify for ClickForNothing."
+		/>
+
+		<!-- Map Controls & Metadata Header -->
+		<div class="p-5 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+				<div class="flex items-center space-x-3">
+					<div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl font-bold">
+						🗺️
+					</div>
+					<div>
+						<div class="flex items-center space-x-2">
+							<h3 class="text-base font-bold text-gray-900 dark:text-white">
+								ClickForNothing Platform Topology
+							</h3>
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+								<span class="w-1.5 h-1.5 mr-1 bg-emerald-500 rounded-full animate-pulse"></span>
+								Archify Showcase v3.0
+							</span>
+						</div>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+							Interactive SVG with light/dark theme matching, animated connection traces, and component inspector
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center space-x-3">
+					<a
+						href={url('maps/clickfornothing-architecture.html')}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="px-3.5 py-2 text-xs font-semibold text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-300 transition-colors flex items-center space-x-1.5 shadow-xs"
+					>
+						<span>Open Fullscreen Map</span>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+						</svg>
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Interactive Map Viewer Container -->
+		<div class="mb-6 bg-white border border-gray-200 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+			<div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/80 flex items-center justify-between text-xs">
+				<div class="flex items-center space-x-2 text-gray-600 dark:text-gray-300 font-medium">
+					<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+					<span>Live Architecture Canvas</span>
+					<span class="text-gray-400">•</span>
+					<span class="text-gray-500 dark:text-gray-400">7 Subsystems & 6 Data Flow Pathways</span>
+				</div>
+				<span class="text-[11px] text-gray-400">Rendered via Archify Engine</span>
+			</div>
+			
+			<div class="relative w-full h-[620px] bg-slate-900">
+				<iframe
+					src={url('maps/clickfornothing-architecture.html')}
+					class="w-full h-full border-0"
+					title="ClickForNothing System Architecture"
+				></iframe>
+			</div>
+		</div>
+
+		<!-- Subsystem Interaction Details Grid -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+			<!-- 1. Frontend & Directory Layer -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-gray-700 dark:text-indigo-400 text-base">🌐</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">1. Astro v5 & Neo-Brutalist UI</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Multi-Locale Directory:</strong> Fast static generation supporting 15 languages worldwide.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Neo-Brutalist Design:</strong> Retro pixel decals, interactive 3D Pepe mascot, and meme animations.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Community Explorations:</strong> Curated categories, random site roulette, and custom collections.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>Cloudflare Pages</span>
+					<span class="text-emerald-600 font-semibold">Live Edge</span>
+				</div>
+			</div>
+
+			<!-- 2. Submission State Machine -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-gray-700 dark:text-emerald-400 text-base">🔄</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">2. Submission Lifecycle</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-amber-500 mr-2">●</span>
+							<span><strong>Pending Review ({stats.pendingReview}):</strong> Instant database persistence in Neon upon visitor submission.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">●</span>
+							<span><strong>Published ({stats.published}):</strong> Moderated & published sites displayed in public directory.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-rose-500 mr-2">●</span>
+							<span><strong>Rejected ({stats.rejected}):</strong> Scoped user feedback with explicit reviewer rationale.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>Total Submissions</span>
+					<span class="text-gray-900 dark:text-white font-bold">{stats.total} entries</span>
+				</div>
+			</div>
+
+			<!-- 3. Serverless Functions & Security -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-purple-50 text-purple-600 dark:bg-gray-700 dark:text-purple-400 text-base">🛡️</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">3. Security & Cloudflare V8</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Clerk Backend Verification:</strong> Server validates token claims; client cannot spoof <code class="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-[11px]">user_id</code>.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Iframe Sandboxing:</strong> Previews isolated with strict sandbox policies preventing clickjacking.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Neon PostgreSQL:</strong> Lakebase Serverless database (latency {neonDb?.latencyMs ?? 0}ms) with audit trail.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>API Runtime</span>
+					<span class="text-emerald-600 font-semibold">Cloudflare V8 Edge</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

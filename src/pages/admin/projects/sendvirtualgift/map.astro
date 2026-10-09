@@ -1,0 +1,171 @@
+---
+import LayoutSidebar from '../../../../app/LayoutSidebar.astro';
+import ProjectHeader from '../../../../components/admin/ProjectHeader.astro';
+import { getSvgDatabasesHealth } from '../../../../projects/sendvirtualgift/services/databases.js';
+import { fetchNoSignupCounters } from '../../../../projects/sendvirtualgift/services/clients.js';
+import { url } from '../../../../lib/data.js';
+
+export const prerender = false;
+
+const [dbHealth, counters] = await Promise.all([
+	getSvgDatabasesHealth(),
+	fetchNoSignupCounters(),
+]);
+---
+
+<LayoutSidebar title="SendVirtualGift Architecture Map | InstaFlow Admin">
+	<div class="px-4 pt-6 pb-12">
+		<ProjectHeader
+			activeTab="map"
+			title="Architecture & Working System Map"
+			subtitle="Live interactive topology and data-flow map generated with Archify reflecting the SendVirtualGift production codebase."
+		/>
+
+		<!-- Map Controls & Metadata Header -->
+		<div class="p-5 mb-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700">
+			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+				<div class="flex items-center space-x-3">
+					<div class="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl font-bold">
+						🗺️
+					</div>
+					<div>
+						<div class="flex items-center space-x-2">
+							<h3 class="text-base font-bold text-gray-900 dark:text-white">
+								Interactive Production Topology
+							</h3>
+							<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+								<span class="w-1.5 h-1.5 mr-1 bg-emerald-500 rounded-full animate-pulse"></span>
+								Archify Showcase v3.0
+							</span>
+						</div>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+							Interactive SVG with light/dark theme matching, animated connection traces, and component inspector
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center space-x-3">
+					<a
+						href={url('maps/sendvirtualgift-architecture.html')}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="px-3.5 py-2 text-xs font-semibold text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 dark:bg-gray-700 dark:text-primary-300 transition-colors flex items-center space-x-1.5 shadow-xs"
+					>
+						<span>Open Fullscreen Map</span>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+						</svg>
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Interactive Map Viewer Container -->
+		<div class="mb-6 bg-white border border-gray-200 rounded-2xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+			<div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/80 flex items-center justify-between text-xs">
+				<div class="flex items-center space-x-2 text-gray-600 dark:text-gray-300 font-medium">
+					<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+					<span>Live Architecture Canvas</span>
+					<span class="text-gray-400">•</span>
+					<span class="text-gray-500 dark:text-gray-400">9 Core Subsystems & 9 Verified Data Paths</span>
+				</div>
+				<span class="text-[11px] text-gray-400">Rendered via Archify Engine</span>
+			</div>
+			
+			<div class="relative w-full h-[620px] bg-slate-900">
+				<iframe
+					src={url('maps/sendvirtualgift-architecture.html')}
+					class="w-full h-full border-0"
+					title="SendVirtualGift System Architecture"
+				></iframe>
+			</div>
+		</div>
+
+		<!-- Subsystem Interaction Details Grid -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+			<!-- 1. Frontend & 3D Interactive -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-rose-50 text-rose-600 dark:bg-gray-700 dark:text-rose-400 text-base">🎁</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">1. Astro SSR & 3D WebGL</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Three.js 3D Models:</strong> Interactive Forever Rose, Birthday Cake, and festive animations.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Multi-Language (20+ Locales):</strong> Native localized routing and cultural translations.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Privacy Guaranteed:</strong> Recipient greetings are stored encrypted or client-encoded.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>Astro Hybrid SSR</span>
+					<span class="text-emerald-600 font-semibold">Active</span>
+				</div>
+			</div>
+
+			<!-- 2. Dual PostgreSQL Architecture -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-gray-700 dark:text-blue-400 text-base">🗄️</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">2. Dual PostgreSQL Architecture</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>InsForge BaaS:</strong> Fast application layer for saved cards, likes, and <code class="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-[11px]">no_signup_counters</code> ({counters.no_signup_cards.toLocaleString()} cards).</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Neon Lakebase:</strong> Authoritative financial ledger for ₹99 rose orders, entitlements, and backups.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Zero Collision:</strong> Transactional data is strictly isolated from anonymous stream logs.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>Latency</span>
+					<span class="text-gray-700 dark:text-gray-200 font-medium">InsForge {dbHealth.insforge.latencyMs}ms / Neon {dbHealth.neon.latencyMs}ms</span>
+				</div>
+			</div>
+
+			<!-- 3. Payments & Identity -->
+			<div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-between">
+				<div>
+					<div class="flex items-center space-x-2.5 mb-3">
+						<span class="p-2 rounded-lg bg-purple-50 text-purple-600 dark:bg-gray-700 dark:text-purple-400 text-base">🔐</span>
+						<h4 class="font-bold text-sm text-gray-900 dark:text-white">3. Clerk Auth & Razorpay</h4>
+					</div>
+					<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-2">
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Clerk Identity:</strong> Single sign-on (SSO), Email OTP, and user session management.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Razorpay Gateway:</strong> INR 99 payments with HMAC SHA256 webhook signature validation.</span>
+						</li>
+						<li class="flex items-start">
+							<span class="text-emerald-500 mr-2">✓</span>
+							<span><strong>Cloudinary CDN:</strong> Optimized user-uploaded image transformations and preview thumbnails.</span>
+						</li>
+					</ul>
+				</div>
+				<div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-400 flex justify-between">
+					<span>Integrations Status</span>
+					<span class="text-emerald-600 font-semibold">5 Services Connected</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</LayoutSidebar>

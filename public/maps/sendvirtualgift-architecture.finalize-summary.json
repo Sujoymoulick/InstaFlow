@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Volumes/projects/instaflow/.archify/architecture-sendvirtualgift-20261009-212500/candidate.json",
+    "sha256": "75d7aa6220eaf41817ebdc73bb345c090b33cc0ad820c10088e1b8dd1f01ed12",
+    "bytes": 6476
+  },
+  "artifact": {
+    "path": "/Volumes/projects/instaflow/public/maps/sendvirtualgift-architecture.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "clean-flow/endpoint-side-direction",
+      "severity": "error",
+      "message": "[clean-flow/endpoint-side-direction] architecture connections[1] id \"auth-verify\" \"clerk_auth\" -> \"astro_app\" final segment 3 [597, 230] -> [597.5, 260] does not honor toSide \"top\" — it must run vertical downward from above; keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 1,
+        "id": "auth-verify",
+        "from": "clerk_auth",
+        "to": "astro_app"
+      },
+      "evidence": {
+        "endpoint": "target",
+        "authoredField": "toSide",
+        "sideOrigin": "authored",
+        "side": "top",
+        "segmentIndex": 3,
+        "from": [
+          597,
+          230
+        ],
+        "to": [
+          597.5,
+          260
+        ],
+        "expectedAxis": "vertical",
+        "expectedDirection": "downward from above"
+      },
+      "supportedFixes": [
+        "keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments"
+      ]
+    },
+    {
+      "code": "clean-flow/edge-through-node",
+      "severity": "error",
+      "message": "[clean-flow/edge-through-node] architecture connections[6] id \"astro-to-cloudinary\" \"astro_app\" -> \"cloudinary_cdn\" crosses component \"razorpay_gw\" (unrelated to this relationship) on segment 0 [598, 324] -> [560, 472] (2px clearance) — if the authored via/fromSide/toSide are not required by the user, remove them so the renderer can re-plan; otherwise preserve that intent and adjust fromSide/toSide, set route/via, or move the component.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 6,
+        "id": "astro-to-cloudinary",
+        "from": "astro_app",
+        "to": "cloudinary_cdn"
+      },
+      "evidence": {
+        "obstacleKind": "component",
+        "obstacleId": "razorpay_gw",
+        "segmentIndex": 0,
+        "from": [
+          597.5,
+          324
+        ],
+        "to": [
+          560,
+          472
+        ],
+        "clearancePx": 2
+      },
+      "supportedFixes": [
+        "if the authored via/fromSide/toSide are not required by the user, remove them so the renderer can re-plan; otherwise preserve that intent and adjust fromSide/toSide, set route/via, or move the component"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"HTTPS / 3D Experiences\" has only 70px between \"visitors\" and \"edge_cdn\"; it needs at least 132px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "visitors-to-edge",
+        "from": "visitors",
+        "to": "edge_cdn"
+      },
+      "evidence": {
+        "clearGapPx": 70,
+        "minimumGapPx": 132,
+        "labelWidthPx": 115.6,
+        "obstacles": [
+          "visitors",
+          "edge_cdn"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 132px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    },
+    {
+      "code": "clean-flow/endpoint-side-direction",
+      "severity": "error",
+      "message": "[clean-flow/endpoint-side-direction] architecture connections[6] id \"astro-to-cloudinary\" \"astro_app\" -> \"cloudinary_cdn\" first segment 0 [597.5, 324] -> [560, 472] does not honor fromSide \"bottom\" — it must run vertical downward; keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 6,
+        "id": "astro-to-cloudinary",
+        "from": "astro_app",
+        "to": "cloudinary_cdn"
+      },
+      "evidence": {
+        "endpoint": "source",
+        "authoredField": "fromSide",
+        "sideOrigin": "authored",
+        "side": "bottom",
+        "segmentIndex": 0,
+        "from": [
+          597.5,
+          324
+        ],
+        "to": [
+          560,
+          472
+        ],
+        "expectedAxis": "vertical",
+        "expectedDirection": "downward"
+      },
+      "supportedFixes": [
+        "keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments"
+      ]
+    },
+    {
+      "code": "clean-flow/endpoint-side-direction",
+      "severity": "error",
+      "message": "[clean-flow/endpoint-side-direction] architecture connections[7] id \"admin-to-insforge\" \"admin_panel\" -> \"insforge_db\" first segment 0 [1102.5, 260] -> [1102, 182] does not honor fromSide \"top\" — it must run vertical upward; keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 7,
+        "id": "admin-to-insforge",
+        "from": "admin_panel",
+        "to": "insforge_db"
+      },
+      "evidence": {
+        "endpoint": "source",
+        "authoredField": "fromSide",
+        "sideOrigin": "authored",
+        "side": "top",
+        "segmentIndex": 0,
+        "from": [
+          1102.5,
+          260
+        ],
+        "to": [
+          1102,
+          182
+        ],
+        "expectedAxis": "vertical",
+        "expectedDirection": "upward"
+      },
+      "supportedFixes": [
+        "keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments"
+      ]
+    },
+    {
+      "code": "clean-flow/endpoint-side-direction",
+      "severity": "error",
+      "message": "[clean-flow/endpoint-side-direction] architecture connections[8] id \"admin-to-neon\" \"admin_panel\" -> \"neon_db\" first segment 0 [1102.5, 324] -> [1102, 402] does not honor fromSide \"bottom\" — it must run vertical downward; keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 8,
+        "id": "admin-to-neon",
+        "from": "admin_panel",
+        "to": "neon_db"
+      },
+      "evidence": {
+        "endpoint": "source",
+        "authoredField": "fromSide",
+        "sideOrigin": "authored",
+        "side": "bottom",
+        "segmentIndex": 0,
+        "from": [
+          1102.5,
+          324
+        ],
+        "to": [
+          1102,
+          402
+        ],
+        "expectedAxis": "vertical",
+        "expectedDirection": "downward"
+      },
+      "supportedFixes": [
+        "keep automatic routing so the renderer can use a side-aware bridge, or set truthful fromSide/toSide with perpendicular via segments"
+      ]
+    },
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"SSR Request Routing\" has only 70px between \"edge_cdn\" and \"astro_app\"; it needs at least 118px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "edge-to-astro",
+        "from": "edge_cdn",
+        "to": "astro_app"
+      },
+      "evidence": {
+        "clearGapPx": 70,
+        "minimumGapPx": 118,
+        "labelWidthPx": 101.2,
+        "obstacles": [
+          "edge_cdn",
+          "astro_app"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 118px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 7,
+    "shown": 7,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Volumes/projects/instaflow/public/maps/sendvirtualgift-architecture.finalize.json",
+    "summaryReceipt": "/Volumes/projects/instaflow/public/maps/sendvirtualgift-architecture.finalize-summary.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-09T15:52:39.265Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 9554,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "/Volumes/projects/instaflow/.archify/architecture-sendvirtualgift-20261009-212500/candidate.json",
+    "constraint": "Preserve all semantics and user-fixed geometry. Use references/architecture-layout-repair.md to choose a local repair or connected-scene reflow; edit the existing candidate.",
+    "then": "finalize-once"
+  }
+}

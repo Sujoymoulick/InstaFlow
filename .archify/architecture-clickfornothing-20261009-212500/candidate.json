@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ClickForNothing — System Architecture & Submission Lifecycle Map",
+    "subtitle": "Curated Useless Sites Directory & Community Submission Platform with Cloudflare Pages, Clerk Auth & Neon PostgreSQL",
+    "output": "clickfornothing.html",
+    "quality_profile": "showcase",
+    "animation": "trace"
+  },
+  "components": [
+    {
+      "id": "visitors",
+      "type": "external",
+      "label": "Visitors & Curators",
+      "sublabel": "Web / Mobile (15 Locales)",
+      "pos": [40, 250],
+      "size": [140, 60],
+      "tag": "Directory Explorers"
+    },
+    {
+      "id": "clerk_auth",
+      "type": "security",
+      "label": "Clerk Auth",
+      "sublabel": "Google, GitHub, Email OTP",
+      "pos": [40, 90],
+      "size": [140, 60],
+      "tag": "JWT Session Tokens"
+    },
+    {
+      "id": "cf_pages",
+      "type": "cloud",
+      "label": "Cloudflare Pages CDN",
+      "sublabel": "Edge Static Hosting",
+      "pos": [280, 250],
+      "size": [150, 60],
+      "tag": "Astro v5 & Neo-Brutalist UI"
+    },
+    {
+      "id": "cf_functions",
+      "type": "backend",
+      "label": "Cloudflare Functions",
+      "sublabel": "V8 Serverless API Runtime",
+      "pos": [530, 250],
+      "size": [150, 60],
+      "tag": "/api/submit & /api/submissions"
+    },
+    {
+      "id": "neon_db",
+      "type": "database",
+      "label": "Neon PostgreSQL",
+      "sublabel": "Project: clickfornothing",
+      "pos": [830, 250],
+      "size": [160, 60],
+      "tag": "website_submissions & Logs"
+    },
+    {
+      "id": "cloudinary_media",
+      "type": "cloud",
+      "label": "Cloudinary CDN",
+      "sublabel": "Screenshots & Previews",
+      "pos": [530, 410],
+      "size": [150, 60],
+      "tag": "Sandboxed Iframe Thumbnails"
+    },
+    {
+      "id": "admin_panel",
+      "type": "backend",
+      "label": "InstaFlow Admin Panel",
+      "sublabel": "Review & Moderation Center",
+      "pos": [1150, 250],
+      "size": [160, 60],
+      "tag": "Approve / Reject / Publish Queues"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "ClickForNothing Platform Ecosystem (clickfornothing.com)",
+      "wraps": ["cf_pages", "cf_functions", "neon_db", "cloudinary_media", "admin_panel"]
+    },
+    {
+      "kind": "security-group",
+      "label": "API Execution & Data Persistence Layer",
+      "wraps": ["cf_functions", "neon_db", "admin_panel"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "visitors-to-pages",
+      "from": "visitors",
+      "to": "cf_pages",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "clerk-auth-token",
+      "from": "clerk_auth",
+      "to": "cf_functions",
+      "label": "verifyToken() JWT",
+      "variant": "security"
+    },
+    {
+      "id": "pages-to-functions",
+      "from": "cf_pages",
+      "to": "cf_functions",
+      "label": "API Invocations"
+    },
+    {
+      "id": "functions-to-neon",
+      "from": "cf_functions",
+      "to": "neon_db",
+      "label": "SQL Submissions",
+      "variant": "emphasis"
+    },
+    {
+      "id": "functions-to-cloudinary",
+      "from": "cf_functions",
+      "to": "cloudinary_media",
+      "label": "Store Screenshot",
+      "variant": "dashed"
+    },
+    {
+      "id": "admin-to-neon",
+      "from": "admin_panel",
+      "to": "neon_db",
+      "label": "Review & Publish",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Front-End & Multi-Locale Directory",
+      "items": [
+        "Astro v5 ultra-fast static directory with Neo-Brutalist stickers and 3D Pepe mascot",
+        "Multi-language support across 15 global locales (en, es, hi, ja, de, fr, zh, etc.)",
+        "Interactive search, random site exploration, and categorized curated collections"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Community Submission Lifecycle",
+      "items": [
+        "Instant queuing into Neon PostgreSQL with pending_review status upon submission",
+        "Transparent state machine: pending_review → approved → published (or rejected with reason)",
+        "User dashboard with real-time status updates, active polling, and revalidation"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Security & Anti-Abuse Controls",
+      "items": [
+        "Strict Clerk backend token verification ensures user_id cannot be spoofed by client",
+        "Isolated iframe sandboxing (sandbox='' and pointer-events: none) prevents clickjacking",
+        "Input sanitization and URL protocol validation strictly block malicious URI schemes"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "InstaFlow Administrative Workflows",
+      "items": [
+        "Centralized review queue: 1-click Approve, Publish to live directory, or Reject with feedback",
+        "Authoritative Neon PostgreSQL diagnostics, latency checks, and real-time database probes",
+        "Comprehensive audit logging for all administrative review actions and state transitions"
+      ]
+    }
+  ]
+}

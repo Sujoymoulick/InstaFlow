@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "199de598-163b-4dd6-8b4f-e84901caa112",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Volumes/projects/instaflow/.archify/architecture-sendvirtualgift-20261009-212500/candidate.json",
+  "output": "/Volumes/projects/instaflow/public/maps/sendvirtualgift-architecture.html",
+  "specification": {
+    "sha256": "5de8d7cf09bbdbf3abc9cdfcc53346097f8257d4518054ed9d1c79fe980d2ace",
+    "bytes": 5984
+  },
+  "artifact": {
+    "sha256": "eaf2984749740d01fcded78d37e19a49ffc50d3bb5f518ba3f8edcad00339438",
+    "bytes": 769954
+  }
+}

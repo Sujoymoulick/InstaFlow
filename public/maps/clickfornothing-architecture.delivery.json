@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "1fbfa5fd-b7ad-47dc-8884-f6d004540d3b",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Volumes/projects/instaflow/.archify/architecture-clickfornothing-20261009-212500/candidate.json",
+  "output": "/Volumes/projects/instaflow/public/maps/clickfornothing-architecture.html",
+  "specification": {
+    "sha256": "637d84b745ad625be5a58d7505e6a5888dfd2b07324f57f3f880a8638c7dacbf",
+    "bytes": 5040
+  },
+  "artifact": {
+    "sha256": "2a9e916ff71061fc283460e4c138dcc982dc28496745edf3b073fc311ea60a06",
+    "bytes": 762348
+  }
+}
