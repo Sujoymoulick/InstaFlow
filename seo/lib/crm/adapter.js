@@ -127,7 +127,7 @@ export class LocalStorageCrmAdapter {
 
   async getSettings() {
     return getItem('settings', {
-      proxyUrl: '',
+      proxyUrl: 'https://instaflow-seo-proxy.sujoymoulick05.workers.dev',
       brandName: 'Instaflow Agency',
       brandLogo: '',
       primaryColor: '#6366f1',

@@ -23,7 +23,7 @@ export function mountSeoSuite(containerEl, options = {}) {
   }
 
   const crmAdapter = options.crmAdapter || new LocalStorageCrmAdapter();
-  let proxyUrl = options.proxyUrl !== undefined ? options.proxyUrl : '/api/seo';
+  let proxyUrl = options.proxyUrl !== undefined ? options.proxyUrl : 'https://instaflow-seo-proxy.sujoymoulick05.workers.dev';
   let currentLocale = options.locale || 'en';
   let currentTheme = options.theme || 'light';
   let activeFeatureId = options.defaultFeature || 'dashboard';
