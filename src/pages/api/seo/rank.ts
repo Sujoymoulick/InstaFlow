@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { validateUrlSafety } from '../../../../seo/worker/ssrf-guard.js';
+import { fetchUrlServer } from '../../../../seo/lib/seo/server-fetcher.js';
 
 export const prerender = false;
 
@@ -191,20 +191,10 @@ async function handleRankCheck(keyword: string, targetUrl: string) {
 		let fetchUrl = targetUrl;
 		if (!/^https?:\/\//i.test(fetchUrl)) fetchUrl = 'https://' + fetchUrl;
 
-		const safety = validateUrlSafety(fetchUrl);
-		if (safety.safe) {
-			try {
-				const ctrl = new AbortController();
-				const tId = setTimeout(() => ctrl.abort(), 6000);
-				const pageRes = await fetch(fetchUrl, {
-					signal: ctrl.signal,
-					headers: { 'User-Agent': USER_AGENT },
-				});
-				clearTimeout(tId);
-
-				if (pageRes.ok) {
-					const pageHtml = await pageRes.text();
-					const lowerHtml = pageHtml.toLowerCase();
+		try {
+			const fetchRes = await fetchUrlServer(fetchUrl, { timeoutMs: 10000 });
+			const pageHtml = fetchRes.html;
+			const lowerHtml = pageHtml.toLowerCase();
 
 					const titleMatch = pageHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
 					const titleText = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
@@ -254,12 +244,10 @@ async function handleRankCheck(keyword: string, targetUrl: string) {
 							searchPosition = onPageSignals.inTitle && onPageSignals.inUrl ? 1 : onPageSignals.inTitle ? 4 : 8;
 						}
 					}
-				}
 			} catch (e) {
 				console.warn('[Rank API] Target page fetch error:', e);
 			}
 		}
-	}
 
 	// Fallback rank positioning calculation
 	if (!searchPosition && targetDomain) {

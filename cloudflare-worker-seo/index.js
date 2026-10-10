@@ -224,7 +224,11 @@ async function safeFetch(initialUrl, { maxRedirects = 5, timeoutMs = 10000 }) {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let isTimedOut = false;
+    const timer = setTimeout(() => {
+      isTimedOut = true;
+      controller.abort(new Error(`Fetch timed out after ${timeoutMs}ms while connecting to ${currentUrl}`));
+    }, timeoutMs);
 
     let res;
     try {
@@ -235,65 +239,93 @@ async function safeFetch(initialUrl, { maxRedirects = 5, timeoutMs = 10000 }) {
         headers: {
           'User-Agent': USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br'
+          'Accept-Language': 'en-US,en;q=0.9'
         }
       });
+
+      const isRedirect = [301, 302, 303, 307, 308].includes(res.status);
+      const location = res.headers.get('location');
+
+      if (isRedirect && location) {
+        clearTimeout(timer);
+        const nextUrl = new URL(location, currentUrl).toString();
+        redirectChain.push({ from: currentUrl, to: nextUrl, status: res.status });
+        currentUrl = nextUrl;
+        redirectsRemaining--;
+        if (redirectsRemaining < 0) {
+          throw new Error('Maximum redirect limit exceeded (5 hops)');
+        }
+        try { if (res.body) await res.body.cancel(); } catch {}
+        continue;
+      }
+
+      // Stream response body with size limit and chunk idle protection
+      let received = 0;
+      const chunks = [];
+
+      if (res.body) {
+        const reader = res.body.getReader();
+
+        while (received < MAX_BYTES) {
+          const readPromise = reader.read();
+
+          if (received > 1024) {
+            const idlePromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('STREAM_IDLE')), 3500);
+            });
+
+            try {
+              const { done, value } = await Promise.race([readPromise, idlePromise]);
+              if (done) break;
+              chunks.push(value);
+              received += value.length;
+            } catch (err) {
+              if (err.message === 'STREAM_IDLE') {
+                try { await reader.cancel(); } catch {}
+                break;
+              }
+              throw err;
+            }
+          } else {
+            const { done, value } = await readPromise;
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+          }
+        }
+
+        if (received > MAX_BYTES) {
+          try { await reader.cancel(); } catch {}
+        }
+      }
+
+      clearTimeout(timer);
+
+      const totalBuffer = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        totalBuffer.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      const text = new TextDecoder('utf-8').decode(totalBuffer);
+      const headersObj = {};
+      for (const [k, v] of res.headers.entries()) {
+        headersObj[k.toLowerCase()] = v;
+      }
+
+      return {
+        finalUrl: currentUrl,
+        status: res.status,
+        statusText: res.statusText,
+        redirectChain,
+        headers: headersObj,
+        html: text,
+        byteSize: received
+      };
     } finally {
       clearTimeout(timer);
     }
-
-    const isRedirect = [301, 302, 303, 307, 308].includes(res.status);
-    const location = res.headers.get('location');
-
-    if (isRedirect && location) {
-      const nextUrl = new URL(location, currentUrl).toString();
-      redirectChain.push({ from: currentUrl, to: nextUrl, status: res.status });
-      currentUrl = nextUrl;
-      redirectsRemaining--;
-      if (redirectsRemaining < 0) {
-        throw new Error('Maximum redirect limit exceeded (5 hops)');
-      }
-      continue;
-    }
-
-    // Stream response body with size limit
-    const reader = res.body.getReader();
-    let received = 0;
-    const chunks = [];
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.length;
-      if (received > MAX_BYTES) {
-        throw new Error(`Response payload exceeded size limit of 4MB (${(received / 1024 / 1024).toFixed(1)}MB)`);
-      }
-      chunks.push(value);
-    }
-
-    const totalBuffer = new Uint8Array(received);
-    let offset = 0;
-    for (const chunk of chunks) {
-      totalBuffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    const text = new TextDecoder('utf-8').decode(totalBuffer);
-    const headersObj = {};
-    for (const [k, v] of res.headers.entries()) {
-      headersObj[k.toLowerCase()] = v;
-    }
-
-    return {
-      finalUrl: currentUrl,
-      status: res.status,
-      statusText: res.statusText,
-      redirectChain,
-      headers: headersObj,
-      html: text,
-      byteSize: received
-    };
   }
 }
 

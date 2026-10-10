@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { validateUrlSafety } from '../../../../seo/worker/ssrf-guard.js';
+import { validateUrlSafetyAsync } from '../../../../seo/worker/ssrf-guard.js';
 
 export const prerender = false;
 
@@ -7,10 +7,10 @@ export const get: APIRoute = async ({ request }) => {
 	const reqUrl = new URL(request.url);
 	const target = reqUrl.searchParams.get('url');
 
-	if (!target) {
+	if (!target || !target.trim()) {
 		return new Response(JSON.stringify({ error: 'Missing target "url" query parameter.' }), {
 			status: 400,
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
 		});
 	}
 
@@ -20,25 +20,52 @@ export const get: APIRoute = async ({ request }) => {
 		const parsed = new URL(u);
 		const robotsUrl = `${parsed.protocol}//${parsed.host}/robots.txt`;
 
-		const safety = validateUrlSafety(robotsUrl);
+		const safety = await validateUrlSafetyAsync(robotsUrl);
 		if (!safety.safe) {
-			return new Response(JSON.stringify({ error: safety.error }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+			return new Response(JSON.stringify({ error: safety.error }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+			});
 		}
 
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 4000);
-		const res = await fetch(robotsUrl, {
-			signal: controller.signal,
-			headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' },
-		});
-		clearTimeout(timeout);
+		const timeout = setTimeout(() => {
+			const err = new Error('Robots.txt request timed out after 8000ms');
+			err.name = 'TimeoutError';
+			controller.abort(err);
+		}, 8000);
 
-		const content = res.ok ? await res.text() : '';
-		return new Response(JSON.stringify({ url: robotsUrl, content, status: res.status }), {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' },
-		});
+		try {
+			const res = await fetch(robotsUrl, {
+				signal: controller.signal,
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; InstaFlow-RobotsBot/1.0)',
+					'Accept': 'text/plain,text/html,*/*',
+				},
+			});
+			clearTimeout(timeout);
+
+			const content = res.ok ? await res.text() : '';
+			return new Response(JSON.stringify({ url: robotsUrl, content, status: res.status }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+			});
+		} finally {
+			clearTimeout(timeout);
+		}
 	} catch (e: any) {
-		return new Response(JSON.stringify({ error: e.message }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+		// Non-fatal for robots.txt: return empty content rather than breaking the entire audit
+		return new Response(
+			JSON.stringify({
+				url: target,
+				content: '',
+				status: 0,
+				warning: `Robots.txt could not be retrieved: ${e.message}`,
+			}),
+			{
+				status: 200,
+				headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+			},
+		);
 	}
 };

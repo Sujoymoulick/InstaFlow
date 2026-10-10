@@ -1,10 +1,10 @@
 /**
  * Instaflow SEO Suite - Vercel Serverless Function Proxy (Tier 2)
  *
- * Deployable as a Vercel Serverless / Edge Function at /api/seo/proxy
+ * Deployable as a Vercel Serverless Function at /api/seo/proxy
  */
 
-import { validateUrlSafety } from './ssrf-guard.js';
+import { fetchUrlServer } from '../lib/seo/server-fetcher.js';
 
 export default async function handler(req, res) {
   // CORS
@@ -26,53 +26,34 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required "url" parameter' });
   }
 
-  const safety = validateUrlSafety(url);
-  if (!safety.safe) {
-    return res.status(403).json({ error: `SSRF Security Block: ${safety.error}` });
-  }
-
   try {
-    const startTime = Date.now();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
     let targetUrl = url;
     if (action === 'robots') {
-      const u = new URL(url);
+      const u = new URL(url.startsWith('http') ? url : 'https://' + url);
       targetUrl = `${u.protocol}//${u.host}/robots.txt`;
     } else if (action === 'sitemap') {
-      const u = new URL(url);
+      const u = new URL(url.startsWith('http') ? url : 'https://' + url);
       targetUrl = url.endsWith('.xml') ? url : `${u.protocol}//${u.host}/sitemap.xml`;
     }
 
-    const response = await fetch(targetUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 (compatible; SEO-Auditor/1.0)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      }
+    const fetchResult = await fetchUrlServer(targetUrl, {
+      timeoutMs: 15000
     });
-
-    clearTimeout(timeout);
-    const html = await response.text();
-    const timingMs = Date.now() - startTime;
-
-    const headers = {};
-    for (const [k, v] of response.headers.entries()) {
-      headers[k.toLowerCase()] = v;
-    }
 
     return res.status(200).json({
       url,
-      finalUrl: response.url || targetUrl,
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-      html,
-      timingMs,
-      byteSize: new TextEncoder().encode(html).length
+      finalUrl: fetchResult.finalUrl,
+      status: fetchResult.status,
+      statusText: fetchResult.statusText,
+      headers: fetchResult.headers,
+      html: fetchResult.html,
+      timingMs: fetchResult.timingMs,
+      byteSize: fetchResult.byteSize,
+      redirectChain: fetchResult.redirectChain,
+      isTruncated: fetchResult.isTruncated
     });
   } catch (err) {
-    return res.status(502).json({ error: `Fetch error: ${err.message}` });
+    const statusCode = err.status || (err.name === 'SSRFError' ? 403 : 502);
+    return res.status(statusCode).json({ error: `Fetch error: ${err.message}` });
   }
 }

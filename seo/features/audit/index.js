@@ -249,6 +249,9 @@ export const auditFeature = {
       executeLiveScan(urlInput.value);
     });
 
+    let activeScanId = 0;
+    let currentScanAbort = null;
+
     async function executeLiveScan(rawUrl) {
       const cleanUrl = normalizeUrl(rawUrl);
       if (!cleanUrl) {
@@ -261,6 +264,14 @@ export const auditFeature = {
         ctx.setActiveUrl(cleanUrl);
       }
 
+      // Cancel any running scan before launching new one
+      if (currentScanAbort) {
+        try { currentScanAbort.abort(new Error('Superseded by new scan submission.')); } catch {}
+      }
+      currentScanAbort = new AbortController();
+      const thisScanAbort = currentScanAbort;
+      const scanId = ++activeScanId;
+
       fetchUrlBtn.disabled = true;
       fetchUrlBtn.innerHTML = '⏳ Scanning...';
       resultsContainer.innerHTML = `
@@ -268,13 +279,27 @@ export const auditFeature = {
           <div style="font-size: 2.5rem; margin-bottom: 1rem; animation: spin 2s infinite linear;">⚡</div>
           <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--seo-text);">Analyzing ${escapeHtml(cleanUrl)}</h3>
           <p style="font-size: 0.875rem; color: var(--seo-muted); margin-top: 0.5rem;">Evaluating 100+ on-page, technical, AI-search (GEO), and structured data checks...</p>
+          <div style="margin-top: 1.25rem;">
+            <button type="button" id="seo-btn-cancel-scan" class="seo-btn seo-btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">Cancel Scan</button>
+          </div>
         </div>
         <style>@keyframes spin { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }</style>
       `;
 
+      resultsContainer.querySelector('#seo-btn-cancel-scan')?.addEventListener('click', () => {
+        if (currentScanAbort === thisScanAbort) {
+          thisScanAbort.abort(new Error('Scan cancelled by user.'));
+        }
+      });
+
       try {
-        const fetchResult = await fetchWebsiteResilient(cleanUrl, ctx);
-        const robotsTxt = await fetchRobotsResilient(cleanUrl, ctx);
+        const scanCtx = { ...ctx, signal: thisScanAbort.signal };
+        const fetchResult = await fetchWebsiteResilient(cleanUrl, scanCtx);
+
+        if (scanId !== activeScanId) return;
+
+        const robotsTxt = await fetchRobotsResilient(cleanUrl, scanCtx);
+        if (scanId !== activeScanId) return;
 
         const auditResult = runAudit(fetchResult.html || '', {
           url: fetchResult.finalUrl || cleanUrl,
@@ -292,17 +317,49 @@ export const auditFeature = {
 
         renderAuditResults(resultsContainer, currentAuditResult, ctx);
       } catch (err) {
+        if (scanId !== activeScanId) return;
+
+        let errorMessage = err.message || 'An unexpected error occurred while scanning the website.';
+        if (err.name === 'AbortError' && err.message.includes('user')) {
+          errorMessage = 'Scan was cancelled by the user.';
+        }
+
         resultsContainer.innerHTML = `
           <div class="seo-card" style="border-left: 4px solid var(--seo-fail); padding: 1.5rem;">
-            <h3 style="font-weight: 700; color: var(--seo-fail);">❌ Scan Failed</h3>
-            <p style="font-size: 0.875rem; color: var(--seo-muted); margin-top: 0.4rem;">${escapeHtml(err.message)}</p>
-            <p style="font-size: 0.8rem; color: var(--seo-muted); margin-top: 0.5rem;">Please make sure the URL is public and reachable, or use the manual HTML paste option below.</p>
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+              <div>
+                <h3 style="font-weight: 700; color: var(--seo-fail); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>❌</span> Scan Could Not Complete
+                </h3>
+                <p style="font-size: 0.9rem; color: var(--seo-text); margin-top: 0.5rem; line-height: 1.5;">${escapeHtml(errorMessage)}</p>
+                <p style="font-size: 0.8rem; color: var(--seo-muted); margin-top: 0.5rem;">Please make sure the URL is public and reachable, or use the manual HTML paste option below.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+              <button type="button" id="seo-btn-retry-scan" class="seo-btn seo-btn-primary" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">🔄 Try Again</button>
+              <button type="button" id="seo-btn-open-manual" class="seo-btn seo-btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">📝 Paste HTML Source Instead</button>
+            </div>
           </div>
         `;
-        showToast(`Scan error: ${err.message}`, 'error');
+
+        resultsContainer.querySelector('#seo-btn-retry-scan')?.addEventListener('click', () => {
+          executeLiveScan(urlInput.value);
+        });
+
+        resultsContainer.querySelector('#seo-btn-open-manual')?.addEventListener('click', () => {
+          if (manualBox) {
+            manualBox.style.display = 'block';
+            manualBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            htmlTextarea?.focus();
+          }
+        });
+
+        showToast(`Scan error: ${errorMessage.slice(0, 100)}`, 'error');
       } finally {
-        fetchUrlBtn.disabled = false;
-        fetchUrlBtn.innerHTML = '🔍 Scan Website';
+        if (scanId === activeScanId) {
+          fetchUrlBtn.disabled = false;
+          fetchUrlBtn.innerHTML = '🔍 Scan Website';
+        }
       }
     }
 
@@ -446,8 +503,8 @@ export const auditFeature = {
 
           const record = {
             url: fetchResult.finalUrl || targetUrl,
-            title: audit.anatomy.title || 'Untitled',
-            h1: audit.anatomy.h1 || '',
+            title: audit.pageAnatomy?.title || 'Untitled',
+            h1: audit.pageAnatomy?.headings?.find(h => h.level === 1)?.text || '',
             score: audit.scorecard.overallScore,
             grade: audit.scorecard.overallGrade,
             passed: audit.scorecard.stats.passed,
