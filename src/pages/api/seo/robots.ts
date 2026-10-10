@@ -26,8 +26,11 @@ export const get: APIRoute = async ({ request }) => {
 		}
 
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 6000);
-		const res = await fetch(robotsUrl, { signal: controller.signal, headers: { 'User-Agent': 'InstaflowSeoBot/1.0' } });
+		const timeout = setTimeout(() => controller.abort(), 4000);
+		const res = await fetch(robotsUrl, {
+			signal: controller.signal,
+			headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' },
+		});
 		clearTimeout(timeout);
 
 		const content = res.ok ? await res.text() : '';
