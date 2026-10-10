@@ -1,0 +1,28 @@
+---
+import LayoutSidebar from '../app/LayoutSidebar.astro';
+import { url } from '../lib/data.js';
+
+export const prerender = false;
+---
+
+<LayoutSidebar>
+	<div class="px-4 pt-4">
+		<!-- SEO Suite Root Mount Container -->
+		<div id="instaflow-seo-suite-root"></div>
+	</div>
+
+	<link rel="stylesheet" href="/seo/seo-suite.css" />
+
+	<script type="module">
+		import { mountSeoSuite } from '/seo/index.js';
+
+		const container = document.getElementById('instaflow-seo-suite-root');
+		if (container) {
+			mountSeoSuite(container, {
+				theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+				locale: 'en',
+				defaultFeature: 'dashboard'
+			});
+		}
+	</script>
+</LayoutSidebar>

@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "Instaflow SEO Suite",
+    "subtitle": "Professionelles Audit, GEO-Readiness, Crawler & Lead-Generierung",
+    "tier1_badge": "Stufe 1: Browser Offline",
+    "tier2_badge": "Stufe 2: Proxy Aktiv",
+    "proxy_required": "Erfordert Stufe-2-Proxy",
+    "loading": "Seite wird analysiert...",
+    "save": "Änderungen speichern",
+    "cancel": "Abbrechen",
+    "export": "Exportieren",
+    "copy": "In Zwischenablage kopieren",
+    "copied": "Kopiert!",
+    "delete": "Löschen",
+    "run": "Audit starten",
+    "close": "Schließen"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "audit": "Website-Audit",
+    "crawler": "Website-Crawler",
+    "toolbox": "SEO-Werkzeugkasten",
+    "keywords": "Keywords & Tracking",
+    "backlinks": "Backlinks",
+    "planning": "Strategie & Planung",
+    "widget": "Lead-Widget",
+    "reports": "Berichte & Vorlagen",
+    "settings": "Einstellungen"
+  },
+  "scorecard": {
+    "title": "SEO & GEO Scorecard",
+    "overall": "Gesamte SEO-Gesundheit",
+    "generated_at": "Bericht erstellt: {date} UTC",
+    "based_on": "Basierend auf {run} von {total} Prüfungen",
+    "na_cta_perf": "PageSpeed-Daten hinzufügen, um Geschwindigkeit zu bewerten",
+    "na_cta_links": "Proxy verbinden, um Live-Linkstatus zu prüfen",
+    "radar_title": "Pentagon-Kategorieverteilung",
+    "top_fixes_title": "Priorisierter Maßnahmenplan",
+    "top_fixes_subtitle": "Geordnet nach höchster Wirkung vs. geringstem Aufwand",
+    "groups": {
+      "onpage": "On-Page-SEO",
+      "geo": "GEO (KI-Suche)",
+      "links": "Links & Architektur",
+      "usability": "Bedienbarkeit & Mobil",
+      "performance": "Geschwindigkeit & Vitals"
+    }
+  }
+}

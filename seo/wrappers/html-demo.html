@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instaflow SEO Suite - Standalone Demo</title>
+  <link rel="stylesheet" href="../styles/seo-suite.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+  <div id="seo-root"></div>
+
+  <script type="module">
+    import { mountSeoSuite } from '../index.js';
+
+    const root = document.getElementById('seo-root');
+    const suite = mountSeoSuite(root, {
+      theme: 'light',
+      locale: 'en',
+      defaultFeature: 'dashboard'
+    });
+  </script>
+</body>
+</html>

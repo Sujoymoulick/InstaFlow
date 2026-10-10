@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "Suite SEO Instaflow",
+    "subtitle": "Audit professionnel, préparation GEO, crawler et génération de leads",
+    "tier1_badge": "Niveau 1 : Navigateur hors ligne",
+    "tier2_badge": "Niveau 2 : Proxy actif",
+    "proxy_required": "Nécessite le proxy de niveau 2",
+    "loading": "Analyse de la page en cours...",
+    "save": "Enregistrer les modifications",
+    "cancel": "Annuler",
+    "export": "Exporter",
+    "copy": "Copier dans le presse-papiers",
+    "copied": "Copié !",
+    "delete": "Supprimer",
+    "run": "Lancer l'audit",
+    "close": "Fermer"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "audit": "Audit de site",
+    "crawler": "Crawler de site",
+    "toolbox": "Boîte à outils SEO",
+    "keywords": "Mots-clés & Suivi",
+    "backlinks": "Liens retours",
+    "planning": "Stratégie & Planning",
+    "widget": "Widget de leads",
+    "reports": "Rapports & Modèles",
+    "settings": "Paramètres"
+  },
+  "scorecard": {
+    "title": "Tableau de bord SEO & GEO",
+    "overall": "Santé SEO globale",
+    "generated_at": "Rapport généré : {date} UTC",
+    "based_on": "Basé sur {run} sur {total} vérifications",
+    "na_cta_perf": "Ajoutez les données PageSpeed pour évaluer la vitesse et les signaux Web essentiels",
+    "na_cta_links": "Connectez le proxy pour vérifier l'état des liens",
+    "radar_title": "Équilibre pentagonal des catégories",
+    "top_fixes_title": "Plan d'action prioritaire",
+    "top_fixes_subtitle": "Classé par impact maximal vs effort minimal",
+    "groups": {
+      "onpage": "SEO On-Page",
+      "geo": "GEO (Recherche IA)",
+      "links": "Liens & Architecture",
+      "usability": "Ergonomie & Mobile",
+      "performance": "Vitesse & Signaux"
+    }
+  }
+}

@@ -39,6 +39,7 @@
 		"preview": "astro preview",
 		"start": "astro dev",
 		"test": "npx tsx test/instaflow.test.ts",
+		"test:seo": "node --test seo/tests/*.test.js",
 		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "node src/scripts/migrate.js"
