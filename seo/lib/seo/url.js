@@ -28,16 +28,46 @@ export function buildUtmUrl(baseUrl, { source = '', medium = '', campaign = '', 
   }
 }
 
+export function normalizeUrl(rawUrl = '') {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  let url = rawUrl.trim();
+  if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.port ? ':' + parsed.port : ''}${parsed.pathname || '/'}${parsed.search}${parsed.hash}`;
+  } catch (e) {
+    return url;
+  }
+}
+
+export function extractDomain(rawUrl = '') {
+  if (!rawUrl) return '';
+  const norm = normalizeUrl(rawUrl);
+  try {
+    const parsed = new URL(norm);
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return rawUrl.replace(/^https?:\/\//i, '').replace(/^www\./, '').split('/')[0];
+  }
+}
+
 export function cleanUrlList(rawText = '') {
-  const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const lines = rawText.split(/[\r\n,]+/).map(l => l.trim()).filter(Boolean);
   const normalized = [];
   const invalid = [];
   const seen = new Set();
   const duplicates = [];
 
   for (const line of lines) {
+    let candidate = line;
+    if (!/^https?:\/\//i.test(candidate)) {
+      candidate = 'https://' + candidate;
+    }
     try {
-      const url = new URL(line);
+      const url = new URL(candidate);
       // Remove trailing slash and lower case hostname
       const clean = `${url.protocol}//${url.hostname.toLowerCase()}${url.port ? ':' + url.port : ''}${url.pathname.replace(/\/+$/, '') || '/'}${url.search}${url.hash}`;
       if (seen.has(clean)) {

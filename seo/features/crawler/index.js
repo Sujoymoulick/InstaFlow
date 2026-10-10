@@ -5,6 +5,8 @@
 import { showToast, escapeHtml } from '../../ui/components.js';
 import { parseHTML, extractPageAnatomy } from '../../lib/parse/html.js';
 import { getItem, setItem } from '../../lib/storage/storage.js';
+import { fetchWebsiteResilient, fetchAllSubmittedSites } from '../../lib/seo/fetcher.js';
+import { normalizeUrl } from '../../lib/seo/url.js';
 
 export const crawlerFeature = {
   id: 'crawler',
@@ -37,18 +39,17 @@ export const crawlerFeature = {
               <h2 class="seo-card-title">🕷️ Autonomous Site Crawler</h2>
               <p class="seo-card-subtitle">Discover broken links, duplicate titles, redirect chains, and site architecture depth.</p>
             </div>
+            <button type="button" id="crawl-btn-load-subs" class="seo-btn seo-btn-secondary" style="font-size: 0.8rem;">
+              📥 Choose Submitted Site ▾
+            </button>
           </div>
 
-          ${!ctx.proxyUrl ? `
-            <div style="background: var(--seo-warn-bg); color: var(--seo-warn); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.875rem;">
-              ⚠️ <strong>Requires Tier 2 Proxy:</strong> Web browsers cannot crawl cross-origin websites directly. Please configure your free Cloudflare Worker or Vercel proxy in <strong>Settings</strong>.
-            </div>
-          ` : ''}
+          <div id="crawl-subs-dropdown" style="display: none; margin-bottom: 1rem; background: var(--seo-bg); border: 1px solid var(--seo-border); border-radius: 6px; padding: 0.5rem; max-height: 150px; overflow-y: auto;"></div>
 
           <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; align-items: end; margin-bottom: 1.5rem;">
             <div class="seo-form-group" style="margin-bottom: 0;">
               <label class="seo-label">Root Website URL or Sitemap</label>
-              <input type="url" id="crawl-target-url" class="seo-input" placeholder="https://example.com" value="${escapeHtml(crawlState.targetUrl || '')}" ${!ctx.proxyUrl ? 'disabled' : ''} />
+              <input type="url" id="crawl-target-url" class="seo-input" placeholder="https://example.com" value="${escapeHtml(crawlState.targetUrl || '')}" />
             </div>
 
             <div class="seo-form-group" style="margin-bottom: 0;">
@@ -62,7 +63,7 @@ export const crawlerFeature = {
             </div>
 
             <div style="display: flex; gap: 0.5rem;">
-              <button type="button" id="crawl-btn-start" class="seo-btn seo-btn-primary" style="width: 100%;" ${!ctx.proxyUrl ? 'disabled' : ''}>
+              <button type="button" id="crawl-btn-start" class="seo-btn seo-btn-primary" style="width: 100%;">
                 Start Crawl
               </button>
             </div>
@@ -102,6 +103,35 @@ export const crawlerFeature = {
     const statusText = container.querySelector('#crawl-status-text');
     const queueText = container.querySelector('#crawl-queue-text');
     const resultsSlot = container.querySelector('#crawl-results-slot');
+    const loadSubsBtn = container.querySelector('#crawl-btn-load-subs');
+    const subsDropdown = container.querySelector('#crawl-subs-dropdown');
+
+    loadSubsBtn?.addEventListener('click', async () => {
+      subsDropdown.style.display = subsDropdown.style.display === 'none' ? 'block' : 'none';
+      if (subsDropdown.style.display === 'block') {
+        subsDropdown.innerHTML = '<span style="font-size: 0.8rem; color: var(--seo-muted);">Loading sites...</span>';
+        try {
+          const sites = await fetchAllSubmittedSites();
+          subsDropdown.innerHTML = sites.map(s => `
+            <div class="crawl-site-choice" data-url="${escapeHtml(s.url)}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between;">
+              <strong>${escapeHtml(s.title || s.url)}</strong>
+              <span style="color: var(--seo-muted); font-size: 0.75rem;">${escapeHtml(s.url)}</span>
+            </div>
+          `).join('');
+
+          subsDropdown.querySelectorAll('.crawl-site-choice').forEach(el => {
+            el.addEventListener('click', () => {
+              const chosen = el.getAttribute('data-url');
+              targetUrlInput.value = chosen;
+              if (ctx.setActiveUrl) ctx.setActiveUrl(chosen);
+              subsDropdown.style.display = 'none';
+            });
+          });
+        } catch (e) {
+          subsDropdown.innerHTML = `<span style="font-size: 0.8rem; color: var(--seo-fail);">Failed to load sites</span>`;
+        }
+      }
+    });
 
     function renderResultsTable() {
       if (crawlState.crawled.length === 0) {
@@ -166,17 +196,14 @@ export const crawlerFeature = {
     renderResultsTable();
 
     startBtn?.addEventListener('click', async () => {
-      const rootUrl = targetUrlInput.value.trim();
+      const rootUrl = normalizeUrl(targetUrlInput.value.trim());
       if (!rootUrl) {
         showToast('Please enter a root URL to start crawling.', 'warn');
         return;
       }
+      targetUrlInput.value = rootUrl;
       if (ctx.setActiveUrl) {
         ctx.setActiveUrl(rootUrl);
-      }
-      if (!ctx.proxyUrl) {
-        showToast('Tier 2 Proxy required for live crawling.', 'error');
-        return;
       }
 
       crawlState = {
@@ -234,17 +261,14 @@ export const crawlerFeature = {
         progressBar.style.width = `${pct}%`;
 
         try {
-          const endpoint = `${ctx.proxyUrl.replace(/\/$/, '')}/fetch?url=${encodeURIComponent(item.url)}`;
-          const res = await fetch(endpoint);
-          const data = await res.json();
-
-          const doc = parseHTML(data.html || '');
-          const anatomy = extractPageAnatomy(doc, data.html || '');
+          const fetchResult = await fetchWebsiteResilient(item.url, ctx);
+          const doc = parseHTML(fetchResult.html || '');
+          const anatomy = extractPageAnatomy(doc, fetchResult.html || '');
           const h1 = doc.querySelector('h1')?.textContent?.trim() || '';
 
           const pageRecord = {
-            url: data.finalUrl || item.url,
-            status: data.status || res.status,
+            url: fetchResult.finalUrl || item.url,
+            status: fetchResult.status || 200,
             depth: item.depth,
             title: doc.title || '',
             h1,
@@ -255,7 +279,8 @@ export const crawlerFeature = {
 
           // Extract outbound links if within maxDepth
           if (item.depth < crawlState.maxDepth) {
-            const host = new URL(item.url).hostname;
+            let host = '';
+            try { host = new URL(item.url).hostname; } catch (e) {}
             const links = doc.querySelectorAll('a[href]');
             for (const a of links) {
               const href = a.getAttribute('href') || '';
@@ -268,7 +293,7 @@ export const crawlerFeature = {
                 continue;
               }
 
-              const isInternal = resolved.includes(host);
+              const isInternal = host ? resolved.includes(host) : true;
               if (isInternal) {
                 pageRecord.internalLinks++;
                 const key = resolved.replace(/\/$/, '').toLowerCase();

@@ -110,7 +110,7 @@ export function classifyKeywordIntent(keyword = '') {
   }
 
   // Commercial / Investigation patterns
-  if (/\b(best|top|vs|versus|compare|review|alternative|alternatives|pros and cons|guide to buying)\b/i.test(kw)) {
+  if (/\b(best|top|vs|versus|compare|review|alternative|alternatives|pros and cons|guide to buying|free|tool|tools|software|service|services|app)\b/i.test(kw)) {
     return { intent: 'Commercial', confidence: 0.85, color: 'blue' };
   }
 
@@ -158,3 +158,150 @@ export function clusterKeywords(keywordList = []) {
     keywords: items
   })).sort((a, b) => b.count - a.count);
 }
+
+/**
+ * Calculates keyword competition difficulty score (0-100)
+ */
+export function calculateKeywordDifficulty(keyword = '') {
+  const kw = keyword.toLowerCase().trim();
+  const words = kw.split(/\s+/).length;
+  let score = 55;
+  if (words === 1) score = 78;
+  else if (words === 2) score = 58;
+  else if (words === 3) score = 42;
+  else if (words >= 4) score = 28;
+
+  if (/\b(best|software|crm|insurance|loan|hosting|vpn|mortgage|attorney|pricing|buy)\b/i.test(kw)) {
+    score = Math.min(95, score + 22);
+  }
+
+  let label = 'Medium';
+  if (score <= 30) label = 'Easy';
+  else if (score <= 60) label = 'Medium';
+  else if (score <= 80) label = 'Hard';
+  else label = 'Very Hard';
+
+  return { score, label };
+}
+
+/**
+ * Estimates organic CTR percentage based on rank position
+ */
+export function estimateCtrForPosition(pos) {
+  if (!pos || pos <= 0 || pos > 100) return '0.1%';
+  if (pos === 1) return '31.7%';
+  if (pos === 2) return '15.6%';
+  if (pos === 3) return '9.8%';
+  if (pos === 4) return '6.9%';
+  if (pos === 5) return '5.1%';
+  if (pos <= 10) return `${(4.5 - (pos - 6) * 0.6).toFixed(1)}%`;
+  if (pos <= 20) return '1.2%';
+  return '0.3%';
+}
+
+/**
+ * Automatically extracts the best keyword candidates from website anatomy/text
+ */
+export function extractTopSiteKeywords(text = '', { title = '', h1 = '', url = '' } = {}) {
+  const candidateSet = new Set();
+
+  // Extract from title
+  if (title) {
+    const cleanTitle = title.replace(/[|\-_–•·].*$/g, '').trim();
+    if (cleanTitle.length > 3 && cleanTitle.length < 50) {
+      candidateSet.add(cleanTitle.toLowerCase());
+    }
+  }
+
+  // Extract from H1
+  if (h1) {
+    const cleanH1 = h1.replace(/[|\-_–•·].*$/g, '').trim();
+    if (cleanH1.length > 3 && cleanH1.length < 50) {
+      candidateSet.add(cleanH1.toLowerCase());
+    }
+  }
+
+  // Extract n-grams
+  const biGrams = extractNGrams(text, 2, 2);
+  const triGrams = extractNGrams(text, 3, 2);
+  const uniGrams = extractNGrams(text, 1, 3);
+
+  for (const bg of biGrams.slice(0, 8)) candidateSet.add(bg.phrase);
+  for (const tg of triGrams.slice(0, 5)) candidateSet.add(tg.phrase);
+  for (const ug of uniGrams.slice(0, 5)) candidateSet.add(ug.phrase);
+
+  return Array.from(candidateSet).slice(0, 15);
+}
+
+/**
+ * Client-side / unified rank intelligence analyzer
+ */
+export function evaluateKeywordRankLocally(keyword, { domain = '', targetUrl = '', title = '', description = '', h1 = '', bodyText = '' } = {}) {
+  const kw = keyword.trim().toLowerCase();
+  const diff = calculateKeywordDifficulty(kw);
+  const intent = classifyKeywordIntent(kw);
+
+  const placement = analyzeKeywordPlacement(kw, {
+    title,
+    description,
+    h1,
+    url: targetUrl,
+    first100Words: bodyText.slice(0, 600),
+    headings: [h1]
+  });
+
+  // Calculate estimated position
+  let estimatedPos = null;
+  const domClean = (domain || targetUrl || '').toLowerCase().replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  const kwSlug = kw.replace(/[^a-z0-9]/g, '');
+
+  if (domClean.includes(kwSlug)) {
+    estimatedPos = 1;
+  } else if (placement.inTitle && placement.inH1) {
+    estimatedPos = Math.max(2, Math.round(10 - (placement.placementScore / 15)));
+  } else if (placement.inTitle) {
+    estimatedPos = Math.max(5, Math.round(20 - (placement.placementScore / 10)));
+  } else if (placement.hasTarget && placement.placementScore > 40) {
+    estimatedPos = Math.max(12, Math.round(45 - (placement.placementScore / 5)));
+  } else {
+    estimatedPos = null;
+  }
+
+  let rankBucket = 'not_in_top_100';
+  if (estimatedPos) {
+    if (estimatedPos <= 3) rankBucket = 'top3';
+    else if (estimatedPos <= 10) rankBucket = 'top10';
+    else if (estimatedPos <= 20) rankBucket = 'page2';
+    else if (estimatedPos <= 50) rankBucket = 'page3_5';
+    else rankBucket = 'top100';
+  }
+
+  let visibilityScore = 0;
+  if (estimatedPos) {
+    if (estimatedPos === 1) visibilityScore = 100;
+    else if (estimatedPos === 2) visibilityScore = 85;
+    else if (estimatedPos === 3) visibilityScore = 75;
+    else if (estimatedPos <= 5) visibilityScore = 60;
+    else if (estimatedPos <= 10) visibilityScore = 45;
+    else if (estimatedPos <= 20) visibilityScore = 25;
+    else visibilityScore = Math.max(5, Math.round(100 - estimatedPos));
+  }
+
+  return {
+    keyword,
+    targetUrl,
+    domain: domClean,
+    rank: estimatedPos,
+    rankBucket,
+    visibilityScore,
+    intent: intent.intent,
+    intentColor: intent.color,
+    difficulty: diff.score,
+    difficultyLabel: diff.label,
+    estimatedCtr: estimateCtrForPosition(estimatedPos),
+    onPageScore: placement.placementScore,
+    onPageSignals: placement,
+    checkedAt: new Date().toISOString()
+  };
+}
+

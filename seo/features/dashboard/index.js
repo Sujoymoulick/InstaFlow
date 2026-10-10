@@ -3,6 +3,7 @@
  */
 
 import { showToast, escapeHtml } from '../../ui/components.js';
+import { fetchAllSubmittedSites } from '../../lib/seo/fetcher.js';
 
 export const dashboardFeature = {
   id: 'dashboard',
@@ -14,6 +15,12 @@ export const dashboardFeature = {
     const reports = await ctx.crmAdapter.listReports();
     const leads = await ctx.crmAdapter.listLeads();
     const settings = await ctx.crmAdapter.getSettings();
+    let submittedSites = [];
+    try {
+      submittedSites = await fetchAllSubmittedSites();
+    } catch (e) {
+      submittedSites = [];
+    }
 
     const reAuditDays = settings.reAuditIntervalDays || 30;
     const now = Date.now();
@@ -39,10 +46,13 @@ export const dashboardFeature = {
             <h2 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem; line-height: 1.2;">Scan & Audit Any Website</h2>
             <p style="font-size: 0.875rem; opacity: 0.85; margin-bottom: 1.25rem;">Enter any URL below for an immediate 100+ point audit across On-Page SEO, AI-search (GEO), Schema, and Core Web Vitals.</p>
             
-            <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="dash-quick-url" placeholder="https://freepdfly.com" value="${escapeHtml(ctx.getActiveUrl ? ctx.getActiveUrl() : 'https://freepdfly.com/')}" style="flex: 1; height: 48px; padding: 0 1.25rem; font-size: 0.95rem; border: none; border-radius: 8px; background: #ffffff; color: #0f172a;" />
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <input type="text" id="dash-quick-url" placeholder="https://freepdfly.com" value="${escapeHtml(ctx.getActiveUrl ? ctx.getActiveUrl() : 'https://freepdfly.com/')}" style="flex: 1; min-width: 250px; height: 48px; padding: 0 1.25rem; font-size: 0.95rem; border: none; border-radius: 8px; background: #ffffff; color: #0f172a;" />
               <button type="button" id="dash-btn-quick-scan" style="height: 48px; padding: 0 1.75rem; font-size: 0.95rem; font-weight: 700; border: none; border-radius: 8px; background: #10b981; color: #ffffff; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
                 🔍 Start Scan
+              </button>
+              <button type="button" id="dash-btn-scan-all" style="height: 48px; padding: 0 1.25rem; font-size: 0.9rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.4); border-radius: 8px; background: rgba(255,255,255,0.15); color: #ffffff; cursor: pointer; white-space: nowrap;">
+                🌐 Scan All Sites
               </button>
             </div>
           </div>
@@ -51,8 +61,8 @@ export const dashboardFeature = {
         <!-- Top Metric Counters -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
           <div class="seo-card" style="margin-bottom: 0;">
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--seo-muted); text-transform: uppercase;">Active Clients</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--seo-text); margin-top: 0.25rem;">${clients.length}</div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--seo-muted); text-transform: uppercase;">Submitted Sites</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--seo-text); margin-top: 0.25rem;">${submittedSites.length || clients.length}</div>
           </div>
           <div class="seo-card" style="margin-bottom: 0;">
             <div style="font-size: 0.8rem; font-weight: 700; color: var(--seo-muted); text-transform: uppercase;">Audits Run</div>
@@ -68,18 +78,62 @@ export const dashboardFeature = {
           </div>
         </div>
 
-        ${needsReAudit.length > 0 ? `
-          <div class="seo-card" style="border-left: 4px solid var(--seo-warn);">
-            <h4 style="font-weight: 700; color: var(--seo-warn); display: flex; align-items: center; gap: 0.5rem;">
-              ⏰ Scheduled Re-Audit Reminders
-            </h4>
-            <p style="font-size: 0.85rem; color: var(--seo-muted); margin: 0.25rem 0 0.75rem 0;">The following client sites have not been audited in over ${reAuditDays} days:</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-              ${needsReAudit.map(item => `
-                <span style="background: var(--seo-warn-bg); color: var(--seo-warn); padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">
-                  ${escapeHtml(item.client.name)} (${item.ageDays}d ago)
-                </span>
-              `).join('')}
+        <!-- Submitted Websites & Directory Sites Table -->
+        ${submittedSites.length > 0 ? `
+          <div class="seo-card" style="margin-bottom: 1.5rem;">
+            <div class="seo-card-header">
+              <div>
+                <h3 class="seo-card-title">🌐 Submitted Websites & Directory Sites</h3>
+                <p class="seo-card-subtitle">All sites submitted for audit, directory publishing, and search ranking tracking.</p>
+              </div>
+              <button type="button" id="dash-btn-scan-submitted-sites" class="seo-btn seo-btn-primary" style="font-size: 0.85rem;">
+                🚀 Batch Audit All Submitted Sites
+              </button>
+            </div>
+
+            <div class="seo-table-container">
+              <table class="seo-table">
+                <thead>
+                  <tr>
+                    <th>Site Name</th>
+                    <th>URL</th>
+                    <th>Category</th>
+                    <th>Submission Status</th>
+                    <th>Latest Health Score</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${submittedSites.map(s => {
+                    const siteReports = reports.filter(r => r.url && (r.url.includes(s.url) || s.url.includes(r.url)));
+                    const latest = siteReports[0];
+                    const score = latest ? latest.scorecard.overallScore : null;
+                    const grade = latest ? latest.scorecard.overallGrade : 'N/A';
+
+                    return `
+                      <tr>
+                        <td><strong>${escapeHtml(s.title || 'Untitled')}</strong></td>
+                        <td><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" style="font-size: 0.85rem; font-weight: 600;">${escapeHtml(s.url)}</a></td>
+                        <td><span style="font-size: 0.8rem; color: var(--seo-muted);">${escapeHtml(s.category || 'General')}</span></td>
+                        <td><span class="seo-status-tag ${s.status === 'Published' || s.status === 'Approved' ? 'pass' : 'warn'}">${escapeHtml(s.status || 'Pending')}</span></td>
+                        <td>
+                          ${score !== null ? `
+                            <span class="seo-status-tag ${score >= 80 ? 'pass' : score >= 60 ? 'warn' : 'fail'}">
+                              ${score}/100 (${grade})
+                            </span>
+                          ` : '<span style="color: var(--seo-muted); font-size: 0.8rem;">Not audited</span>'}
+                        </td>
+                        <td>
+                          <div style="display: flex; gap: 0.35rem;">
+                            <button type="button" class="seo-btn seo-btn-secondary btn-dash-audit-site" data-url="${escapeHtml(s.url)}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">⚡ Audit</button>
+                            <button type="button" class="seo-btn seo-btn-primary btn-dash-rank-site" data-url="${escapeHtml(s.url)}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">🔑 Ranks</button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
             </div>
           </div>
         ` : ''}
@@ -181,6 +235,8 @@ export const dashboardFeature = {
     // Quick scan handler from dashboard
     const quickUrlIn = container.querySelector('#dash-quick-url');
     const quickScanBtn = container.querySelector('#dash-btn-quick-scan');
+    const scanAllBtn = container.querySelector('#dash-btn-scan-all');
+    const scanSubsBtn = container.querySelector('#dash-btn-scan-submitted-sites');
 
     function triggerScan() {
       const u = quickUrlIn.value.trim();
@@ -206,6 +262,49 @@ export const dashboardFeature = {
     quickScanBtn?.addEventListener('click', triggerScan);
     quickUrlIn?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') triggerScan();
+    });
+
+    scanAllBtn?.addEventListener('click', () => {
+      if (ctx.navigate) ctx.navigate('audit');
+      setTimeout(() => {
+        const batchModeBtn = document.querySelector('#audit-mode-batch-btn');
+        batchModeBtn?.click();
+      }, 100);
+    });
+
+    scanSubsBtn?.addEventListener('click', () => {
+      if (ctx.navigate) ctx.navigate('audit');
+      setTimeout(() => {
+        const batchModeBtn = document.querySelector('#audit-mode-batch-btn');
+        const loadSubs = document.querySelector('#batch-btn-load-subs');
+        batchModeBtn?.click();
+        loadSubs?.click();
+      }, 100);
+    });
+
+    // Site row quick action buttons
+    container.querySelectorAll('.btn-dash-audit-site').forEach(b => {
+      b.addEventListener('click', () => {
+        const u = b.getAttribute('data-url');
+        if (ctx.setActiveUrl) ctx.setActiveUrl(u);
+        if (ctx.navigate) ctx.navigate('audit');
+        setTimeout(() => {
+          const auditUrlIn = document.querySelector('#seo-audit-url');
+          const auditBtn = document.querySelector('#seo-btn-fetch-url');
+          if (auditUrlIn && auditBtn) {
+            auditUrlIn.value = u;
+            auditBtn.click();
+          }
+        }, 100);
+      });
+    });
+
+    container.querySelectorAll('.btn-dash-rank-site').forEach(b => {
+      b.addEventListener('click', () => {
+        const u = b.getAttribute('data-url');
+        if (ctx.setActiveUrl) ctx.setActiveUrl(u);
+        if (ctx.navigate) ctx.navigate('keywords');
+      });
     });
 
     // Client form handlers
