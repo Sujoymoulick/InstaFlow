@@ -32,6 +32,22 @@ export const dashboardFeature = {
 
     container.innerHTML = `
       <div class="seo-dashboard-view">
+        <!-- Hero Instant URL Quick Scan Bar -->
+        <div class="seo-card" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; padding: 1.75rem 2rem; border: none; margin-bottom: 1.5rem; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.25);">
+          <div style="max-width: 800px;">
+            <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; margin-bottom: 0.25rem;">⚡ Instant Free SEO & GEO Scanner</div>
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem; line-height: 1.2;">Scan & Audit Any Website</h2>
+            <p style="font-size: 0.875rem; opacity: 0.85; margin-bottom: 1.25rem;">Enter any URL below for an immediate 100+ point audit across On-Page SEO, AI-search (GEO), Schema, and Core Web Vitals.</p>
+            
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="dash-quick-url" placeholder="https://yourwebsite.com" style="flex: 1; height: 48px; padding: 0 1.25rem; font-size: 0.95rem; border: none; border-radius: 8px; background: #ffffff; color: #0f172a;" />
+              <button type="button" id="dash-btn-quick-scan" style="height: 48px; padding: 0 1.75rem; font-size: 0.95rem; font-weight: 700; border: none; border-radius: 8px; background: #10b981; color: #ffffff; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                🔍 Start Scan
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Top Metric Counters -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
           <div class="seo-card" style="margin-bottom: 0;">
@@ -139,7 +155,7 @@ export const dashboardFeature = {
               <h3 class="seo-card-title">🕒 Recent Audits</h3>
             </div>
             ${reports.length === 0 ? `
-              <p style="font-size: 0.85rem; color: var(--seo-muted); text-align: center; padding: 1.5rem 0;">No audit history found. Run your first audit under "Site Audit".</p>
+              <p style="font-size: 0.85rem; color: var(--seo-muted); text-align: center; padding: 1.5rem 0;">No audit history found. Run your first audit using the quick scan bar above.</p>
             ` : `
               <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${reports.slice(0, 6).map(r => `
@@ -162,7 +178,34 @@ export const dashboardFeature = {
       </div>
     `;
 
-    // Bind event handlers
+    // Quick scan handler from dashboard
+    const quickUrlIn = container.querySelector('#dash-quick-url');
+    const quickScanBtn = container.querySelector('#dash-btn-quick-scan');
+
+    function triggerScan() {
+      const u = quickUrlIn.value.trim();
+      if (!u) {
+        showToast('Please enter a website URL.', 'warn');
+        quickUrlIn.focus();
+        return;
+      }
+      ctx.navigate('audit');
+      setTimeout(() => {
+        const auditUrlIn = document.querySelector('#seo-audit-url');
+        const auditBtn = document.querySelector('#seo-btn-fetch-url');
+        if (auditUrlIn && auditBtn) {
+          auditUrlIn.value = u;
+          auditBtn.click();
+        }
+      }, 100);
+    }
+
+    quickScanBtn?.addEventListener('click', triggerScan);
+    quickUrlIn?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') triggerScan();
+    });
+
+    // Client form handlers
     const addClientBtn = container.querySelector('#seo-btn-add-client');
     const formSlot = container.querySelector('#seo-client-form-slot');
     const cancelClientBtn = container.querySelector('#seo-btn-cancel-client');

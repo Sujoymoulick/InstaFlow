@@ -21,7 +21,7 @@ export function mountSeoSuite(containerEl, options = {}) {
   }
 
   const crmAdapter = options.crmAdapter || new LocalStorageCrmAdapter();
-  let proxyUrl = options.proxyUrl || '';
+  let proxyUrl = options.proxyUrl !== undefined ? options.proxyUrl : '/api/seo';
   let currentLocale = options.locale || 'en';
   let currentTheme = options.theme || 'light';
   let activeFeatureId = options.defaultFeature || 'dashboard';
@@ -63,7 +63,7 @@ export function mountSeoSuite(containerEl, options = {}) {
               <div style="font-size: 0.75rem; color: var(--seo-muted);">Professional SEO Audit, GEO & Lead Intelligence</div>
             </div>
             <span id="seo-tier-badge" class="seo-brand-badge ${proxyUrl ? '' : 'tier1'}">
-              ${proxyUrl ? 'Tier 2: Proxy Active' : 'Tier 1: Browser Offline'}
+              ${proxyUrl ? '⚡ Free Live Scanner Active' : 'Offline Mode'}
             </span>
           </div>
 
