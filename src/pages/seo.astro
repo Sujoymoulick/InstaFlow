@@ -1,28 +1,35 @@
 ---
 import LayoutSidebar from '../app/LayoutSidebar.astro';
-import { url } from '../lib/data.js';
 
 export const prerender = false;
 ---
 
 <LayoutSidebar>
-	<div class="px-4 pt-4">
+	<div class="px-2 pt-2">
 		<!-- SEO Suite Root Mount Container -->
 		<div id="instaflow-seo-suite-root"></div>
 	</div>
+</LayoutSidebar>
 
-	<link rel="stylesheet" href="/seo/seo-suite.css" />
+<script>
+	import { mountSeoSuite } from '../../seo/index.js';
+	import '../../seo/styles/seo-suite.css';
 
-	<script type="module">
-		import { mountSeoSuite } from '/seo/index.js';
-
+	function initSeoSuite() {
 		const container = document.getElementById('instaflow-seo-suite-root');
-		if (container) {
+		if (container && !container.hasChildNodes()) {
 			mountSeoSuite(container, {
 				theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
 				locale: 'en',
 				defaultFeature: 'dashboard'
 			});
 		}
-	</script>
-</LayoutSidebar>
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initSeoSuite);
+	} else {
+		initSeoSuite();
+	}
+	document.addEventListener('astro:page-load', initSeoSuite);
+</script>

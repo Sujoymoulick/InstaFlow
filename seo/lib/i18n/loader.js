@@ -2,10 +2,10 @@
  * Instaflow SEO Suite - i18n Translation Engine & Loader
  */
 
-import en from './en.json' assert { type: 'json' };
-import es from './es.json' assert { type: 'json' };
-import fr from './fr.json' assert { type: 'json' };
-import de from './de.json' assert { type: 'json' };
+import en from './en.json';
+import es from './es.json';
+import fr from './fr.json';
+import de from './de.json';
 
 const LOCALES = {
   en,
