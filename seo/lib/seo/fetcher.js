@@ -17,15 +17,20 @@ export async function fetchWebsiteResilient(url, ctx = {}) {
 
   const proxiesToTry = [];
 
-  // 1. If explicit proxy configured in context, try it first
-  if (ctx.proxyUrl) {
+  // 1. Always prioritize local /api/seo endpoint first if available or configured
+  if (ctx.proxyUrl && ctx.proxyUrl.startsWith('/')) {
+    proxiesToTry.push(ctx.proxyUrl.replace(/\/$/, ''));
+  }
+  if (!proxiesToTry.includes('/api/seo')) {
+    proxiesToTry.push('/api/seo');
+  }
+
+  // 2. Add custom configured proxy (e.g. Cloudflare Worker or Vercel)
+  if (ctx.proxyUrl && !proxiesToTry.includes(ctx.proxyUrl.replace(/\/$/, ''))) {
     proxiesToTry.push(ctx.proxyUrl.replace(/\/$/, ''));
   }
 
-  // 2. Try local Astro API endpoint
-  proxiesToTry.push('/api/seo');
-
-  // 3. Fallback to public worker if local failed or vice versa
+  // 3. Add public Cloudflare worker fallback
   if (!proxiesToTry.includes('https://instaflow-seo-proxy.sujoymoulick05.workers.dev')) {
     proxiesToTry.push('https://instaflow-seo-proxy.sujoymoulick05.workers.dev');
   }
@@ -36,7 +41,7 @@ export async function fetchWebsiteResilient(url, ctx = {}) {
     try {
       const endpoint = `${proxyBase}/fetch?url=${encodeURIComponent(normalized)}`;
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 12000);
+      const timer = setTimeout(() => ctrl.abort(), 6000); // 6s per proxy attempt
 
       const res = await fetch(endpoint, { signal: ctrl.signal });
       clearTimeout(timer);
@@ -67,7 +72,32 @@ export async function fetchWebsiteResilient(url, ctx = {}) {
     }
   }
 
-  throw new Error(`Failed to fetch website "${normalized}". Last error: ${lastError?.message || 'Connection failed'}`);
+  // Final direct attempt if proxies failed
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const directRes = await fetch(normalized, {
+      signal: ctrl.signal,
+      headers: { 'Accept': 'text/html,application/xhtml+xml' }
+    });
+    clearTimeout(timer);
+    if (directRes.ok) {
+      const text = await directRes.text();
+      return {
+        url: normalized,
+        finalUrl: directRes.url || normalized,
+        status: directRes.status,
+        statusText: directRes.statusText,
+        html: text,
+        headers: {},
+        timingMs: 500,
+        byteSize: text.length,
+        usedProxy: 'direct'
+      };
+    }
+  } catch (directErr) {}
+
+  throw new Error(`Unable to fetch "${normalized}". ${lastError?.message || 'Connection timed out'}`);
 }
 
 /**

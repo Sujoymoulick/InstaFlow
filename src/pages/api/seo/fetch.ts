@@ -3,9 +3,9 @@ import { validateUrlSafety } from '../../../../seo/worker/ssrf-guard.js';
 
 export const prerender = false;
 
-const USER_AGENT = 'Mozilla/5.0 (compatible; InstaflowSeoBot/1.0; +https://instaflow.io)';
-const MAX_BYTES = 4 * 1024 * 1024; // 4MB
-const TIMEOUT_MS = 12000;          // 12s
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+const MAX_BYTES = 8 * 1024 * 1024; // 8MB
+const TIMEOUT_MS = 8000;           // 8s
 
 export const get: APIRoute = async ({ request }) => {
 	const reqUrl = new URL(request.url);

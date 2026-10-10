@@ -19,7 +19,7 @@ export const prerender = false;
 		const container = document.getElementById('instaflow-seo-suite-root');
 		if (container && !container.hasChildNodes()) {
 			mountSeoSuite(container, {
-				proxyUrl: 'https://instaflow-seo-proxy.sujoymoulick05.workers.dev',
+				proxyUrl: '/api/seo',
 				theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
 				locale: 'en',
 				defaultFeature: 'dashboard'

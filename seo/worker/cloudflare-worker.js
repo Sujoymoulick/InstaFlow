@@ -13,7 +13,7 @@
 
 import { validateUrlSafety } from './ssrf-guard.js';
 
-const USER_AGENT = 'InstaflowSeoBot/1.0 (+https://instaflow.io/bot; SEO Audit & Health Checker)';
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 (compatible; SEO-Auditor/1.0)';
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB
 const FETCH_TIMEOUT_MS = 10000;    // 10 seconds
 const MAX_REDIRECTS = 5;
