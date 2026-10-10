@@ -1,0 +1,16 @@
+{
+  "name": "instaflow-seo-proxy",
+  "version": "1.0.0",
+  "description": "Free zero-cost SSRF-guarded SEO proxy for Instaflow SEO Suite",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": ["seo", "cloudflare-worker", "proxy", "crawler"],
+  "author": "Instaflow",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
