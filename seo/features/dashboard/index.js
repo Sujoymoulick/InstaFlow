@@ -40,7 +40,7 @@ export const dashboardFeature = {
             <p style="font-size: 0.875rem; opacity: 0.85; margin-bottom: 1.25rem;">Enter any URL below for an immediate 100+ point audit across On-Page SEO, AI-search (GEO), Schema, and Core Web Vitals.</p>
             
             <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="dash-quick-url" placeholder="https://yourwebsite.com" style="flex: 1; height: 48px; padding: 0 1.25rem; font-size: 0.95rem; border: none; border-radius: 8px; background: #ffffff; color: #0f172a;" />
+              <input type="text" id="dash-quick-url" placeholder="https://freepdfly.com" value="${escapeHtml(ctx.getActiveUrl ? ctx.getActiveUrl() : 'https://freepdfly.com/')}" style="flex: 1; height: 48px; padding: 0 1.25rem; font-size: 0.95rem; border: none; border-radius: 8px; background: #ffffff; color: #0f172a;" />
               <button type="button" id="dash-btn-quick-scan" style="height: 48px; padding: 0 1.75rem; font-size: 0.95rem; font-weight: 700; border: none; border-radius: 8px; background: #10b981; color: #ffffff; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
                 🔍 Start Scan
               </button>
@@ -188,6 +188,9 @@ export const dashboardFeature = {
         showToast('Please enter a website URL.', 'warn');
         quickUrlIn.focus();
         return;
+      }
+      if (ctx.setActiveUrl) {
+        ctx.setActiveUrl(u);
       }
       ctx.navigate('audit');
       setTimeout(() => {

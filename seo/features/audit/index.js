@@ -57,9 +57,9 @@ export const auditFeature = {
             <!-- Quick One-Click Test Chips -->
             <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--seo-muted); flex-wrap: wrap;">
               <span>Try quick demo:</span>
+              <button type="button" class="seo-chip-btn" data-url="https://freepdfly.com/" style="background: var(--seo-surface); border: 1px solid var(--seo-primary); color: var(--seo-primary); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">⭐ freepdfly.com</button>
               <button type="button" class="seo-chip-btn" data-url="https://instaflow.sendvirtualgift.com" style="background: var(--seo-surface); border: 1px solid var(--seo-border); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; color: var(--seo-text);">instaflow.sendvirtualgift.com</button>
               <button type="button" class="seo-chip-btn" data-url="https://example.com" style="background: var(--seo-surface); border: 1px solid var(--seo-border); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; color: var(--seo-text);">example.com</button>
-              <button type="button" class="seo-chip-btn" data-url="https://wikipedia.org" style="background: var(--seo-surface); border: 1px solid var(--seo-border); padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; color: var(--seo-text);">wikipedia.org</button>
             </div>
           </div>
 
@@ -108,6 +108,9 @@ export const auditFeature = {
     });
 
     const urlInput = container.querySelector('#seo-audit-url');
+    if (urlInput && ctx.getActiveUrl) {
+      urlInput.value = ctx.getActiveUrl();
+    }
     const fetchUrlBtn = container.querySelector('#seo-btn-fetch-url');
     const keywordInput = container.querySelector('#seo-audit-keyword');
     const resultsContainer = container.querySelector('#seo-audit-results-container');
@@ -127,7 +130,9 @@ export const auditFeature = {
 
     chipBtns.forEach(chip => {
       chip.addEventListener('click', () => {
-        urlInput.value = chip.getAttribute('data-url');
+        const chipUrl = chip.getAttribute('data-url');
+        urlInput.value = chipUrl;
+        if (ctx.setActiveUrl) ctx.setActiveUrl(chipUrl);
         executeLiveScan(urlInput.value);
       });
     });
@@ -135,6 +140,12 @@ export const auditFeature = {
     urlInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         executeLiveScan(urlInput.value);
+      }
+    });
+
+    urlInput.addEventListener('change', () => {
+      if (ctx.setActiveUrl && urlInput.value.trim()) {
+        ctx.setActiveUrl(urlInput.value.trim());
       }
     });
 
@@ -152,6 +163,9 @@ export const auditFeature = {
       if (!/^https?:\/\//i.test(url)) {
         url = 'https://' + url;
         urlInput.value = url;
+      }
+      if (ctx.setActiveUrl) {
+        ctx.setActiveUrl(url);
       }
 
       fetchUrlBtn.disabled = true;

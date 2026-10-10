@@ -133,6 +133,53 @@
   gap: 0.25rem;
 }
 
+/* Active Target Site Bar */
+.seo-target-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--seo-bg);
+  border-bottom: 1px solid var(--seo-border);
+  padding: 0.5rem 1.5rem;
+  font-size: 0.8125rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.seo-target-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seo-target-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seo-pass);
+  box-shadow: 0 0 6px var(--seo-pass);
+}
+
+.seo-target-label {
+  color: var(--seo-muted);
+  font-weight: 500;
+}
+
+.seo-target-url {
+  font-weight: 700;
+  color: var(--seo-primary);
+  background: var(--seo-surface);
+  border: 1px solid var(--seo-border);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.seo-target-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .seo-tab-btn {
   background: none;
   border: none;

@@ -14,7 +14,7 @@ export const crawlerFeature = {
   render(container, ctx) {
     let crawlState = getItem('crawler:state', {
       status: 'idle', // 'idle' | 'running' | 'paused' | 'done'
-      targetUrl: '',
+      targetUrl: ctx.getActiveUrl ? ctx.getActiveUrl() : 'https://freepdfly.com/',
       maxPages: 50,
       maxDepth: 3,
       delayMs: 300,
@@ -22,6 +22,9 @@ export const crawlerFeature = {
       queue: [],
       seen: {}
     });
+    if (!crawlState.targetUrl && ctx.getActiveUrl) {
+      crawlState.targetUrl = ctx.getActiveUrl();
+    }
 
     let isPaused = false;
     let isCancelled = false;
@@ -167,6 +170,9 @@ export const crawlerFeature = {
       if (!rootUrl) {
         showToast('Please enter a root URL to start crawling.', 'warn');
         return;
+      }
+      if (ctx.setActiveUrl) {
+        ctx.setActiveUrl(rootUrl);
       }
       if (!ctx.proxyUrl) {
         showToast('Tier 2 Proxy required for live crawling.', 'error');

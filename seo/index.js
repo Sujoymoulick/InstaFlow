@@ -14,6 +14,8 @@
 import { ALL_FEATURES } from './features/registry.js';
 import { LocalStorageCrmAdapter } from './lib/crm/adapter.js';
 import { t, setLocale, getLocale, getAvailableLocales } from './lib/i18n/loader.js';
+import { getItem, setItem } from './lib/storage/storage.js';
+import { escapeHtml, showToast } from './ui/components.js';
 
 export function mountSeoSuite(containerEl, options = {}) {
   if (!containerEl) {
@@ -25,6 +27,7 @@ export function mountSeoSuite(containerEl, options = {}) {
   let currentLocale = options.locale || 'en';
   let currentTheme = options.theme || 'light';
   let activeFeatureId = options.defaultFeature || 'dashboard';
+  let activeTargetUrl = getItem('active_target_url', 'https://freepdfly.com/');
 
   setLocale(currentLocale);
 
@@ -42,12 +45,28 @@ export function mountSeoSuite(containerEl, options = {}) {
     }
   });
 
+  function updateActiveUrlDisplay() {
+    const displayEl = containerEl.querySelector('#seo-current-target-display');
+    if (displayEl) {
+      displayEl.textContent = activeTargetUrl;
+    }
+  }
+
   const ctx = {
     get proxyUrl() { return proxyUrl; },
     set proxyUrl(val) { proxyUrl = val; updateHeaderBadge(); },
     crmAdapter,
     get locale() { return currentLocale; },
     get theme() { return currentTheme; },
+    getActiveUrl: () => activeTargetUrl || 'https://freepdfly.com/',
+    setActiveUrl: (url) => {
+      if (!url) return;
+      let clean = url.trim();
+      if (!/^https?:\/\//i.test(clean)) clean = 'https://' + clean;
+      activeTargetUrl = clean;
+      setItem('active_target_url', clean);
+      updateActiveUrlDisplay();
+    },
     navigate: (featureId) => switchFeature(featureId)
   };
 
@@ -91,6 +110,20 @@ export function mountSeoSuite(containerEl, options = {}) {
           `).join('')}
         </nav>
 
+        <!-- Active Target Site Bar -->
+        <div class="seo-target-bar">
+          <div class="seo-target-info">
+            <span class="seo-target-dot"></span>
+            <span class="seo-target-label">Target Site:</span>
+            <span class="seo-target-url" id="seo-current-target-display">${escapeHtml(activeTargetUrl)}</span>
+          </div>
+          <div class="seo-target-actions">
+            <button type="button" id="seo-btn-change-target" class="seo-btn seo-btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" title="Change default website">🌐 Switch Site</button>
+            <button type="button" id="seo-btn-quick-audit" class="seo-btn seo-btn-primary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;">⚡ Run Audit</button>
+            <button type="button" id="seo-btn-quick-crawl" class="seo-btn seo-btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;">🕷️ Crawl Site</button>
+          </div>
+        </div>
+
         <!-- Main Body Area -->
         <main class="seo-main-body" id="seo-feature-container" role="tabpanel" tabindex="0">
         </main>
@@ -104,6 +137,28 @@ export function mountSeoSuite(containerEl, options = {}) {
         const featId = btn.getAttribute('data-feature');
         switchFeature(featId);
       });
+    });
+
+    // Target bar handlers
+    const changeTargetBtn = containerEl.querySelector('#seo-btn-change-target');
+    changeTargetBtn?.addEventListener('click', () => {
+      const newUrl = prompt('Enter website URL to analyze across all SEO tools:', activeTargetUrl);
+      if (newUrl && newUrl.trim()) {
+        ctx.setActiveUrl(newUrl.trim());
+        showToast(`Target site updated to ${activeTargetUrl}`, 'success');
+        // Refresh current feature
+        switchFeature(activeFeatureId);
+      }
+    });
+
+    const quickAuditBtn = containerEl.querySelector('#seo-btn-quick-audit');
+    quickAuditBtn?.addEventListener('click', () => {
+      switchFeature('audit');
+    });
+
+    const quickCrawlBtn = containerEl.querySelector('#seo-btn-quick-crawl');
+    quickCrawlBtn?.addEventListener('click', () => {
+      switchFeature('crawler');
     });
 
     const localeSelect = containerEl.querySelector('#seo-locale-select');

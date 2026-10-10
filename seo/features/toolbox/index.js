@@ -58,17 +58,19 @@ export const toolboxFeature = {
         else t.classList.remove('active');
       });
 
+      const targetSite = ctx.getActiveUrl ? ctx.getActiveUrl() : 'https://freepdfly.com/';
+
       switch (toolId) {
-        case 'serp': renderSerpTool(toolBody); break;
-        case 'schema': renderSchemaTool(toolBody); break;
-        case 'robots': renderRobotsTool(toolBody); break;
-        case 'sitemap': renderSitemapTool(toolBody); break;
-        case 'llmstxt': renderLlmsTxtTool(toolBody); break;
-        case 'hreflang': renderHreflangTool(toolBody); break;
-        case 'redirects': renderRedirectsTool(toolBody); break;
-        case 'readability': renderReadabilityTool(toolBody); break;
-        case 'ngrams': renderNGramsTool(toolBody); break;
-        case 'urlcleaner': renderUrlCleanerTool(toolBody); break;
+        case 'serp': renderSerpTool(toolBody, ctx, targetSite); break;
+        case 'schema': renderSchemaTool(toolBody, ctx, targetSite); break;
+        case 'robots': renderRobotsTool(toolBody, ctx, targetSite); break;
+        case 'sitemap': renderSitemapTool(toolBody, ctx, targetSite); break;
+        case 'llmstxt': renderLlmsTxtTool(toolBody, ctx, targetSite); break;
+        case 'hreflang': renderHreflangTool(toolBody, ctx, targetSite); break;
+        case 'redirects': renderRedirectsTool(toolBody, ctx, targetSite); break;
+        case 'readability': renderReadabilityTool(toolBody, ctx, targetSite); break;
+        case 'ngrams': renderNGramsTool(toolBody, ctx, targetSite); break;
+        case 'urlcleaner': renderUrlCleanerTool(toolBody, ctx, targetSite); break;
       }
     }
 
@@ -84,27 +86,27 @@ export const toolboxFeature = {
 };
 
 /* 1. SERP Previewer */
-function renderSerpTool(container) {
+function renderSerpTool(container, ctx, targetSite = 'https://freepdfly.com/') {
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
       <div>
         <div class="seo-form-group">
           <label class="seo-label">Page Title</label>
-          <input type="text" id="serp-title" class="seo-input" value="Instaflow CRM - All-in-One Sales & SEO Automation" />
+          <input type="text" id="serp-title" class="seo-input" value="Free PDF Tools Online - Merge, Compress, Convert PDF | FreePDFly" />
           <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--seo-muted); margin-top: 0.25rem;">
-            <span id="serp-title-chars">53 chars</span>
+            <span id="serp-title-chars">66 chars</span>
             <span id="serp-title-px">545px / 600px max</span>
           </div>
         </div>
 
         <div class="seo-form-group">
           <label class="seo-label">Page URL / Breadcrumb</label>
-          <input type="text" id="serp-url" class="seo-input" value="https://instaflow.io/seo-suite" />
+          <input type="text" id="serp-url" class="seo-input" value="${escapeHtml(targetSite)}" />
         </div>
 
         <div class="seo-form-group">
           <label class="seo-label">Meta Description</label>
-          <textarea id="serp-desc" class="seo-textarea" rows="3">Audit your website, check AI-search readiness (GEO), crawl broken links, and generate branded PDF reports directly in your browser.</textarea>
+          <textarea id="serp-desc" class="seo-textarea" rows="3">Free online PDF tools to convert, compress, edit, merge and split PDF documents easily in your browser without software installation.</textarea>
           <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--seo-muted); margin-top: 0.25rem;">
             <span id="serp-desc-chars">139 chars</span>
             <span id="serp-desc-px">920px / 960px max</span>
